@@ -6,7 +6,7 @@ tabla es el índice.
 
 | Stack | Estado |
 |-------|--------|
-| [Rust](rust/README.md) | v0.1, con [plantilla ejecutable](rust/template/) |
+| [Rust](rust/README.md) | v0.2, con [plantilla ejecutable](rust/template/) |
 | [Astro](astro/README.md) (sitios web) | v0.1, con [plantilla ejecutable](astro/template/) |
 | Java, Kotlin, TypeScript | Pendientes |
 

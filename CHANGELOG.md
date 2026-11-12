@@ -2,7 +2,49 @@
 
 ## Sin publicar
 
+### Agregado
+- `scripts/check_harness.py`: verificador de consistencia del harness (VER-1
+  aplicado al propio repo). Usa Python 3.11+ y solo la biblioteca estándar.
+  Sale con un código distinto de 0 e imprime una línea `ruta:línea: CÓDIGO:
+  mensaje` por problema. Detecta IDs citados sin definir o definidos dos veces,
+  symlinks y enlaces relativos de Markdown rotos, frontmatter de skills y
+  subagentes (`name`, `description`, `name` igual a su carpeta o archivo),
+  rutas de la descripción de una skill de stack que no existen en la plantilla,
+  y versiones de stack distintas entre `stacks/README.md` y la guía.
+  - Tests con `unittest` y fixtures en `scripts/tests/fixtures/`: un mini-repo
+    válido y uno por cada tipo de problema (11 tests). Se verificó que anular
+    cada comprobación hace fallar al menos un test.
+- `.github/workflows/harness.yml`: el verificador y sus tests; en la plantilla
+  Rust, `cargo fmt --check`, `clippy -D warnings` y `cargo test --workspace`; en
+  la plantilla Astro, lint, `astro check` y los tests unitarios. Los e2e y
+  Lighthouse siguen en el CI propio de la plantilla.
+- README: sección "Verificación del harness". La estructura ahora incluye
+  `craft-web` y `scripts/`.
+
+### Cambiado
+- Skill `rust-stack`: la descripción ya no menciona `apps/api` (desapareció en
+  0.5.0). Ahora lista `contexts/*/api` y `edge/http`. Las rutas de las
+  descripciones de `rust-stack` y `astro-stack` van entre comillas invertidas
+  para que el verificador las compruebe. En `astro-stack`, "wrangler" pasa a
+  `wrangler.jsonc`.
+- `stacks/README.md`: Rust v0.1 → v0.2, igual que su guía.
+- `hexagonal.md`, `errors.md` y `tdd.md`: "pendiente de validar en Rust" pasa a
+  "validado en Rust" (plantilla y migración de `communities`, 0.3.0–0.5.0).
+- Sin conteos de tests en `stacks/rust/README.md`, `stacks/astro/README.md` ni
+  `stacks/rust/template/README.md`. Dicen "todos en verde" y enlazan al CI. El
+  encabezado de Astro decía 22 unitarios y el CHANGELOG, 21.
+
 ### Verificado
+- Verificador sobre el repo real, antes de corregir: `stacks/README.md` (Rust
+  v0.1 frente a v0.2) y, una vez puestas las rutas entre comillas invertidas,
+  `apps/api` en `rust-stack`. Después de corregir: exit 0.
+- Inyectado en el repo real y revertido (comparado byte a byte con una copia):
+  un ID `HEX-n` inexistente en una skill, un symlink roto en `references/`,
+  `edge/grpc` en la descripción de `rust-stack`, `ERR-2` duplicado, un enlace a `LEEME.md`, un
+  `name` distinto de su carpeta, un subagente sin `description` y Astro v0.3 en
+  el índice. Se detectaron los 8, uno por línea, con exit 1.
+- Los comandos del CI, en local: fmt, clippy y 36 tests de Rust en verde; lint,
+  `astro check` (0 errores) y 22 tests unitarios de Astro en verde.
 - Instalación desde GitHub (no desde el clon local), con Claude Code 2.1.316,
   sobre `main` en `734c5cf` (0.6.0). Se usó un `CLAUDE_CONFIG_DIR` aislado para
   no chocar con el marketplace local del mismo nombre:

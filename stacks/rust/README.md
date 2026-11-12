@@ -2,8 +2,9 @@
 
 > **Estado:** v0.2 (2026-11-12)
 > **Toolchain:** Rust estable, edición 2024 (verificado con 1.97).
-> **Referencia ejecutable:** [`template/`](template/) — compila, 36 tests en verde y
-> los tests de arquitectura detectan cada violación (verificado inyectándolas).
+> **Referencia ejecutable:** [`template/`](template/) — compila, todos los tests en verde
+> (lo comprueba el [CI del harness](../../.github/workflows/harness.yml)) y los tests de
+> arquitectura detectan cada violación (verificado inyectándolas).
 
 Traducción de [`core/principles`](../../core/principles/README.md) a Rust. Los
 principios no cambian; aquí se decide **cómo se expresan**.

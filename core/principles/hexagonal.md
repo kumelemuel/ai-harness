@@ -1,7 +1,7 @@
 # Principios — Arquitectura hexagonal
 
 > **Estado:** v0.2
-> **Origen:** destilado de un proyecto Java 21 + Spring Boot con 7 ADR. Pendiente de validar en Kotlin, Rust y TypeScript.
+> **Origen:** destilado de un proyecto Java 21 + Spring Boot con 7 ADR. Validado en Rust ([stacks/rust](../../stacks/rust/README.md): plantilla y migración de `communities` en kumenity-backend-rust). Pendiente de validar en Kotlin y TypeScript.
 > **Relacionados:** [errors.md](errors.md) (`ERR`), [tdd.md](tdd.md) (`TDD`), [verification.md](verification.md) (`VER`).
 
 Formato de cada principio: ver [README](README.md).

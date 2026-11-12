@@ -3,7 +3,9 @@
 > **Estado:** v0.1 (2026-11-12)
 > **Toolchain:** Astro 7, Node 24, Cloudflare Workers, Tailwind 4.
 > **Referencia ejecutable:** [`template/`](template/): build limpio, `astro check` sin errores,
-> 22 tests unitarios y 16 e2e en verde. Los tests detectan cada violación inyectada:
+> tests unitarios y e2e todos en verde (los unitarios, en el
+> [CI del harness](../../.github/workflows/harness.yml); los e2e, en el
+> [CI de la plantilla](template/.github/workflows/ci.yml)). Los tests detectan cada violación inyectada:
 > `unsafe-inline`, una página on-demand no declarada, un `<h1>` duplicado, una imagen sin
 > `alt` y una fuente de terceros. Lighthouse está configurado pero **aún no se corrió
 > localmente**.

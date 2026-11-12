@@ -1,0 +1,69 @@
+name: Harness
+
+# VER-1 aplicado al propio harness: consistencia de la documentación y las dos
+# plantillas en verde. Los e2e y Lighthouse de Astro corren en el CI propio de
+# la plantilla (stacks/astro/template/.github/workflows/ci.yml).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: harness-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  consistency:
+    name: Verificador de consistencia
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 --version
+      - name: Tests del verificador
+        run: python3 -B -m unittest discover -s scripts/tests -v
+      - name: Verificador sobre el repo
+        run: python3 -B scripts/check_harness.py
+
+  rust:
+    name: Plantilla Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: stacks/rust/template
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: stacks/rust/template
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  astro:
+    name: Plantilla Astro
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: stacks/astro/template
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: stacks/astro/template/.nvmrc
+          cache: npm
+          cache-dependency-path: stacks/astro/template/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run check
+      - run: npm test
