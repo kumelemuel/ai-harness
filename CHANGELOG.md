@@ -2,6 +2,29 @@
 
 ## Sin publicar
 
+### Verificado
+- Instalación desde GitHub (no desde el clon local), con Claude Code 2.1.316,
+  sobre `main` en `734c5cf` (0.6.0). Se usó un `CLAUDE_CONFIG_DIR` aislado para
+  no chocar con el marketplace local del mismo nombre:
+  `claude plugin marketplace add kumelemuel/ai-harness` e
+  `install craft-backend@ai-harness` / `craft-web@ai-harness`.
+  - La caché no tiene symlinks (`find … -type l` vacío): cada `references/` se
+    materializó como archivos reales, incluidos los directorios `template/`.
+  - `diff -r` entre la caché y una copia con `cp -L` de cada plugin, desde
+    `git archive 734c5cf`: idéntico, salvo el marcador `.in_use`. No hay archivos
+    vacíos.
+  - Los cuatro hooks se ejecutaron con el comando de su `hooks.json`, con
+    `${CLAUDE_PLUGIN_ROOT}` apuntando a la caché, sobre una copia de la
+    plantilla Rust: pasan con un cambio limpio, y `post-edit` bloquea (exit 2,
+    HEX-5) al inyectar `CommunityCachePort`.
+  - Queda pendiente una sesión real de Claude contra la instalación desde
+    GitHub. El clasificador de permisos bloqueó copiar credenciales al
+    directorio aislado. Las sesiones reales de 0.4.0–0.6.0 ya corrían los hooks
+    desde la caché (instalada desde ruta local), y el contenido de la caché es
+    el mismo.
+  - Se desinstaló todo y se borró el directorio aislado. La configuración del
+    usuario no se tocó.
+
 ## 0.6.0 — 2026-11-12
 
 Plugins: `craft-backend` 0.5.1 y `craft-web` 0.1.1.
