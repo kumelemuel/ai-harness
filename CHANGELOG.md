@@ -88,6 +88,40 @@
     Inyección: renombrar `hex_3_…` en `tests/ports.rs` y quitar `env.test.ts`
     dan un `MISSING-TEST` cada uno.
 
+### Decisiones
+- El job `astro-e2e` vive en el workflow del harness, y no se cambió el CI
+  propio de la plantilla: ese es el que hereda un sitio nuevo. `schedule` y
+  `workflow_dispatch` son del workflow entero, así que los otros jobs se
+  saltan la ejecución semanal.
+- HEX-3 se verifica por las primitivas de E/S del kernel, como pide el
+  encargo. Un trait de dominio con asincronía propia (`async fn`,
+  `impl Future`, `Pin<Box<dyn Future>>` escrito a mano) no lo detecta: queda
+  en el inventario.
+- ERR-1 en `application` protege tres categorías (hojas, contratos y errores
+  de puertos). Un tipo privado de un handler que implementa `Error` no es
+  violación, porque no cruza ninguna frontera.
+- ERR-4: el módulo `testing` (`cfg(any(test, feature = "testing"))`) no está
+  exento, porque compila sin `test`.
+- WEB-10 usa `git check-ignore` en un repo temporal en vez de reimplementar
+  la semántica de `.gitignore`. Necesita `git` en el `PATH`, que ya está en el
+  CI y donde se desarrolla.
+- `MISSING-TEST` deja fuera el CHANGELOG, porque registra un momento: un test
+  renombrado después no lo invalida.
+
+### Inventario de las secciones "Verificación"
+
+Lo que dejan resuelto los cambios sin publicar: HEX-3, ERR-1 en `application`,
+ERR-4, WEB-10, VER-1 (tests citados), y WEB-4, WEB-5, WEB-6, WEB-7 y WEB-9 en el
+CI del harness.
+
+| Estado | Promesas |
+|--------|----------|
+| Cubiertas | HEX-1, HEX-2, HEX-3 (primitivas de E/S del kernel en `domain`), HEX-4, HEX-5 (puertos y adaptadores), HEX-6, HEX-8, TDD-2 (dependencias), ERR-1 (`domain` y `application`), ERR-2 (exhaustividad del compilador), ERR-4 (transporte y logging por HEX-2, macros de salida por `err_4_*`), WEB-1, WEB-2, WEB-3, WEB-4 (axe), WEB-5 (Lighthouse), WEB-6, WEB-7 (terceros), WEB-8, WEB-9 (metadatos), WEB-10 (schema y `.gitignore`), VER-1 (tests de arquitectura en CI y tests citados que existen), RS-1, RS-3, RS-4, AS-4, AS-5, AS-6 |
+| Asignadas al revisor | HEX-7, TDD-1, TDD-2 (forma), RS-2 (`panic!` solo para invariantes), ERR-3 (semántica), WEB-4 (`alt`), WEB-7 (aviso), WEB-9 (JSON-LD) |
+| Automatizables sin test | ERR-3 (un caso por variante): la batería de contrato es el lugar, pero la plantilla no tiene puertos con errores declarados contra los que probar el test. HEX-3 con asincronía propia del dominio (`async fn`, `impl Future`): el encargo acotó el test a las primitivas del kernel |
+| Configuradas sin verificar | Ninguna. WEB-5 corrió localmente con los umbrales intactos. El job `astro-e2e` todavía no corrió en GitHub, porque la rama no está publicada |
+| No automatizables y sin revisor | ERR-2 (un test por variante), AS-3 (código en inglés) |
+
 ## 0.8.0 — 2026-11-12
 
 Plugins: `craft-backend` 0.6.0 y `craft-web` 0.2.0. Publica lo que estaba en
