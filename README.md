@@ -67,6 +67,7 @@ python3 -m unittest discover -s scripts/tests          # tests del verificador
 | `STACK-PATH` | Una ruta entre comillas invertidas en la descripción de una skill de stack que no existe en la plantilla |
 | `STACK-STATUS` | Una versión de stack distinta en `stacks/README.md` y en su guía |
 | `VOLATILE-COUNT` | Un conteo de tests en la documentación (fuera del CHANGELOG) |
+| `MISSING-TEST` | Un test citado entre comillas invertidas en una sección "Verificación" o en una tabla de Enforcement que no existe en la plantilla: una función con prefijo de principio (`hex_4_…`, admite `*`), con o sin archivo (`tests/naming.rs::hex_4_*`), o un archivo de test (`routes.test.ts`) |
 | `VERSION-NOT-BUMPED` | Con `--base`: cambió un archivo que llega a un plugin y su versión no subió |
 | `CHANGELOG-UNRELEASED` | Con `--base`: el CHANGELOG tiene una sección "Sin publicar" |
 
@@ -78,6 +79,14 @@ comportamiento, no solo la documentación.
 La documentación no lleva números volátiles (conteos de tests): dice "todos en
 verde" y el CI lo demuestra. Solo el CHANGELOG conserva conteos, porque registra
 un momento. `VOLATILE-COUNT` lo hace cumplir.
+
+Un test citado como garantía tiene que existir. `MISSING-TEST` revisa los
+párrafos `**Verificación…**`, las secciones con encabezado "Verificación" o
+"Enforcement" y las tablas con una columna así, fuera de los bloques de código y
+del CHANGELOG. Un documento de `stacks/<x>/` se compara con `stacks/<x>/template`;
+los demás, con todas las plantillas. Solo cuentan como test las funciones de un
+directorio `tests/` y las que llevan `#[test]`: un helper con el mismo prefijo
+no sostiene la promesa.
 
 El CI ([`.github/workflows/harness.yml`](.github/workflows/harness.yml)) corre
 el verificador y sus tests (con `--base` en los pull requests hacia `main` y en

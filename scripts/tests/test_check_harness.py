@@ -138,6 +138,53 @@ class VolatileNumbers(unittest.TestCase):
         )
 
 
+class MissingTests(unittest.TestCase):
+    """VER-1: un test citado en "Verificación" o en una tabla de Enforcement existe."""
+
+    def cited(self) -> set[tuple[str, str]]:
+        return {(p.path, p.message.split("`")[1]) for p in problems("missing_test")}
+
+    def test_only_missing_tests_are_reported(self) -> None:
+        self.assertEqual({"MISSING-TEST"}, {p.code for p in problems("missing_test")})
+        self.assertEqual(
+            {
+                ("stacks/rust/README.md", "hex_9_missing"),
+                ("stacks/rust/README.md", "tests/naming.rs::hex_6_*"),
+                ("stacks/rust/README.md", "tests/gone.rs::hex_4_*"),
+                ("stacks/rust/README.md", "err_1_*"),
+                ("stacks/rust/README.md", "tests/errors.rs"),
+                ("stacks/astro/README.md", "contact.test.ts"),
+                ("core/principles/hexagonal.md", "hex_7_*"),
+                ("core/principles/hexagonal.md", "hex_8_kernel_*"),
+            },
+            self.cited(),
+        )
+
+    def test_reports_the_line_of_the_citation(self) -> None:
+        lines = {p.message.split("`")[1]: p.line for p in problems("missing_test")}
+        self.assertEqual(16, lines["hex_9_missing"])
+        self.assertEqual(6, lines["contact.test.ts"])
+        self.assertEqual(8, lines["hex_7_*"])
+        self.assertEqual(15, lines["hex_8_kernel_*"])
+
+    def test_outside_verification_sections_nothing_is_checked(self) -> None:
+        tokens = {token for _, token in self.cited()}
+        for outside in (
+            "hex_9_fuera_de_seccion", "hex_9_en_codigo", "hex_9_despues_de_la_seccion",
+            "hex_9_en_la_regla", "hex_9_despues_del_bloque", "gone.test.ts",
+        ):
+            self.assertNotIn(outside, tokens)
+
+    def test_message_names_the_template_searched(self) -> None:
+        messages = {p.message.split("`")[1]: p.message for p in problems("missing_test")}
+        self.assertIn("stacks/rust/template", messages["hex_9_missing"])
+        self.assertNotIn("stacks/astro/template", messages["hex_9_missing"])
+        self.assertIn("stacks/astro/template", messages["contact.test.ts"])
+        # Fuera de stacks/ se busca en todas las plantillas.
+        self.assertIn("stacks/astro/template", messages["hex_7_*"])
+        self.assertIn("stacks/rust/template", messages["hex_7_*"])
+
+
 class Release(unittest.TestCase):
     """`--base`: lo que entra a `main` publica una versión nueva.
 

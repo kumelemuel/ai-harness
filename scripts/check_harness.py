@@ -24,6 +24,12 @@ Comprobaciones:
   VOLATILE-COUNT un conteo de tests ("36 tests", "16 e2e") en la documentación.
                  Se escribe "todos en verde" y lo demuestra el CI; solo el
                  CHANGELOG conserva conteos, porque registra un momento.
+  MISSING-TEST   un test citado entre comillas invertidas en una sección
+                 "Verificación" o en una tabla de Enforcement no existe en la
+                 plantilla: una función con prefijo de principio (`hex_4_…`,
+                 admite `*`), opcionalmente con su archivo
+                 (`tests/naming.rs::hex_4_*`), o un archivo de test
+                 (`routes.test.ts`, `tests/naming.rs`)
 
 Con --base REF (CI, cambios que entran a main), desde el merge-base de REF y HEAD:
   VERSION-NOT-BUMPED   cambió un archivo que llega a un plugin (su directorio o
@@ -36,6 +42,7 @@ Solo biblioteca estándar (Python 3.11+), igual que los hooks.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -372,6 +379,165 @@ def check_volatile_counts(root: Path, files: list[Path]) -> list[Problem]:
     return problems
 
 
+# ------------------------------------------------------------- tests citados
+
+_TEST_PREFIXES = "|".join(sorted((p.lower() for p in ID_SOURCES), key=len, reverse=True))
+# `hex_4_use_case_…`, `hex_2_core_*`: prefijo de principio, número y nombre.
+TEST_FUNCTION = re.compile(rf"^(?:{_TEST_PREFIXES})_\d+(?:_[a-z0-9_*]*)?$")
+# `routes.test.ts`, `tests/unit/routes.test.ts`, `tests/naming.rs`.
+TEST_FILE = re.compile(r"^(?:[\w.-]+/)*(?:[\w-]+\.(?:test|spec)\.[cm]?[jt]sx?|tests/(?:[\w-]+/)*[\w-]+\.rs)$")
+RUST_FN = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)")
+RUST_TEST_ATTR = re.compile(r"^\s*#\[(?:\w+::)*test\b")
+HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
+TABLE_ROW = re.compile(r"^\s*\|")
+VERIFICATION_WORDS = re.compile(r"\b(?:Verificación|Enforcement)\b")
+
+
+def verification_lines(lines: list[str]):
+    """(línea, texto) de lo que promete un test, fuera de bloques de código.
+
+    - Un párrafo que empieza con `**Verificación…**`, hasta el siguiente
+      encabezado, otra etiqueta en negrita o `---`.
+    - Una sección cuyo encabezado dice "Verificación" o "Enforcement", hasta el
+      siguiente encabezado del mismo nivel o superior.
+    - Una tabla con una columna "Verificación" o "Enforcement".
+    """
+    in_fence = False
+    section_level: int | None = None
+    in_paragraph = False
+    in_table = table_promises = False
+    for number, line in enumerate(lines, start=1):
+        if FENCE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        heading = HEADING.match(line)
+        if heading:
+            level = len(heading.group(1))
+            in_paragraph = False
+            if section_level is not None and level <= section_level:
+                section_level = None
+            if section_level is None and VERIFICATION_WORDS.search(heading.group(2)):
+                section_level = level
+            continue
+        stripped = line.strip()
+        if stripped.startswith("**Verificación"):
+            in_paragraph = True
+        elif stripped.startswith("**") or stripped == "---":
+            in_paragraph = False
+        if TABLE_ROW.match(line):
+            if not in_table:
+                in_table = True
+                table_promises = bool(VERIFICATION_WORDS.search(line))
+        else:
+            in_table = table_promises = False
+        if section_level is not None or in_paragraph or (in_table and table_promises):
+            yield number, line
+
+
+def templates(root: Path) -> list[Path]:
+    stacks = root / "stacks"
+    return sorted(p for p in stacks.glob("*/template") if p.is_dir()) if stacks.is_dir() else []
+
+
+def templates_for(root: Path, path: Path, every: list[Path]) -> list[Path]:
+    """La plantilla del stack del documento; fuera de `stacks/<x>/`, todas."""
+    parts = Path(rel(root, path)).parts
+    if len(parts) >= 2 and parts[0] == "stacks":
+        own = root / "stacks" / parts[1] / "template"
+        if own in every:
+            return [own]
+    return every
+
+
+def index_tests(template: Path) -> dict[str, set[str]]:
+    """Archivo (relativo a la plantilla) -> funciones de test que declara.
+
+    Cuenta como test todo archivo bajo un directorio `tests/` o con nombre
+    `*.test.*`/`*.spec.*`. En Rust, todas las `fn` de un archivo de `tests/`, y
+    en el resto solo las que llevan `#[test]` (o `#[tokio::test]`, etc.).
+    """
+    index: dict[str, set[str]] = {}
+    for current, dirnames, filenames in os.walk(template):
+        dirnames[:] = sorted(d for d in dirnames if d not in IGNORED_DIRS)
+        for name in filenames:
+            path = Path(current) / name
+            relative = rel(template, path)
+            in_tests = "tests" in Path(relative).parts[:-1]
+            is_test_name = re.search(r"\.(?:test|spec)\.", name) is not None
+            if path.suffix != ".rs":
+                if in_tests or is_test_name:
+                    index[relative] = set()
+                continue
+            functions: set[str] = set()
+            pending_test = False
+            for line in read_lines(path):
+                if RUST_TEST_ATTR.match(line):
+                    pending_test = True
+                    continue
+                fn = RUST_FN.match(line)
+                if fn:
+                    if in_tests or pending_test:
+                        functions.add(fn.group(1))
+                    pending_test = False
+            if in_tests or functions:
+                index[relative] = functions
+    return index
+
+
+def find_test(indexes: list[dict[str, set[str]]], file: str | None, function: str | None) -> bool:
+    for index in indexes:
+        files = (
+            [f for f in index if f == file or f.endswith("/" + file)] if file
+            else list(index)
+        )
+        if not files:
+            continue
+        if function is None:
+            return True
+        if any(fnmatch.fnmatchcase(name, function) for f in files for name in index[f]):
+            return True
+    return False
+
+
+def cited_test(token: str) -> tuple[str | None, str | None] | None:
+    """(archivo, función) que cita un token, o None si no es un test."""
+    if "::" in token:
+        file, _, function = token.rpartition("::")
+        if TEST_FILE.match(file) and TEST_FUNCTION.match(function):
+            return file, function
+        return None
+    if TEST_FUNCTION.match(token):
+        return None, token
+    if TEST_FILE.match(token):
+        return token, None
+    return None
+
+
+def check_cited_tests(root: Path, files: list[Path]) -> list[Problem]:
+    every = templates(root)
+    indexes = {template: index_tests(template) for template in every}
+    problems: list[Problem] = []
+    for path in files:
+        if path.suffix != ".md" or rel(root, path) == "CHANGELOG.md":
+            continue
+        searched = templates_for(root, path, every)
+        for number, line in verification_lines(read_lines(path)):
+            for token in re.findall(r"`([^`]+)`", line):
+                cited = cited_test(token.strip())
+                if cited is None:
+                    continue
+                if find_test([indexes[t] for t in searched], *cited):
+                    continue
+                where = ", ".join(rel(root, t) for t in searched) or "ninguna plantilla"
+                problems.append(Problem(
+                    rel(root, path), number, "MISSING-TEST",
+                    f"`{token.strip()}` no existe en los tests de {where}",
+                ))
+    return problems
+
+
 # ----------------------------------------------------------------- publicación
 
 
@@ -519,6 +685,7 @@ def check(root: Path) -> list[Problem]:
         *check_stack_descriptions(root, files),
         *check_stack_status(root),
         *check_volatile_counts(root, files),
+        *check_cited_tests(root, files),
     ]
     return sorted(problems, key=lambda p: (p.path, p.line, p.code, p.message))
 

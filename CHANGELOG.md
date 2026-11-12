@@ -61,6 +61,32 @@
   que cada línea de `.env.example` que no es comentario es `CLAVE=` sin valor.
   Rojo al quitar cada una de las cuatro reglas del `.gitignore` y al poner un
   valor en `.env.example`.
+- `scripts/check_harness.py`, código `MISSING-TEST` (VER-1). Todo test citado
+  entre comillas invertidas en una sección "Verificación" o en una tabla de
+  Enforcement tiene que existir. Revisa los párrafos `**Verificación…**`, las
+  secciones con encabezado "Verificación" o "Enforcement" y las tablas con una
+  columna así. Quedan fuera los bloques de código y el CHANGELOG. Hay dos
+  clases de identificador:
+  - Una función con prefijo de principio (`hex_4_…`, `err_1_…`, con
+    comodines como `hex_2_core_*`) tiene que coincidir con al menos una
+    función de test de la plantilla. Si la cita trae archivo
+    (`tests/naming.rs::hex_4_*`), la función tiene que estar en ese archivo.
+  - Un archivo de test (`routes.test.ts`, `tests/naming.rs`) tiene que existir.
+
+  Un documento de `stacks/<x>/` se compara con `stacks/<x>/template`, y los
+  demás (`core/`, el README) con todas las plantillas. Solo cuentan como test
+  las funciones de un directorio `tests/` y las que llevan `#[test]`.
+  - Tests con el fixture `missing_test/`: Enforcement de Rust, tabla de
+    Verificación de Astro y párrafos de `core/`. Rojo primero: 3 de 4
+    fallaban antes de implementar. El cuarto, nada se comprueba fuera de las
+    secciones, pasaba vacío. Se verificó que anular cada regla hace fallar al
+    menos un test (8 mutaciones): solo funciones de test, el archivo citado,
+    los bloques de código, el fin de sección, el fin de párrafo, la plantilla
+    del stack, las tablas sin columna de verificación y la búsqueda misma.
+  - Sobre el repo real encontró `hex_1` a secas en la fila HEX-3 del
+    Enforcement de Rust: ninguna función se llama así. Ahora es `hex_1_*`.
+    Inyección: renombrar `hex_3_…` en `tests/ports.rs` y quitar `env.test.ts`
+    dan un `MISSING-TEST` cada uno.
 
 ## 0.8.0 — 2026-11-12
 
