@@ -65,11 +65,11 @@
   fija, `rustfmt` no lo parsea (`gen` está reservada en 2024) y el archivo queda
   igual. Con la del workspace, lo formatea.
 - Ejemplos de HEX-4, HEX-5 y HEX-6 (en `core/principles/hexagonal.md` y en
-  `hexagonal-architecture`): pasan del dominio de pagos al de comunidades.
-  `PaymentRepository` → `CommunityRepository`, `FraudGateway` →
-  `ModerationGateway`, `Authorization` y `DetokenizedCard` →
-  `ModerationVerdict` y `UserProfile`, `ChargeCommand` →
-  `ReviewContentCommand`. Cada ejemplo sigue ilustrando la misma regla.
+  `hexagonal-architecture`): pasan al dominio de la plantilla (comunidades).
+  Usan `CommunityRepository`, `ModerationGateway`, `ModerationVerdict`,
+  `UserProfile` y `ReviewContentCommand`. Cada ejemplo sigue ilustrando la
+  misma regla. Las entradas anteriores del CHANGELOG usan ya los nombres
+  nuevos.
 - ERR-3 (core y `error-handling`) gana un ejemplo: si el servicio de moderación
   rechaza el nombre de una comunidad, el puerto devuelve éxito con un
   `ModerationVerdict` de rechazo. Si no responde a tiempo, devuelve
@@ -360,8 +360,8 @@ Plugins: `craft-backend` 0.5.1 y `craft-web` 0.1.1.
 - **`api` solo depende de `application`** (HEX-1). Consecuencias: el contrato del
   caso de uso no expone tipos de dominio (HEX-4) y las hojas de error compartidas
   viven en `application/errors` (ERR-2).
-- **Adaptadores sin el sufijo de rol** (HEX-5): `PaymentRepository` →
-  `PostgresPaymentAdapter`. La tecnología ya implica el rol.
+- **Adaptadores sin el sufijo de rol** (HEX-5): `CommunityRepository` →
+  `PostgresCommunityAdapter`. La tecnología ya implica el rol.
 
 ## 0.1.0 — 2026-11-11
 
