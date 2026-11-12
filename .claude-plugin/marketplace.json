@@ -1,0 +1,16 @@
+{
+  "name": "ai-harness",
+  "owner": {
+    "name": "Kumelemuel"
+  },
+  "metadata": {
+    "description": "Harness de IA reutilizable: convenciones de arquitectura y artesanía de software."
+  },
+  "plugins": [
+    {
+      "name": "craft-backend",
+      "source": "./plugins/craft-backend",
+      "description": "Arquitectura hexagonal, DDD táctico y TDD para backends."
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+../../../../../core/principles/hexagonal.md
