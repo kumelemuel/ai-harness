@@ -39,6 +39,19 @@
   error de puerto vía `Failure<E>` con alias, un `*Error` de `ports/` y una
   macro. Un tipo privado del handler fuera de esas categorías no es violación.
   El detector de `impl Error` del test del dominio pasa a una función común.
+- Plantilla Rust, `tests/output.rs::err_4_core_does_not_write_to_output` (ERR-4).
+  HEX-2 ya impedía los crates de logging en el núcleo; faltaban las macros del
+  lenguaje. Falla si un crate de `domain` o `application` invoca `println!`,
+  `eprintln!`, `print!`, `eprint!` o `dbg!` fuera de `#[cfg(test)]`. Recorre los
+  tokens, así que también las encuentra con ruta (`std::dbg!`), dentro de otra
+  macro (`vec![println!(…)]`) y en un `macro_rules!`. Exento lo que exige
+  `test`: `#[cfg(test)]`, `#[cfg(all(test, …))]`, `#![cfg(test)]` y los
+  archivos de un `#[cfg(test)] mod x;`. El módulo `testing`
+  (`cfg(any(test, feature = "testing"))`) no está exento, porque compila sin
+  `test`. Rojo con cada macro en `domain` y en `application`, con `std::dbg!`,
+  dentro de `vec!`, en un `macro_rules!`, en `testing` y en un `mod x;` externo
+  sin `cfg(test)`. Un módulo `#[cfg(test)]` en línea o externo, un
+  `cfg(all(test, unix))`, un comentario y un string no son violación.
 
 ## 0.8.0 — 2026-11-12
 

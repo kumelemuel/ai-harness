@@ -78,7 +78,7 @@ Ejemplo: al crear una comunidad, un `ModerationGateway` evalúa el nombre. Si el
 
 **Violaciones típicas.** Un `if (error) return 404` dentro del handler. Mensajes de excepción con el payload del request.
 
-**Verificación.** Test de arquitectura: el núcleo no importa tipos de transporte ni de logging.
+**Verificación.** Test de arquitectura: el núcleo no importa tipos de transporte ni de logging, y fuera de los tests no escribe en la salida estándar ni de error con las primitivas del lenguaje.
 
 ---
 
