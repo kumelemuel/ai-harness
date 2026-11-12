@@ -1,0 +1,17 @@
+[package]
+name = "communities-infrastructure"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+kernel.workspace = true
+communities-domain.workspace = true
+communities-application.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+communities-application = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

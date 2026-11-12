@@ -1,0 +1,16 @@
+[package]
+name = "communities-application"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# Fakes de puertos salientes y `block_on` para tests de otras capas (TDD-2).
+testing = []
+
+[dependencies]
+kernel.workspace = true
+communities-domain.workspace = true
+
+[lints]
+workspace = true

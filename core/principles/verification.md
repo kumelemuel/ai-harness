@@ -19,6 +19,6 @@ Formato de cada principio: ver [README](README.md).
 
 ---
 
-## Decisiones abiertas
+## Decisiones por stack
 
-1. **Límites de capa por módulo de build.** En el proyecto origen se descartó por costo en Gradle. En un workspace de Rust el costo es bajo y la garantía es de compilación: probablemente conviene adoptarlo ahí.
+- **Límites de capa por módulo de build.** En el proyecto origen (Gradle) se descartó por costo. En Rust se adopta (RS-1): un crate por capa, agrupados por contexto, más tests de arquitectura sobre los `Cargo.toml` y el código (RS-4). Ver [`stacks/rust`](../../stacks/rust/README.md).

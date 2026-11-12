@@ -9,7 +9,7 @@ subagentes y hooks que el agente carga solo cuando los necesita.
 
 ```
 core/principles/        Fuente de verdad, un archivo por tema (HEX, ERR, TDD, VER)
-stacks/                 Traducción de los principios a cada lenguaje
+stacks/                 Traducción por lenguaje; stacks/rust/template es un workspace ejecutable
 plugins/craft-backend/  Plugin de Claude Code: hexagonal, errores, TDD
 .claude-plugin/         Este repo funciona como marketplace de plugins
 ```
@@ -21,7 +21,7 @@ que hay una sola copia de cada principio.
 
 | Plugin | Contenido |
 |--------|-----------|
-| `craft-backend` | Skills `hexagonal-architecture`, `error-handling` y `tdd`; subagente `architecture-reviewer` |
+| `craft-backend` | Skills `hexagonal-architecture`, `error-handling`, `tdd` y `rust-stack`; subagente `architecture-reviewer` |
 
 ## Instalación
 

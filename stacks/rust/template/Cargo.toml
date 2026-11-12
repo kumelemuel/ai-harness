@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = ["kernel", "contexts/*/*", "apps/*", "tools/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+# Internos
+kernel = { path = "kernel" }
+communities-domain = { path = "contexts/communities/domain" }
+communities-application = { path = "contexts/communities/application" }
+communities-infrastructure = { path = "contexts/communities/infrastructure" }
+api = { path = "apps/api" }
+
+# Externos (solo los usan los anillos exteriores; ver tools/architecture)
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["catch-panic"] }
+uuid = { version = "1", features = ["v4"] }
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = "1"
+toml = "0.8"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+# Árbol B: `panic!`/`expect("invariante: …")` solo para invariantes rotos.
+# `unwrap` no dice cuál invariante se rompió.
+unwrap_used = "deny"

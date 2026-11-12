@@ -92,6 +92,6 @@ Formato de cada principio: ver [README](README.md).
 
 ---
 
-## Decisiones abiertas
+## Decisiones por stack
 
-1. **Árbol B en Rust.** No hay excepciones. Opciones: `panic!` para invariantes rotos y un error opaco de infraestructura propagado con `?` hasta el borde, o solo lo segundo. Hay que decidirlo explícitamente.
+- **Árbol B en Rust:** resuelto en [`stacks/rust`](../../stacks/rust/README.md) (RS-2): `Fault` opaco propagado con `?` dentro de `Failure<E>`, y `panic!` solo para invariantes rotos.
