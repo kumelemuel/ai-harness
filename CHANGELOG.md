@@ -1,6 +1,11 @@
 # Changelog
 
-## Sin publicar
+## 0.11.0 — 2026-11-12
+
+Plugins: `craft-backend` 0.9.0 y `craft-web` 0.4.0, porque cambian sus
+subagentes. El inventario de verificación es un documento vivo que el
+verificador comprueba, sin la categoría "sin revisor", y `astro-e2e` corre
+cuando cambia su propia definición.
 
 ### Agregado
 - `core/verification.md`: el inventario de verificación pasa a ser un
