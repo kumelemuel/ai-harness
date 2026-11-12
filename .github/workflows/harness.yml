@@ -24,11 +24,26 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+        with:
+          # La comprobación de versiones necesita la base y su merge-base.
+          fetch-depth: 0
       - run: python3 --version
       - name: Tests del verificador
         run: python3 -B -m unittest discover -s scripts/tests -v
       - name: Verificador sobre el repo
         run: python3 -B scripts/check_harness.py
+      # Lo que entra a main publica una versión: un pull request hacia main se
+      # compara con su base, y un push a main con el commit anterior. En otras
+      # ramas "Sin publicar" es válido y no se corre.
+      - name: Versiones de lo que entra a main
+        if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=HEAD~1
+          fi
+          python3 -B scripts/check_harness.py --base "$BASE"
 
   rust:
     name: Plantilla Rust

@@ -53,6 +53,7 @@ El harness se somete a VER-1 como cualquier proyecto. `scripts/check_harness.py`
 
 ```
 python3 scripts/check_harness.py                       # sobre el repo
+python3 scripts/check_harness.py --base main           # además, lo que entra a main
 python3 -m unittest discover -s scripts/tests          # tests del verificador
 ```
 
@@ -66,6 +67,8 @@ python3 -m unittest discover -s scripts/tests          # tests del verificador
 | `STACK-PATH` | Una ruta entre comillas invertidas en la descripción de una skill de stack que no existe en la plantilla |
 | `STACK-STATUS` | Una versión de stack distinta en `stacks/README.md` y en su guía |
 | `VOLATILE-COUNT` | Un conteo de tests en la documentación (fuera del CHANGELOG) |
+| `VERSION-NOT-BUMPED` | Con `--base`: cambió un archivo que llega a un plugin y su versión no subió |
+| `CHANGELOG-UNRELEASED` | Con `--base`: el CHANGELOG tiene una sección "Sin publicar" |
 
 En las descripciones de las skills de stack (las que tienen `references/template`),
 toda ruta va entre comillas invertidas para que el verificador la compruebe. La
@@ -77,10 +80,31 @@ verde" y el CI lo demuestra. Solo el CHANGELOG conserva conteos, porque registra
 un momento. `VOLATILE-COUNT` lo hace cumplir.
 
 El CI ([`.github/workflows/harness.yml`](.github/workflows/harness.yml)) corre
-el verificador y sus tests; en la plantilla Rust, `cargo fmt --check`,
+el verificador y sus tests (con `--base` en los pull requests hacia `main` y en
+los push a `main`); en la plantilla Rust, `cargo fmt --check`,
 `clippy -D warnings` y `cargo test --workspace`, y en la plantilla Astro, lint,
 `astro check` y los tests unitarios. Los e2e y Lighthouse de Astro corren en el
 CI propio de la plantilla.
+
+## Publicar una versión
+
+El marketplace apunta a `main`, y Claude Code detecta una actualización solo
+cuando cambia la `version` del `plugin.json`. Si el contenido cambia y la
+versión no, quien ya tenía esa versión no recibe el cambio, y quien instala
+recibe contenido nuevo bajo un número viejo. Por eso:
+
+- **Cada merge a `main` que cambie el contenido de un plugin sube su versión.**
+  Una corrección es un patch; una regla o una skill nueva, un minor.
+- El contenido de un plugin es su directorio y lo que alcanza por symlinks:
+  `core/principles/tdd.md` es contenido de `craft-backend`, y
+  `stacks/astro/template/src` de `craft-web`.
+- "Sin publicar" solo existe en ramas. Antes del merge, esas entradas pasan a
+  una sección `## X.Y.Z — fecha` del CHANGELOG que nombra la versión de cada
+  plugin.
+
+`check_harness.py --base main` lo comprueba en la rama
+(`VERSION-NOT-BUMPED` y `CHANGELOG-UNRELEASED`), y el CI lo exige en cada pull
+request hacia `main`.
 
 ## Instalación
 
@@ -105,9 +129,29 @@ cargar, por ejemplo, `tdd` (handlers con fakes de puertos) en un sitio Astro.
 El alcance de proyecto queda en `.claude/settings.json`, se versiona con el
 repo y le da a todo el equipo el mismo harness.
 
-Desde un clon local, para desarrollar el harness:
+## Desarrollar el harness
+
+Agrega el clon como marketplace y habilita los plugins en el proyecto de
+prueba, **sin `claude plugin install`**:
 
 ```
-/plugin marketplace add /ruta/a/ai-harness
-claude plugin install craft-backend@ai-harness --scope project
+claude plugin marketplace add /ruta/a/ai-harness
 ```
+
+```json
+// .claude/settings.json del proyecto de prueba
+{
+  "enabledPlugins": {
+    "craft-backend@ai-harness": true
+  }
+}
+```
+
+Con un marketplace agregado desde una ruta local, Claude Code carga los plugins
+en su lugar, desde el clon. Una edición se ve en la sesión siguiente o con
+`/reload-plugins`, sin reinstalar y sin subir la versión.
+
+No uses `claude plugin install` desde el clon: la sesión tampoco lee esa copia,
+pero la instalación copia el plugin a la caché con todo lo que hay en disco,
+incluidos los artefactos sin versionar. `craft-backend` arrastra el `target/`
+de la plantilla Rust (cerca de 1 GB). Verificado con Claude Code 2.1.316.

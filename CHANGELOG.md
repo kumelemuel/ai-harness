@@ -1,8 +1,34 @@
 # Changelog
 
-## Sin publicar
+## 0.8.0 — 2026-11-12
+
+Plugins: `craft-backend` 0.6.0 y `craft-web` 0.2.0. Publica lo que estaba en
+`main` bajo "Sin publicar": hasta ahora lo recibía bajo 0.5.2 y 0.1.2 quien
+instalaba desde GitHub.
 
 ### Agregado
+- `scripts/check_harness.py --base REF`: compara con el merge-base de `REF` y
+  `HEAD` lo que entra a `main`. `VERSION-NOT-BUMPED` falla si cambió un
+  archivo que llega a un plugin y su `version` no es mayor. Llega a un plugin
+  lo que está en su directorio o lo que alcanza por symlinks, también los
+  anidados en directorios enlazados, sin bajar a `target/` ni a
+  `node_modules/`. `CHANGELOG-UNRELEASED` falla si queda una sección "Sin
+  publicar". Sin `--base`, el verificador hace lo de siempre: en las ramas
+  "Sin publicar" es válido.
+  - Tests con el fixture `version_bump/`: dos plugins y symlinks a `core/` y
+    a una plantilla. Cada test lo copia a un repo git temporal, con un commit
+    base y otro con el cambio. Cubren un archivo alcanzado por symlink, uno
+    dentro de un directorio enlazado, uno dentro del plugin, archivos nuevos y
+    borrados, un archivo que no llega a ningún plugin, una versión que baja, un
+    plugin nuevo, "Sin publicar" con y sin `--base`, y la CLI. Rojo primero: 10
+    fallaban antes de implementar. Se verificó que anular cada regla hace
+    fallar al menos un test: los symlinks a archivos, los directorios
+    enlazados, la versión mayor, "Sin publicar", los borrados y el plugin
+    nuevo.
+- CI: el job del verificador hace checkout con `fetch-depth: 0` y corre
+  `--base`. En un pull request hacia `main` usa su base, y en un push a `main`
+  el commit anterior.
+- README: secciones "Publicar una versión" y "Desarrollar el harness".
 - Plantilla Rust, batería de contrato de `CommunityRepository` en
   `application/src/testing/contracts/community_repository.rs` (TDD-2). Tiene
   cinco casos `async`, cada uno con la fábrica del adaptador:
@@ -54,6 +80,9 @@
   3.11 y 3.14 reales.
 
 ### Cambiado
+- README, **Instalación**: para desarrollar el harness ya no se recomienda
+  `claude plugin install` desde el clon local. Basta con agregar el marketplace
+  local y habilitar los plugins en `enabledPlugins` (ver **Verificado**).
 - TDD-2: los dobles de los puertos viven donde los tests del núcleo pueden
   verlos. Se nombran como adaptadores, con prefijo `Fake`, `Fixed` o `Stub`, y
   pasan la misma batería de contrato que los adaptadores reales. El adaptador en
@@ -135,6 +164,24 @@
   `ModerationError.Unavailable`.
 
 ### Verificado
+- Documentación de Claude Code consultada con 2.1.316 ("Plugin loading
+  reference" y "Host and maintain a marketplace"). La versión manda: "Users get
+  a new copy only when the plugin's computed version differs from the one they
+  have". Un plugin con ruta relativa en un marketplace agregado desde una ruta
+  local "loads in place" y no lo controla `version`. El modo *link* es de las
+  fuentes `command` y no aplica a este marketplace.
+- Marketplace local con `CLAUDE_CONFIG_DIR` aislado, en Claude Code 2.1.316:
+  - Con `claude plugin install`, la caché copia igual los dos plugins
+    (1,3 GB, `target/` incluido), aunque la sesión no la usa. El `init` de
+    `claude -p` muestra `path` en `plugins/craft-backend` del repo, no en la
+    caché.
+  - Sin `install`, solo con `enabledPlugins` en `.claude/settings.json` del
+    proyecto: la sesión carga las siete skills desde el repo. La caché queda en
+    12 KB, sin `target/` ni `node_modules/`. Una skill de prueba creada en
+    `plugins/craft-web/skills/` aparece en la sesión siguiente sin reinstalar,
+    y después se borró.
+  - Se borraron los directorios aislados. `known_marketplaces.json` del usuario
+    no cambió.
 - La batería de `CommunityRepository` encontró una divergencia que ya existía.
   El fake hacía `push` en `save`: tras guardar el id `c-1` dos veces,
   `find_by_slug` seguía encontrando el slug anterior. El adaptador en memoria
@@ -167,6 +214,15 @@
     después del cambio.
 
 ### Decisiones
+- Cada merge a `main` que cambie el contenido de un plugin sube su versión
+  (semver: corrección → patch; regla o skill nueva → minor). "Sin publicar"
+  solo vive en ramas. Claude Code detecta las actualizaciones por la versión
+  calculada: primero `version` del `plugin.json`, luego la de la entrada del
+  marketplace y, sin ninguna de las dos, el commit. Con `version` fijada, quien
+  ya tiene esa versión no recibe commits nuevos.
+- Esta release es minor en los dos plugins: trae reglas nuevas (HEX-8 con
+  capacidades, la batería de contrato de TDD-2, el punto TDD-1 de los
+  revisores) y skills con alcance nuevo.
 - La lista cerrada de capacidades vive en el código en `tests/common/mod.rs`
   (`CAPABILITIES`), junto a los marcadores (`MODEL_MARKERS`). La usan el test
   del kernel y el de nombres de adaptadores. Los marcadores son los que HEX-8
@@ -191,7 +247,7 @@
 
 ### Inventario de las secciones "Verificación"
 
-Lo que dejan resuelto los cambios sin publicar: HEX-4 (contrato), TDD-1
+Lo que dejan resuelto los cambios de esta versión: HEX-4 (contrato), TDD-1
 (revisor), TDD-2 (incluidos los dobles con batería de contrato), HEX-5
 (adaptadores) y HEX-8. El resto queda para otro encargo:
 
