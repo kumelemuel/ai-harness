@@ -59,13 +59,19 @@
     `${CLAUDE_PLUGIN_ROOT}` apuntando a la caché, sobre una copia de la
     plantilla Rust: pasan con un cambio limpio, y `post-edit` bloquea (exit 2,
     HEX-5) al inyectar `CommunityCachePort`.
-  - Queda pendiente una sesión real de Claude contra la instalación desde
-    GitHub. El clasificador de permisos bloqueó copiar credenciales al
-    directorio aislado. Las sesiones reales de 0.4.0–0.6.0 ya corrían los hooks
-    desde la caché (instalada desde ruta local), y el contenido de la caché es
-    el mismo.
-  - Se desinstaló todo y se borró el directorio aislado. La configuración del
-    usuario no se tocó.
+  - Sesión real de Claude (`claude -p`) contra la instalación desde GitHub, con
+    la configuración del usuario: se cambió el marketplace a
+    `kumelemuel/ai-harness` de forma temporal, sin la caché previa. Un shim de
+    `python3` registró que los cuatro hooks corrieron desde
+    `~/.claude/plugins/cache/ai-harness/…`, con `CLAUDE_PLUGIN_ROOT` resuelto a
+    esa ruta. Al pedir `CommunityCachePort`, `post-edit` bloqueó por HEX-5; el
+    gate de Stop bloqueó una vez y luego dejó terminar (`stop_hook_active`).
+  - Hallazgo: la instalación desde ruta local copia a la caché los artefactos
+    sin versionar. `craft-backend` arrastra el `target/` de la plantilla Rust
+    (927 MB). La instalación desde GitHub solo copia lo versionado.
+  - Se desinstaló todo y se borró el directorio aislado. Se restauró el
+    marketplace local desde `main`; `settings.json` quedó idéntico y la caché
+    tiene las mismas fuentes.
 
 ## 0.6.0 — 2026-11-12
 
