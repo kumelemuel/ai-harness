@@ -54,13 +54,13 @@ Formato de cada principio: ver [README](README.md).
 - Si el colaborador **no pudo completar** (no encontrado, timeout, caída), eso es un error **declarado** en la firma del puerto (`{Contrato}Error`).
 - El adaptador cumple la firma: lo declarado → `err`; cualquier otra falla técnica → árbol B. **El adaptador no decide qué ramificará el caso de uso.**
 
-Ejemplo: al crear una comunidad, un `ModerationGateway` evalúa el nombre. Si el servicio de moderación responde que no es aceptable, el puerto devuelve `ok` con un `ModerationVerdict` de rechazo y el caso de uso decide qué hacer. Si el servicio no responde a tiempo, devuelve `err(ModerationError.Unavailable)`, declarado en la firma.
+Ejemplo: al crear una comunidad, el caso de uso le pide a un `ModerationGateway` que revise el nombre (`ReviewContentRequest`). Si el servicio de moderación responde que no es aceptable, el puerto devuelve `ok` con un `ModerationVerdict` de rechazo (`Rejected`, con su motivo), y el caso de uso decide qué hacer: en `CreateCommunity`, la hoja `ContentRejected`. Si el servicio no responde a tiempo, devuelve `err(ModerationError.Unavailable)`, declarado en la firma, y el caso de uso lo traduce a la hoja `DependencyUnavailable`.
 
 **Fundamento.** Separa la respuesta de negocio de la disponibilidad técnica y mantiene la decisión de negocio en el núcleo.
 
 **Violaciones típicas.** Un adaptador que convierte un rechazo de negocio en excepción. Un adaptador que "ayuda" al caso de uso devolviendo un error ya pensado para HTTP.
 
-**Verificación.** Un caso por variante declarada en la batería de contrato del puerto (`TDD-2`). La forma de provocar cada variante es un parámetro de la fábrica del adaptador, así que la ejecutan el doble y todos los adaptadores reales.
+**Verificación.** Un caso por resultado en la batería de contrato del puerto (`TDD-2`): uno por cada respuesta (aprobar, rechazar) y uno por cada variante declarada. La forma de provocar cada resultado es un parámetro de la fábrica del adaptador (el escenario), así que la ejecutan el doble y todos los adaptadores reales. Un adaptador que no puede producir un escenario (un `NoOp` no rechaza ni falla) lo declara de forma explícita, con su motivo; nunca se salta el caso en silencio.
 
 ---
 

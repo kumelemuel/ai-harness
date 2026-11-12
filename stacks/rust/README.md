@@ -34,7 +34,7 @@ contexts/{ctx}/
 │   └── src/
 │       ├── ports/inbound/      {verb}_{noun}.rs  → trait {Verb}{Noun}UseCase
 │       ├── ports/outbound/     {concepto}_{rol}.rs → trait {Concepto}{Rol}
-│       │   └── dtos/           {Contrato}Payloads (si hace falta)
+│       │   └── dtos/           {concepto}_payloads.rs: el contenedor {Contrato}Payloads es el módulo (si hace falta)
 │       ├── commands/{caso}/    command.rs · response.rs · error.rs · handler.rs
 │       ├── queries/{caso}/     query.rs · response.rs · error.rs · handler.rs
 │       ├── errors.rs           hojas compartidas (ERR-2)
@@ -91,7 +91,8 @@ Las versiones de crates externos se declaran una sola vez en
 | DTOs del caso de uso | `CreateCommunityCommand`, `CreateCommunityResponse`, `CreateCommunityError`, cada uno en su archivo dentro de `commands/create_community/`, reexportados en `mod.rs` |
 | Contrato sin tipos de dominio (HEX-4) | `Response` con `String`/primitivos; `impl From<&Community> for CreateCommunityResponse` |
 | Puerto saliente (HEX-5) | `pub trait CommunityRepository: Send + Sync` con métodos que devuelven `BoxFuture<'a, Result<T, Fault>>` |
-| Adaptador (HEX-5) | `InMemoryCommunityAdapter`, `PostgresCommunityAdapter` |
+| Adaptador (HEX-5) | `InMemoryCommunityAdapter`, `PostgresCommunityAdapter`, `NoOpModerationAdapter` |
+| DTOs de puerto saliente (HEX-6) | `ports/outbound/dtos/moderation_payloads.rs`: `ReviewContentRequest` (entrada), `ModerationVerdict` (salida, `Approved` o `Rejected { reason }`) y `ModerationError` (error declarado). Rust no tiene un tipo contenedor: el módulo `{concepto}_payloads` hace de `{Contrato}Payloads`, y `dtos/mod.rs` reexporta sus tipos |
 | Transporte (HEX-6) | `CreateCommunityHttpRequest` (`Deserialize`), `CreateCommunityHttpResponse` (`Serialize`) en `{ctx}-api` |
 | Identidad autenticada | El middleware del composition root inserta `edge_http::AuthenticatedAccount` como `Extension`; el handler la lee con `Option<Extension<…>>` y responde 401 si falta |
 | Agregado inmutable (HEX-7) | Campos privados, getters, comportamiento `fn rename(&self, …) -> Result<Self, NotCommunityOwner>` |
@@ -120,7 +121,7 @@ pub enum Failure<E> {
 | Error de dominio → hoja | `.map_err(\|_\| Failure::expected(Validation { field: "slug" }))?`. Sin envolver: nunca `FromDomain(InvalidCommunitySlug)`. |
 | Puerto sin errores declarados | `Result<T, Fault>`; en el handler, `.await?` lo convierte en `Failure::Unexpected` |
 | Caso de uso sin árbol A (ERR-1) | `BoxFuture<'_, Result<Response, Fault>>`: sin tipo de error ni `Failure` |
-| Puerto con errores declarados (ERR-3) | `Result<T, Failure<{Contrato}Error>>`; el handler traduce con `.map_err(\|f\| f.map_expected(…))` |
+| Puerto con errores declarados (ERR-3) | `Result<T, Failure<{Contrato}Error>>`; el handler traduce con `.map_err(\|f\| f.map_expected(…))`. En la plantilla: `ModerationGateway::review_content` devuelve `Result<ModerationVerdict, Failure<ModerationError>>`, y `CreateCommunityHandler` traduce `Unavailable` a la hoja `DependencyUnavailable` y un `Rejected` a la hoja `ContentRejected` |
 | Falla técnica en un adaptador | `?` convierte cualquier `E: Error` en `Fault` (`impl From<E> for Fault`) |
 | No encontrado | `find_*` devuelve `Option`; el handler decide si es `NotFound` o `Conflict` |
 | Invariante roto / bug | `panic!` o `.expect("invariante: …")`. **`unwrap` está prohibido** (clippy `unwrap_used = "deny"`): no dice qué invariante se rompió. |
@@ -169,7 +170,7 @@ genéricos en los caminos calientes sin cambiar los principios.
 |------|------|-------|
 | Kernel / dominio | `#[test]` puro | `#[cfg(test)] mod tests` en el mismo archivo |
 | Caso de uso | `CreateCommunityHandler::new(Arc::new(FakeCommunityAdapter::empty()), …)` + `block_on` | `handler.rs` |
-| Contrato del puerto | `community_repository_contract! { new_adapter: …, run: … }` contra el doble y contra cada adaptador | `application/src/testing.rs` (doble) y el archivo de cada adaptador |
+| Contrato del puerto | `community_repository_contract! { new_adapter: …, run: … }` y `moderation_gateway_contract! { new_adapter: \|scenario\| …, run: …, approves: …, rejects: …, unavailable: … }` contra el doble y contra cada adaptador | `application/src/testing.rs` (doble) y el archivo de cada adaptador |
 | Adaptador | La batería de contrato, más lo propio de su tecnología (Postgres con testcontainers o similar) | crate de infraestructura |
 | Transporte | `{Ctx}Api { … }.protected().oneshot(request)` con un `UseCase` stub; la identidad se inyecta con `request.extension(AuthenticatedAccount { … })` | `contexts/{ctx}/api/tests/` |
 | Arquitectura | `cargo test -p architecture` | `tools/architecture/tests/` |
@@ -221,8 +222,41 @@ communities_application::community_repository_contract! {
   corriendo. Además, un caso nuevo corre contra todas las implementaciones sin tocarlas.
 - **Por qué una fábrica.** Cada caso empieza con un adaptador vacío. Si el puerto declara
   errores (ERR-3), la fábrica recibe el escenario que los provoca
-  (`new_adapter: impl Fn(Scenario) -> R`, con una variante de `Scenario` por error declarado), y
-  la batería tiene un caso por variante.
+  (`new_adapter: impl Fn(Scenario) -> R`, con una variante de `Scenario` por resultado,
+  incluida una por error declarado), y la batería tiene un caso por variante.
+
+**Puerto con errores declarados.** `testing/contracts/moderation_gateway.rs` define
+`Scenario { Approves, Rejects, Unavailable }` y un caso por cada uno. `scenario_of` hace un
+`match` exhaustivo sobre `ModerationError`: una variante nueva no compila sin su escenario. La
+macro exige un campo por caso, `supported` o `unsupported("motivo")`:
+
+```rust
+// application/src/testing.rs: el doble produce los tres escenarios
+crate::moderation_gateway_contract! {
+    new_adapter: FakeModerationAdapter::new,
+    run: block_on,
+    approves: supported,
+    rejects: supported,
+    unavailable: supported,
+}
+
+// infrastructure/src/no_op_moderation.rs: el NoOp solo aprueba
+communities_application::moderation_gateway_contract! {
+    new_adapter: |_| NoOpModerationAdapter,
+    run: block_on,
+    approves: supported,
+    rejects: unsupported("NoOp aprueba todo: no consulta un servicio que pueda rechazar"),
+    unavailable: unsupported("NoOp no hace E/S: no hay servicio que pueda no responder"),
+}
+```
+
+- **Por qué todos los campos son obligatorios.** Un adaptador que no puede producir un
+  escenario lo declara en su invocación, con el motivo, y nunca se salta un caso en silencio:
+  omitir un campo no compila. Por lo mismo, un caso nuevo en la batería obliga a cada adaptador
+  a decidir.
+- **Qué genera `unsupported`.** El caso queda como `#[ignore = "motivo"]`: `cargo test` lo
+  muestra como `ignored, motivo`, y `--include-ignored` lo corre y muestra por qué no pasa.
+  Un `supported` que el adaptador no cumple falla como cualquier caso.
 
 **Puerto nuevo:**
 

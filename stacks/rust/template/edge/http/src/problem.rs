@@ -50,6 +50,27 @@ impl Problem {
         Self::new("/problems/conflict", "Conflict", StatusCode::CONFLICT).with_detail(detail)
     }
 
+    /// 422: la petición es válida, pero un colaborador revisó el contenido y
+    /// lo rechazó (p. ej. la moderación).
+    pub fn content_rejected(detail: impl Into<String>) -> Self {
+        Self::new(
+            "/problems/content-rejected",
+            "Content rejected",
+            StatusCode::UNPROCESSABLE_ENTITY,
+        )
+        .with_detail(detail)
+    }
+
+    /// 502: un colaborador declaró que no pudo completar. Es árbol A (un error
+    /// declarado del puerto), no un `Fault`: no se reporta.
+    pub fn dependency_unavailable() -> Self {
+        Self::new(
+            "/problems/dependency-unavailable",
+            "Dependency unavailable",
+            StatusCode::BAD_GATEWAY,
+        )
+    }
+
     pub fn unauthorized() -> Self {
         Self::new(
             "/problems/unauthorized",

@@ -9,7 +9,7 @@ use communities_api::CommunitiesApi;
 use communities_application::commands::create_community::{
     CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse,
 };
-use communities_application::errors::Conflict;
+use communities_application::errors::{Conflict, ContentRejected, DependencyUnavailable};
 use communities_application::ports::inbound::CreateCommunityUseCase;
 use edge_http::AuthenticatedAccount;
 use kernel::{BoxFuture, Failure, Fault, FaultReporter};
@@ -110,6 +110,58 @@ async fn conflict_returns_409_problem_details() {
         body.contains(r#""code":"COMMUNITIES_SLUG_ALREADY_EXISTS""#),
         "{body}"
     );
+}
+
+#[tokio::test]
+async fn content_rejected_returns_422_problem_details() {
+    let (status, content_type, body, _) = post(
+        || {
+            Err(Failure::expected(ContentRejected {
+                field: "name",
+                reason: "offensive language".into(),
+            }))
+        },
+        Some("alice"),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(content_type, "application/problem+json");
+    assert!(
+        body.contains(r#""type":"/problems/content-rejected""#),
+        "{body}"
+    );
+    assert!(
+        body.contains(r#""code":"COMMUNITIES_CONTENT_REJECTED""#),
+        "{body}"
+    );
+    assert!(body.contains("offensive language"), "{body}");
+}
+
+#[tokio::test]
+async fn dependency_unavailable_returns_502_problem_details_without_reporting() {
+    let (status, content_type, body, reporter) = post(
+        || {
+            Err(Failure::expected(DependencyUnavailable {
+                dependency: "moderation",
+            }))
+        },
+        Some("alice"),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_GATEWAY);
+    assert_eq!(content_type, "application/problem+json");
+    assert!(
+        body.contains(r#""type":"/problems/dependency-unavailable""#),
+        "{body}"
+    );
+    assert!(
+        body.contains(r#""code":"COMMUNITIES_DEPENDENCY_UNAVAILABLE""#),
+        "{body}"
+    );
+    // Árbol A: se declaró en la firma del puerto; no es un `Fault` que registrar.
+    assert!(reporter.0.lock().unwrap().is_empty());
 }
 
 #[tokio::test]

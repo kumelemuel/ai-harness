@@ -66,7 +66,7 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 | Frontera | Entrada | Salida |
 |----------|---------|--------|
 | Caso de uso | `Command` / `Query` | `Response` |
-| Puerto saliente | `Request` | Nombre del concepto (`ModerationVerdict`) |
+| Puerto saliente | `Request` (`ReviewContentRequest`) | Nombre del concepto (`ModerationVerdict`) |
 | Transporte (`api`) | `{Caso}HttpRequest` | `{Caso}HttpResponse` |
 
 - DTOs de puertos salientes en `ports/outbound/dtos/{Contrato}Payloads`, nunca

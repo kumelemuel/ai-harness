@@ -12,3 +12,16 @@ pub struct Validation {
 pub struct Conflict {
     pub resource: &'static str,
 }
+
+/// Un colaborador revisó el contenido y lo rechazó (p. ej. la moderación).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContentRejected {
+    pub field: &'static str,
+    pub reason: String,
+}
+
+/// Un colaborador declaró que no pudo completar (ERR-3): no disponible, timeout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencyUnavailable {
+    pub dependency: &'static str,
+}

@@ -136,7 +136,7 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 | Frontera | Entrada | Salida | Dónde |
 |----------|---------|--------|-------|
 | Caso de uso | `Command` / `Query` | `Response` | `application/commands`, `application/queries` |
-| Puerto saliente | `Request` | Nombre del concepto, sin sufijo (`ModerationVerdict`, `UserProfile`) | `application/ports/outbound/dtos` |
+| Puerto saliente | `Request` (`ReviewContentRequest`) | Nombre del concepto, sin sufijo (`ModerationVerdict`, `UserProfile`) | `application/ports/outbound/dtos` |
 | Transporte | `{Caso}{Transporte}Request` | `{Caso}{Transporte}Response` | `api` |
 | Control de flujo | — | `Result` (`ERR-1`) | kernel |
 
@@ -145,7 +145,7 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 
 **Fundamento.** La interfaz queda como lista de operaciones. Un vocabulario sin colisiones hace que el nombre de un tipo diga a qué frontera pertenece. Los tipos de transporte llevan el nombre del transporte porque son los únicos que cambian si cambia el transporte.
 
-**Violaciones típicas.** `ReviewContentCommand` como DTO de un gateway. `ModerationResult` como payload de éxito. Un controller que recibe un `CreateCommunityRequest` (colisiona con el vocabulario del puerto saliente) o devuelve el `Response` del caso de uso tal cual.
+**Violaciones típicas.** `ReviewContentCommand` como DTO de un gateway, en lugar de `ReviewContentRequest`. `ModerationResult` como payload de éxito, en lugar de `ModerationVerdict`. Un controller que recibe un `CreateCommunityRequest` (colisiona con el vocabulario del puerto saliente) o devuelve el `Response` del caso de uso tal cual.
 
 **Verificación.** Test de arquitectura: ningún tipo en `ports/outbound/dtos` termina en `Command`, `Query`, `Response` ni `Result`; en `api`, los tipos `*Request`/`*Response` llevan el nombre del transporte.
 

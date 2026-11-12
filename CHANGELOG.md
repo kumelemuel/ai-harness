@@ -1,5 +1,44 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- Plantilla Rust, puerto `ModerationGateway` (ERR-3, HEX-6): el primero con
+  payloads y error declarado. `CreateCommunity` le pide revisar el nombre
+  después de los value objects y del conflicto de slug, y antes de guardar: lo
+  local y barato va primero. Payloads en
+  `ports/outbound/dtos/moderation_payloads.rs`: `ReviewContentRequest`,
+  `ModerationVerdict` (`Approved` o `Rejected { reason }`) y `ModerationError`
+  (`Unavailable`). Un rechazo es éxito del puerto. El handler lo traduce a la
+  hoja nueva `ContentRejected`, y `Unavailable` a la hoja nueva
+  `DependencyUnavailable`. `api` responde 422 y 502 con Problem Details
+  (`Problem::content_rejected`, `Problem::dependency_unavailable` en
+  `edge/http`, y códigos `COMMUNITIES_CONTENT_REJECTED` y
+  `COMMUNITIES_DEPENDENCY_UNAVAILABLE`). El 502 no se reporta como `Fault`:
+  es árbol A.
+  - Adaptadores: `NoOpModerationAdapter` en infraestructura (aprueba todo, y
+    es el que cablea `apps/server`) y `FakeModerationAdapter` en
+    `application::testing`, con escenario y registro de lo revisado.
+  - Batería `moderation_gateway_contract!` con escenario
+    (`impl Fn(Scenario) -> R`): un caso por resultado (aprueba, rechaza y
+    `Unavailable`). `scenario_of` hace un `match` exhaustivo sobre
+    `ModerationError`. La macro exige un campo por caso, `supported` o
+    `unsupported("motivo")`, así que omitir uno no compila. Un `unsupported`
+    queda como `#[ignore = "motivo"]`, visible en `cargo test`. El `NoOp`
+    declara así `rejects` y `unavailable`.
+  - Con esto, `hex_6_outbound_dtos_*` y la parte de
+    `err_1_application_errors_*` que cubre los errores de puertos encuentran
+    material. Rojo con cada inyección: `ReviewContentCommand` en `dtos`,
+    `impl Error for ModerationError`, el fake devolviendo `Unavailable` ante un
+    rechazo, el `NoOp` con todo `supported` y un campo omitido en la
+    invocación (no compila).
+- Ejemplos de HEX-6 y ERR-3, en core y en las skills `hexagonal-architecture`
+  y `error-handling`: los nombres coinciden con el código
+  (`ReviewContentRequest`, `ModerationVerdict` con `Rejected`,
+  `ModerationError.Unavailable`, y las hojas `ContentRejected` y
+  `DependencyUnavailable`). La verificación de ERR-3 pide un caso por
+  resultado y que un escenario no soportado se declare.
+
 ## 0.9.0 — 2026-11-12
 
 Plugins: `craft-backend` 0.7.0 y `craft-web` 0.3.0. Cierra el inventario de

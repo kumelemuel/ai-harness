@@ -45,10 +45,12 @@ Reglas:
 - El colaborador **respondió** (aprobó, rechazó, evaluó): es **éxito** del
   puerto. El rechazo viaja en el DTO. Ejemplo: el servicio de moderación
   rechaza el nombre de una comunidad → `ok` con un `ModerationVerdict` de
-  rechazo.
+  rechazo (`Rejected`, con su motivo); `CreateCommunity` lo traduce a la hoja
+  `ContentRejected`.
 - El colaborador **no pudo completar** (no encontrado, timeout, caída): es un
   error **declarado** en la firma del puerto (`{Contrato}Error`). Ejemplo:
-  la moderación no responde a tiempo → `ModerationError.Unavailable`.
+  la moderación no responde a tiempo → `ModerationError.Unavailable`, que
+  `CreateCommunity` traduce a la hoja `DependencyUnavailable`.
 - Cualquier otra falla técnica: árbol B.
 - El adaptador no decide la rama de negocio ni devuelve errores pensados
   para HTTP.
@@ -66,5 +68,8 @@ Reglas:
 ## Tests
 
 - Los tests de caso de uso afirman sobre `Result`, no sobre excepciones.
-- Hay un test por cada variante admitida del contrato de error, y uno por cada
-  variante declarada en cada adaptador.
+- Hay un test por cada variante admitida del contrato de error.
+- La batería de contrato de un puerto con errores declarados tiene un caso por
+  resultado (cada respuesta y cada variante declarada), provocado por un
+  escenario de la fábrica. Un adaptador que no puede producir un escenario lo
+  declara con su motivo; nunca se lo salta en silencio.

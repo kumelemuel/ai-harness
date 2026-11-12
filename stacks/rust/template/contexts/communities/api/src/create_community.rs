@@ -6,7 +6,9 @@ use axum::{Extension, Json};
 use communities_application::commands::create_community::{
     CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse,
 };
-use communities_application::errors::{Conflict, Validation};
+use communities_application::errors::{
+    Conflict, ContentRejected, DependencyUnavailable, Validation,
+};
 use edge_http::{AuthenticatedAccount, Problem, unexpected};
 use kernel::Failure;
 use serde::{Deserialize, Serialize};
@@ -64,6 +66,8 @@ pub(crate) async fn handle(
         Err(Failure::Expected(error)) => match error {
             CreateCommunityError::Validation(leaf) => validation(&leaf),
             CreateCommunityError::Conflict(leaf) => conflict(&leaf),
+            CreateCommunityError::ContentRejected(leaf) => content_rejected(&leaf),
+            CreateCommunityError::DependencyUnavailable(leaf) => dependency_unavailable(&leaf),
         }
         .into_response(),
         Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()),
@@ -83,4 +87,14 @@ fn validation(leaf: &Validation) -> Problem {
 fn conflict(leaf: &Conflict) -> Problem {
     Problem::conflict(format!("{} already exists", leaf.resource))
         .with_code(codes::SLUG_ALREADY_EXISTS)
+}
+
+fn content_rejected(leaf: &ContentRejected) -> Problem {
+    Problem::content_rejected(format!("{} rejected: {}", leaf.field, leaf.reason))
+        .with_code(codes::CONTENT_REJECTED)
+}
+
+/// Sin el nombre de la dependencia en la respuesta: es un detalle interno.
+fn dependency_unavailable(_leaf: &DependencyUnavailable) -> Problem {
+    Problem::dependency_unavailable().with_code(codes::DEPENDENCY_UNAVAILABLE)
 }

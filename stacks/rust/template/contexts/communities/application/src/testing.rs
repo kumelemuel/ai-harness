@@ -7,10 +7,12 @@
 //! reales. Disponibles para los tests de este crate y, con la feature
 //! `testing`, para los de otras capas.
 
-use crate::ports::outbound::CommunityRepository;
+use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
+use crate::ports::outbound::{CommunityRepository, ModerationGateway};
 use communities_domain::Community;
 use communities_domain::value_objects::CommunitySlug;
-use kernel::{BoxFuture, Fault, IdGenerator};
+use contracts::moderation_gateway::Scenario;
+use kernel::{BoxFuture, Failure, Fault, IdGenerator};
 use std::future::{Future, ready};
 use std::pin::pin;
 use std::sync::Mutex;
@@ -97,6 +99,62 @@ impl CommunityRepository for FakeCommunityAdapter {
     }
 }
 
+/// Doble de `ModerationGateway`: responde según el escenario y registra lo que
+/// se le pidió revisar.
+pub struct FakeModerationAdapter {
+    scenario: Scenario,
+    reviewed: Mutex<Vec<String>>,
+}
+
+impl FakeModerationAdapter {
+    pub fn new(scenario: Scenario) -> Self {
+        Self {
+            scenario,
+            reviewed: Mutex::new(Vec::new()),
+        }
+    }
+
+    pub fn approving() -> Self {
+        Self::new(Scenario::Approves)
+    }
+
+    pub fn rejecting() -> Self {
+        Self::new(Scenario::Rejects)
+    }
+
+    pub fn unavailable() -> Self {
+        Self::new(Scenario::Unavailable)
+    }
+
+    /// Contenidos que se le pidió revisar, en orden.
+    pub fn reviewed(&self) -> Vec<String> {
+        self.reviewed
+            .lock()
+            .expect("invariante: fake sin envenenar")
+            .clone()
+    }
+}
+
+impl ModerationGateway for FakeModerationAdapter {
+    fn review_content(
+        &self,
+        request: ReviewContentRequest,
+    ) -> BoxFuture<'_, Result<ModerationVerdict, Failure<ModerationError>>> {
+        self.reviewed
+            .lock()
+            .expect("invariante: fake sin envenenar")
+            .push(request.content);
+        let result = match self.scenario {
+            Scenario::Approves => Ok(ModerationVerdict::Approved),
+            Scenario::Rejects => Ok(ModerationVerdict::Rejected {
+                reason: "fake moderation rejected the content".into(),
+            }),
+            Scenario::Unavailable => Err(Failure::expected(ModerationError::Unavailable)),
+        };
+        Box::pin(ready(result))
+    }
+}
+
 pub struct FixedIdGeneratorAdapter(pub &'static str);
 
 impl IdGenerator for FixedIdGeneratorAdapter {
@@ -112,5 +170,13 @@ mod tests {
     crate::community_repository_contract! {
         new_adapter: FakeCommunityAdapter::empty(),
         run: block_on,
+    }
+
+    crate::moderation_gateway_contract! {
+        new_adapter: FakeModerationAdapter::new,
+        run: block_on,
+        approves: supported,
+        rejects: supported,
+        unavailable: supported,
     }
 }

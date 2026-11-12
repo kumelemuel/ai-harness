@@ -6,3 +6,4 @@
 //! resuelven de inmediato (fakes, memoria) o un runtime real (Postgres).
 
 pub mod community_repository;
+pub mod moderation_gateway;
