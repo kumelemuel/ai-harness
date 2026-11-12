@@ -1,6 +1,6 @@
 ---
 name: site-auditor
-description: Audita un sitio web informativo contra los principios WEB-1 a WEB-10, con foco en lo que los tests no pueden verificar. Revisa la calidad de los textos alternativos, la jerarquía de encabezados, las descripciones SEO, la coherencia del JSON-LD y la del aviso de privacidad con los proveedores reales. Usar antes de entregar un sitio, después de cambios de contenido o diseño, o cuando se pida una auditoría.
+description: Audita un sitio web informativo contra los principios WEB-1 a WEB-10, con foco en lo que los tests no pueden verificar. Revisa la calidad de los textos alternativos, la jerarquía de encabezados, las descripciones SEO, la coherencia del JSON-LD y la del aviso de privacidad con los proveedores reales. En un diff, revisa también que cada cambio de lógica traiga el test que lo exige (TDD-1). Usar antes de entregar un sitio, después de cambios de contenido o diseño, o cuando se pida una auditoría.
 tools: Read, Grep, Glob, Bash
 skills:
   - web-principles
@@ -42,6 +42,19 @@ en este orden:
    componentes que debería ser dato.
 7. **WEB-2, WEB-6, WEB-8:** busca rutas armadas por concatenación que eviten el test,
    `style=""`, manejadores inline y reglas de formulario dentro del handler.
+8. **TDD-1: test antes que producción** (solo si revisas un diff o un rango). No es
+   automatizable de forma fiable: los hooks garantizan verde, no rojo primero.
+   - Lista los archivos tocados (`git diff --name-only`, `--staged` o el rango) y
+     sepáralos en producción y test (`tests/`). Cuenta como producción la lógica:
+     `src/lib/`, `src/actions/`, `src/routes.ts`, `src/security.ts`, `src/middleware.ts`
+     y la config. El contenido y los estilos ya los recorren los e2e de todas las
+     páginas.
+   - Todo cambio de producción tiene un cambio de test que lo exige, es decir, un test
+     nuevo o modificado que fallaría sin él. Un refactor sin cambio de comportamiento
+     no lo necesita, pero dilo en el reporte.
+   - Si el rango tiene más de un commit, revisa el orden con
+     `git log --reverse --name-only <rango>`. El test aparece antes que la producción o
+     en el mismo commit, nunca después.
 
 ## Formato del reporte
 

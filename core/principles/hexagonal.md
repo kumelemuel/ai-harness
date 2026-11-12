@@ -90,7 +90,7 @@ nombres de capa y la dirección de dependencias no.
 
 **Violaciones típicas.** Un `PaymentService` con diez métodos. Un controller que inyecta el handler. Un `Response` que expone el agregado tal cual.
 
-**Verificación.** Test de arquitectura: `api` no depende de `*Handler`; cada `*UseCase` declara un solo método; los tipos de `commands/` y `queries/` usados en firmas de `UseCase` no referencian `domain`.
+**Verificación.** Test de arquitectura: `api` no depende de `*Handler` y cada `*UseCase` declara un solo método. Tampoco expone tipos de `domain`: ni en los campos públicos y variantes de `Command`, `Query`, `Response` y `Error`, ni en las firmas del `UseCase`, ni en una reexportación pública desde `application`. Las conversiones (`From<&Agregado> for Response`) y los `use` del handler no son contrato. Que `api` no declare `domain` no basta: un valor de dominio que llega por un campo público se puede usar sin importar el crate. En Rust: `tests/naming.rs::hex_4_*`.
 
 ---
 

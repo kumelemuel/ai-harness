@@ -56,6 +56,9 @@ fn hex_1_dependencies_point_inward() {
     );
 }
 
+/// Cubre también TDD-2: `Crate::dependencies` incluye `[dev-dependencies]`, y
+/// Cargo impide usar en un test lo que no está declarado. Así, los tests de
+/// dominio y de caso de uso no pueden usar `tokio` ni un framework.
 #[test]
 fn hex_2_core_depends_only_on_std_and_the_kernel() {
     let crates = crates();
@@ -73,7 +76,8 @@ fn hex_2_core_depends_only_on_std_and_the_kernel() {
         .collect();
 
     assert_no_violations(
-        "HEX-2: domain, application y kernel solo usan std y el kernel",
+        "HEX-2 / TDD-2: domain, application y kernel solo usan std y el kernel, \
+         también en [dev-dependencies] (sus tests no levantan runtime ni framework)",
         violations,
     );
 }

@@ -2,8 +2,8 @@
 
 mod common;
 
-use common::{Layer, assert_no_violations, crates, parse, relative, rust_files};
-use std::path::PathBuf;
+use common::{Crate, Layer, assert_no_violations, crates, parse, relative, rust_files};
+use std::path::{Path, PathBuf};
 use syn::visit::Visit;
 
 const OUTBOUND_SUFFIXES: &[&str] = &[
@@ -15,6 +15,8 @@ const OUTBOUND_SUFFIXES: &[&str] = &[
     "Service",
 ];
 const RESERVED_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Result"];
+/// Tipos del contrato de un caso de uso (HEX-4).
+const CONTRACT_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Error"];
 
 fn dirs_of(layer: Layer, sub: &str) -> Vec<PathBuf> {
     crates()
@@ -159,6 +161,285 @@ fn hex_4_api_depends_on_use_cases_never_on_handlers() {
 
     assert_no_violations(
         "HEX-4: api depende del UseCase, nunca del Handler",
+        violations,
+    );
+}
+
+/// Nombres con los que un archivo de `application` alcanza el crate de dominio.
+struct DomainNames {
+    /// Identificador del crate (`communities_domain`).
+    krate: String,
+    /// Nombres locales importados con `use` desde ese crate (tipos o módulos).
+    local: Vec<String>,
+    /// `use {ctx}_domain::…::*`: cualquier nombre podría venir del dominio.
+    glob: bool,
+}
+
+impl DomainNames {
+    fn of(krate: &str, file: &syn::File) -> Self {
+        let mut names = Self {
+            krate: krate.to_string(),
+            local: Vec::new(),
+            glob: false,
+        };
+        let uses: Vec<&syn::UseTree> = file
+            .items
+            .iter()
+            .filter_map(|i| match i {
+                syn::Item::Use(u) => Some(&u.tree),
+                _ => None,
+            })
+            .collect();
+        // Dos pasadas: `use communities_domain::value_objects;` puede venir
+        // después de `use value_objects::CommunityId;`.
+        for _ in 0..2 {
+            for tree in &uses {
+                for (path, local) in use_leaves(tree) {
+                    if self_is_domain(&names, &path) {
+                        match local {
+                            Some(name) if !names.local.contains(&name) => names.local.push(name),
+                            Some(_) => {}
+                            None => names.glob = true,
+                        }
+                    }
+                }
+            }
+        }
+        names
+    }
+
+    fn is_domain(&self, path: &syn::Path) -> bool {
+        path.segments
+            .first()
+            .is_some_and(|s| s.ident == self.krate || self.local.iter().any(|l| s.ident == l))
+    }
+}
+
+fn self_is_domain(names: &DomainNames, path: &[String]) -> bool {
+    path.first()
+        .is_some_and(|first| *first == names.krate || names.local.contains(first))
+}
+
+/// Hojas de un `use`: `(ruta completa, nombre local)`; `None` si es un glob.
+fn use_leaves(tree: &syn::UseTree) -> Vec<(Vec<String>, Option<String>)> {
+    fn walk(
+        tree: &syn::UseTree,
+        prefix: &mut Vec<String>,
+        out: &mut Vec<(Vec<String>, Option<String>)>,
+    ) {
+        match tree {
+            syn::UseTree::Path(p) => {
+                prefix.push(p.ident.to_string());
+                walk(&p.tree, prefix, out);
+                prefix.pop();
+            }
+            syn::UseTree::Name(n) if n.ident == "self" => {
+                out.push((prefix.clone(), prefix.last().cloned()));
+            }
+            syn::UseTree::Name(n) => {
+                let mut path = prefix.clone();
+                path.push(n.ident.to_string());
+                out.push((path, Some(n.ident.to_string())));
+            }
+            syn::UseTree::Rename(r) => {
+                let mut path = prefix.clone();
+                path.push(r.ident.to_string());
+                out.push((path, Some(r.rename.to_string())));
+            }
+            syn::UseTree::Glob(_) => out.push((prefix.clone(), None)),
+            syn::UseTree::Group(g) => {
+                for item in &g.items {
+                    walk(item, prefix, out);
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(tree, &mut Vec::new(), &mut out);
+    out
+}
+
+/// Rutas de dominio dentro de un fragmento de sintaxis (un tipo, una firma).
+struct DomainPaths<'n> {
+    names: &'n DomainNames,
+    found: Vec<(usize, String)>,
+}
+
+impl<'ast> Visit<'ast> for DomainPaths<'_> {
+    fn visit_path(&mut self, path: &'ast syn::Path) {
+        if self.names.is_domain(path) {
+            let text = path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::");
+            let line = path
+                .segments
+                .first()
+                .map_or(0, |s| s.ident.span().start().line);
+            self.found.push((line, text));
+        }
+        syn::visit::visit_path(self, path);
+    }
+}
+
+fn domain_paths(names: &DomainNames, visit: impl FnOnce(&mut DomainPaths)) -> Vec<(usize, String)> {
+    let mut paths = DomainPaths {
+        names,
+        found: Vec::new(),
+    };
+    visit(&mut paths);
+    paths.found
+}
+
+fn is_test_module(module: &syn::ItemMod) -> bool {
+    module.attrs.iter().any(|a| match &a.meta {
+        syn::Meta::List(list) => {
+            list.path.is_ident("cfg") && list.tokens.to_string().contains("test")
+        }
+        _ => false,
+    })
+}
+
+/// Ítems de un archivo, incluidos los de módulos en línea que no son de test.
+fn items_of(items: &[syn::Item]) -> Vec<&syn::Item> {
+    items
+        .iter()
+        .flat_map(|item| match item {
+            syn::Item::Mod(m) if !is_test_module(m) => m
+                .content
+                .as_ref()
+                .map(|(_, inner)| items_of(inner))
+                .unwrap_or_default(),
+            other => vec![other],
+        })
+        .collect()
+}
+
+fn is_under(file: &Path, krate: &Crate, subdirs: &[&str]) -> bool {
+    subdirs
+        .iter()
+        .any(|sub| file.starts_with(krate.dir.join(sub)))
+}
+
+/// El crate de dominio del mismo contexto, si `application` lo declara.
+fn domain_crate_of(application: &Crate, all: &[Crate]) -> Option<String> {
+    all.iter()
+        .find(|c| c.layer == Layer::Domain && c.context == application.context)
+        .filter(|d| application.dependencies().contains(&d.name))
+        .map(|d| d.name.replace('-', "_"))
+}
+
+#[test]
+fn hex_4_use_case_contracts_do_not_expose_domain_types() {
+    let all = crates();
+    let mut violations = Vec::new();
+
+    for app in all.iter().filter(|c| c.layer == Layer::Application) {
+        let Some(krate) = domain_crate_of(app, &all) else {
+            continue;
+        };
+        for path in rust_files(&app.dir.join("src")) {
+            let syntax = parse(&path);
+            let names = DomainNames::of(&krate, &syntax);
+            let file = relative(&path);
+            let in_cases = is_under(&path, app, &["src/commands", "src/queries"]);
+            let in_inbound = is_under(&path, app, &["src/ports/inbound"]);
+            let mut contract_in_file = false;
+
+            for item in items_of(&syntax.items) {
+                match item {
+                    // Reexportar el dominio lo vuelve parte de la superficie de application.
+                    syn::Item::Use(u) if matches!(u.vis, syn::Visibility::Public(_)) => {
+                        for (leaf, _) in use_leaves(&u.tree) {
+                            if self_is_domain(&names, &leaf) {
+                                let line = u.use_token.span.start().line;
+                                violations.push(format!(
+                                    "{file}:{line}: `pub use {}` reexporta el dominio",
+                                    leaf.join("::")
+                                ));
+                            }
+                        }
+                    }
+                    syn::Item::Struct(s)
+                        if in_cases
+                            && CONTRACT_SUFFIXES
+                                .iter()
+                                .any(|x| s.ident.to_string().ends_with(x)) =>
+                    {
+                        contract_in_file = true;
+                        for field in s
+                            .fields
+                            .iter()
+                            .filter(|f| matches!(f.vis, syn::Visibility::Public(_)))
+                        {
+                            for (line, found) in domain_paths(&names, |v| v.visit_type(&field.ty)) {
+                                violations.push(format!(
+                                    "{file}:{line}: el campo público de `{}` expone `{found}`",
+                                    s.ident
+                                ));
+                            }
+                        }
+                    }
+                    syn::Item::Enum(e)
+                        if in_cases
+                            && CONTRACT_SUFFIXES
+                                .iter()
+                                .any(|x| e.ident.to_string().ends_with(x)) =>
+                    {
+                        contract_in_file = true;
+                        for variant in &e.variants {
+                            for field in &variant.fields {
+                                for (line, found) in
+                                    domain_paths(&names, |v| v.visit_type(&field.ty))
+                                {
+                                    violations.push(format!(
+                                        "{file}:{line}: la variante `{}::{}` expone `{found}`",
+                                        e.ident, variant.ident
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    syn::Item::Trait(t) if in_inbound => {
+                        contract_in_file = true;
+                        let mut found = domain_paths(&names, |v| {
+                            v.visit_generics(&t.generics);
+                            for bound in &t.supertraits {
+                                v.visit_type_param_bound(bound);
+                            }
+                            for trait_item in &t.items {
+                                match trait_item {
+                                    syn::TraitItem::Fn(f) => v.visit_signature(&f.sig),
+                                    syn::TraitItem::Type(ty) => v.visit_trait_item_type(ty),
+                                    _ => {}
+                                }
+                            }
+                        });
+                        found.dedup();
+                        for (line, found) in found {
+                            violations.push(format!(
+                                "{file}:{line}: la firma de `{}` expone `{found}`",
+                                t.ident
+                            ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if names.glob && contract_in_file {
+                violations.push(format!(
+                    "{file}: `use {krate}::…::*` junto a un contrato impide verificar que no exponga el dominio"
+                ));
+            }
+        }
+    }
+
+    assert_no_violations(
+        "HEX-4: el contrato del caso de uso (Command, Query, Response, Error y el UseCase) \
+         no expone tipos de domain; api no ve domain (HEX-1)",
         violations,
     );
 }

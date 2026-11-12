@@ -31,9 +31,20 @@ arquitectura:
    envueltos en vez de hojas planas, variantes imposibles en el contrato.
 4. **ERR-4: fugas de transporte o logging** hacia el núcleo; datos sensibles en
    mensajes.
-5. **TDD-1 / TDD-2: tests.** Código de producción sin un test que lo exija, tests
-   modificados para pasar sin justificación, contenedor o mocks de librería en
-   tests de núcleo.
+5. **TDD-1 / TDD-2: tests.** TDD-1 no es automatizable de forma fiable: los
+   hooks garantizan verde, no rojo primero. Te toca a ti:
+   - Lista los archivos tocados (`git diff --name-only`, `--staged` o el rango) y
+     sepáralos en producción y test. En Rust, los tests de unidad viven en el
+     mismo archivo: mira los hunks (`git diff -U0`) para saber si caen dentro
+     del módulo `#[cfg(test)]`. `tests/` y `testing.rs` son test.
+   - Todo cambio de producción tiene un cambio de test que lo exige, es decir,
+     un test nuevo o modificado que fallaría sin él. Un refactor sin cambio de
+     comportamiento no lo necesita, pero dilo en el reporte.
+   - Si el rango tiene más de un commit, revisa el orden con
+     `git log --reverse --name-only <rango>`. El test aparece antes que la
+     producción o en el mismo commit, nunca después.
+   - También: tests modificados para pasar sin justificación, y contenedor o
+     mocks de librería en tests de núcleo (TDD-2).
 
 Después revisa dependencias, vocabulario y nombres (HEX-1 a HEX-6, HEX-8). Si el
 proyecto tiene tests de arquitectura, córrelos en vez de revisar a mano lo que ya

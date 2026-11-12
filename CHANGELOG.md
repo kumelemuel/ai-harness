@@ -2,6 +2,54 @@
 
 ## Sin publicar
 
+### Agregado
+- Plantilla Rust, `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types`
+  (HEX-4). Recorre los crates de `application`. Falla si un campo público o una
+  variante de `*Command`, `*Query`, `*Response` o `*Error` (en `commands/` y
+  `queries/`) nombra un tipo del dominio, o si lo nombra una firma de
+  `ports/inbound` o un `pub use {ctx}_domain::…`. Detecta la ruta completa, el
+  nombre importado (también con alias o desde un módulo importado) y el tipo
+  anidado en genéricos. También falla con un glob del dominio junto a un
+  contrato, porque no se puede verificar. No son violación
+  `impl From<&Community> for …Response` ni los `use` de `handler.rs`. Cubre lo
+  que Cargo no ve: `api` puede usar un valor de dominio que le llega por un
+  campo público sin declarar el crate. Verificado inyectando cada caso: campo
+  de `Response` (el del encargo), campo de `Command` con ruta completa,
+  variante de `Error` con alias de módulo, parámetro del `UseCase`, `pub use`
+  en `lib.rs` y glob.
+
+### Cambiado
+- TDD-1, **Verificación**: deja de prometer un hook. No es automatizable de
+  forma fiable, porque los hooks garantizan verde y no rojo primero. Queda
+  asignado al revisor: todo cambio de producción del diff trae el test que lo
+  exige y, con varios commits, el test aparece antes o junto a la producción.
+  `architecture-reviewer` (punto 5) explica cómo revisarlo: archivos del diff,
+  hunks dentro de `#[cfg(test)]` en Rust y `git log --reverse --name-only`.
+  `site-auditor` suma el punto 8 con la misma regla para los sitios. Ahí la
+  producción es la lógica (`src/lib/`, `src/actions/`, rutas, seguridad,
+  middleware y config), no el contenido ni los estilos.
+- TDD-2, **Verificación**: apunta a `hex_2_core_*`, que ya leía las
+  `[dev-dependencies]`. Por eso no se agregó un test nuevo: con `tokio` como
+  dev-dependency de `communities-application`, ese test ya falla. El test y su
+  mensaje lo dicen ahora de forma explícita. La forma de los tests (contenedor,
+  mocks de librería) queda asignada al revisor.
+- HEX-4, **Verificación**: describe el test nuevo y por qué Cargo no basta.
+- `stacks/rust/README.md`: la tabla de Enforcement suma el contrato de HEX-4,
+  TDD-2 en `hex_2_core_*` y TDD-1 en el revisor.
+
+### Inventario de las secciones "Verificación"
+
+Lo que este cambio deja resuelto: HEX-4 (contrato), TDD-1 (revisor) y TDD-2. El
+resto queda para otro encargo:
+
+| Estado | Promesas |
+|--------|----------|
+| Cubiertas | HEX-1, HEX-2, HEX-4, HEX-5, HEX-6, TDD-2 (dependencias), ERR-1 en `domain`, ERR-2 (exhaustividad del compilador), WEB-1, WEB-2, WEB-3, WEB-6, WEB-7 (terceros), WEB-8, WEB-9 (metadatos), RS-1, RS-3, RS-4, AS-4, AS-5, AS-6 |
+| Asignadas al revisor | HEX-7, TDD-1, TDD-2 (forma), RS-2 (`panic!` solo para invariantes), ERR-3 (semántica), WEB-4 (`alt`), WEB-7 (aviso), WEB-9 (JSON-LD) |
+| Automatizables sin test | HEX-3 (puertos en `domain`), HEX-8 (test propio del kernel), ERR-1 (errores de `application`), ERR-4 (`println!` y `eprintln!` en el núcleo), WEB-10 (`.gitignore`), VER-1 (el verificador no comprueba que el test citado exista) |
+| Configuradas sin verificar | WEB-4, WEB-5 y WEB-9 con Lighthouse: nunca corrió localmente |
+| No automatizables y sin revisor | ERR-2 y ERR-3 (un test por variante), AS-3 (código en inglés) |
+
 ## 0.7.0 — 2026-11-12
 
 Plugins: `craft-backend` 0.5.2 y `craft-web` 0.1.2.

@@ -175,7 +175,7 @@ genéricos en los caminos calientes sin cambiar los principios.
   Otras capas los usan con `[dev-dependencies] {ctx}-application = { workspace = true, features = ["testing"] }`.
 - **`block_on`** del módulo `testing`: ejecutor mínimo con `std` (`Waker::noop`). Solo para
   futures que resuelven de inmediato (fakes); el núcleo no necesita `tokio` ni siquiera en
-  tests.
+  tests, y `hex_2_core_*` lo impide (TDD-2).
 - Los tests de caso de uso afirman con `matches!(result, Err(Failure::Expected(…)))`.
 - En crates de test de integración, `#![allow(clippy::unwrap_used)]` al inicio del archivo.
 
@@ -186,17 +186,18 @@ genéricos en los caminos calientes sin cambiar los principios.
 | Regla | Mecanismo | Falla en |
 |-------|-----------|----------|
 | HEX-1 dependencias hacia adentro, `api` solo ve el `application` de su contexto y `edge`, sin cruces entre contextos | `tests/dependencies.rs::hex_1_*` (lee los `Cargo.toml`) + Cargo | `cargo test` |
-| HEX-2 núcleo solo con `std` + kernel | `tests/dependencies.rs::hex_2_core_*` | `cargo test` |
+| HEX-2 núcleo solo con `std` + kernel; TDD-2 sus tests tampoco usan runtime ni framework (lee también `[dev-dependencies]`) | `tests/dependencies.rs::hex_2_core_*` | `cargo test` |
 | HEX-2 frameworks de servidor solo en `api`, `edge` y bootstrap | `tests/dependencies.rs::hex_2_server_*` | `cargo test` |
 | HEX-3 `domain` no ve `application` | Cargo (no está declarado) + `hex_1` | compilación |
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
+| HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
 | HEX-5 sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_*` | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
 | ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_*` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
 | HEX-1…6, ERR-1 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
 | Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
-| HEX-7, ERR-1…3 | `architecture-reviewer` | revisión |
+| HEX-7, ERR-1…3, TDD-1 (test antes o junto a la producción en el diff y en el orden de commits) | `architecture-reviewer`. Los hooks garantizan verde, no rojo primero | revisión |
 
 **Hooks del plugin.** Se activan solos en cualquier workspace con
 `tools/architecture/Cargo.toml`; fuera de eso no hacen nada. Se pueden apagar con

@@ -22,7 +22,7 @@ Formato de cada principio: ver [README](README.md).
 
 **Violaciones típicas.** Escribir implementación y test a la vez. Un test que nunca se vio fallar. Ajustar la aserción al resultado obtenido en vez de corregir el código.
 
-**Verificación.** Revisión del orden de commits; hook o skill que exige un test fallando antes de editar producción.
+**Verificación.** No automatizable de forma fiable. Asignado al subagente revisor (`architecture-reviewer`; en sitios, `site-auditor`). Revisa que todo cambio de producción del diff tenga un cambio de test que lo exija. Si hay varios commits, el test aparece antes o junto a la producción. Los hooks garantizan verde, no rojo primero.
 
 ---
 
@@ -46,7 +46,7 @@ Formato de cada principio: ver [README](README.md).
 
 **Violaciones típicas.** Levantar el contenedor del framework para probar un handler. Mocks de librería en lugar de fakes en memoria. Probar reglas de negocio a través del endpoint.
 
-**Verificación.** Revisión; los tests de dominio y de caso de uso no importan el framework (test de arquitectura sobre el código de test).
+**Verificación.** Test de arquitectura sobre las dependencias de test del núcleo: dominio y aplicación no declaran runtimes ni frameworks, tampoco como dependencias de test. En Rust, `tests/dependencies.rs::hex_2_core_*` lee las `[dev-dependencies]`, y Cargo impide usar en un test lo que no está declarado. La forma de los tests queda asignada al subagente revisor: contenedor del framework, mocks de librería en vez de fakes, reglas de negocio probadas por el endpoint.
 
 ---
 
