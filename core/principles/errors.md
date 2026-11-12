@@ -71,7 +71,7 @@ Ejemplo: al crear una comunidad, un `ModerationGateway` evalúa el nombre. Si el
 - Códigos HTTP (o de cualquier transporte) existen **solo** en `api`. El núcleo no conoce `HttpStatus`.
 - El adaptador *driving* hace `fold` exhaustivo del error del caso de uso hacia el formato de transporte (para HTTP: RFC 9457 *Problem Details*), con helpers por hoja.
 - Para clientes que ramifican por error, el Problem Details lleva un `code` estable como miembro de extensión (`COMMUNITIES_SLUG_ALREADY_EXISTS`). El código es vocabulario de transporte: lo asigna el adaptador *driving*, no el núcleo.
-- El árbol B termina en un manejador global: respuesta genérica sin detalles internos, y registro a través de un puerto saliente.
+- El árbol B termina en un manejador global: respuesta genérica sin detalles internos, y registro a través de `FaultReporter`, capacidad técnica transversal del kernel (`HEX-8`).
 - El núcleo no hace logging. Ningún error, mensaje ni registro lleva datos sensibles ni secretos.
 
 **Fundamento.** El núcleo sirve a cualquier transporte. Un manejador global es la red de seguridad del árbol B, no el mecanismo del árbol A.
@@ -92,7 +92,7 @@ Ejemplo: al crear una comunidad, un `ModerationGateway` evalúa el nombre. Si el
 | Errores envueltos (`FromDomain`) | Hoja plana del contrato |
 | Adaptador que lanza ante un rechazo de negocio | Rechazo como éxito del puerto, en el DTO |
 | Código de transporte en el núcleo | Traducción en `api` |
-| Logging en el núcleo | Registro vía puerto saliente desde el manejador global |
+| Logging en el núcleo | Registro vía `FaultReporter` (`HEX-8`) desde el manejador global |
 
 ---
 

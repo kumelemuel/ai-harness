@@ -2,7 +2,9 @@
 
 mod common;
 
-use common::{Crate, Layer, assert_no_violations, crates, parse, relative, rust_files};
+use common::{
+    CAPABILITIES, Crate, Layer, assert_no_violations, crates, parse, relative, rust_files,
+};
 use std::path::{Path, PathBuf};
 use syn::visit::Visit;
 
@@ -464,6 +466,87 @@ fn hex_5_outbound_ports_are_named_by_role() {
 
     assert_no_violations(
         "HEX-5: puertos salientes con sufijo de rol, nunca `Port`",
+        violations,
+    );
+}
+
+/// Concepto del adaptador: el puerto sin su sufijo de rol (HEX-5) o, si es una
+/// capacidad del kernel, su nombre completo (HEX-8).
+fn concept_of(contract: &str) -> &str {
+    if CAPABILITIES.contains(&contract) {
+        return contract;
+    }
+    OUTBOUND_SUFFIXES
+        .iter()
+        .find_map(|suffix| contract.strip_suffix(suffix))
+        .filter(|concept| !concept.is_empty())
+        .unwrap_or(contract)
+}
+
+/// Archivos donde viven adaptadores driven de un contexto: todo `infrastructure`.
+fn adapter_files(context: &Crate) -> Vec<PathBuf> {
+    match context.layer {
+        Layer::Infrastructure => rust_files(&context.dir.join("src")),
+        _ => Vec::new(),
+    }
+}
+
+#[test]
+fn hex_5_adapters_are_named_by_technology_and_concept() {
+    let all = crates();
+    let mut violations = Vec::new();
+
+    for krate in &all {
+        let files = adapter_files(krate);
+        if files.is_empty() {
+            continue;
+        }
+        let ports: Vec<String> = all
+            .iter()
+            .filter(|c| c.layer == Layer::Application && c.context == krate.context)
+            .flat_map(|app| scan(&[app.dir.join("src/ports/outbound")], Some("dtos")))
+            .flat_map(|(_, items)| items.traits.into_iter().map(|t| t.ident.to_string()))
+            .collect();
+
+        for path in files {
+            let mut items = Items::default();
+            items.visit_file(&parse(&path));
+            for imp in &items.impls {
+                let Some((_, trait_path, _)) = &imp.trait_ else {
+                    continue;
+                };
+                let contract = last_segment(trait_path);
+                if !ports.contains(&contract) && !CAPABILITIES.contains(&contract.as_str()) {
+                    continue;
+                }
+                let syn::Type::Path(self_ty) = &*imp.self_ty else {
+                    continue;
+                };
+                let name = last_segment(&self_ty.path);
+                let concept = concept_of(&contract);
+                let named = name
+                    .strip_suffix("Adapter")
+                    .and_then(|stem| stem.strip_suffix(concept))
+                    .is_some_and(|prefix| !prefix.is_empty());
+                if !named {
+                    let line = self_ty
+                        .path
+                        .segments
+                        .last()
+                        .map_or(0, |s| s.ident.span().start().line);
+                    violations.push(format!(
+                        "{}:{line}: `{name}` implementa `{contract}` y debe llamarse \
+                         {{Prefijo}}{concept}Adapter",
+                        relative(&path)
+                    ));
+                }
+            }
+        }
+    }
+
+    assert_no_violations(
+        "HEX-5: un adaptador se llama {Tecnología}{Concepto}Adapter; Concepto es el puerto \
+         sin su sufijo de rol o, si es una capacidad del kernel (HEX-8), su nombre completo",
         violations,
     );
 }

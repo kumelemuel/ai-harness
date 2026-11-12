@@ -96,7 +96,7 @@ Las versiones de crates externos se declaran una sola vez en
 | Agregado inmutable (HEX-7) | Campos privados, getters, comportamiento `fn rename(&self, …) -> Result<Self, NotCommunityOwner>` |
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
 | Composition root (HEX-2) | `apps/server/src/main.rs`: construye adaptadores y handlers, arma cada `{Ctx}Api { … }` y compone sus `Router` |
-| Generación de IDs | `kernel::IdGenerator` (trait); la implementación `UuidIdGenerator` vive en infraestructura. `uuid` nunca en el núcleo. |
+| Capacidades del kernel (HEX-8) | `kernel::IdGenerator` y `kernel::FaultReporter` (traits; `Clock` es la tercera de la lista, aún sin uso en la plantilla). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en infraestructura. `uuid` nunca en el núcleo. |
 
 ---
 
@@ -191,11 +191,13 @@ genéricos en los caminos calientes sin cambiar los principios.
 | HEX-3 `domain` no ve `application` | Cargo (no está declarado) + `hex_1` | compilación |
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
 | HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
-| HEX-5 sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_*` | `cargo test` |
+| HEX-5 puertos salientes con sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` | `cargo test` |
+| HEX-5 adaptadores `{Prefijo}{Concepto}Adapter`: en `infrastructure`, todo tipo que implementa un puerto de `ports/outbound` de su contexto o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
+| HEX-8 el kernel no declara dependencias (ni de test ni por `target`), y sus traits públicos son marcadores de modelo o capacidades de la lista cerrada | `tests/kernel.rs::hex_8_*` (`toml` + `syn`) | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
 | ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_*` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
-| HEX-1…6, ERR-1 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
+| HEX-1…6, HEX-8, ERR-1 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
 | Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
 | HEX-7, ERR-1…3, TDD-1 (test antes o junto a la producción en el diff y en el orden de commits) | `architecture-reviewer`. Los hooks garantizan verde, no rojo primero | revisión |
 
@@ -241,6 +243,8 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 | Rutas HTTP dentro de `infrastructure` junto a la persistencia | Crate `{ctx}-api` separado; `api` e `infrastructure` no se ven (HEX-1) |
 | `uuid`, `serde`, `chrono` en `domain`/`application` | Solo `std` + kernel; la implementación va en infraestructura |
 | `trait CommunityRepositoryPort` | `trait CommunityRepository` |
+| `PostgresCommunityRepositoryAdapter`, `UuidIdGenerator` | `PostgresCommunityAdapter`, `UuidIdGeneratorAdapter` (HEX-5) |
+| Un trait de negocio en el kernel porque dos contextos lo usan (`CommunityLookup`) | Un puerto en el `application` de cada contexto, o un `Client`. El kernel solo admite las capacidades de HEX-8 |
 | Inbound `CommunityCreationPort` + impl `CreateCommunityUseCase` | Inbound `CreateCommunityUseCase` + impl `CreateCommunityHandler` |
 | `impl Error for InvalidCommunitySlug` (o en `domain_error!`) "para que `?` compile" | Solo `Debug` + `Display`; traducir a una hoja, o a `Fault` a mano si es dato corrupto (ERR-1) |
 | Un `SystemError` global en todas las firmas | `Failure<{Verb}{Noun}Error>` acotado |

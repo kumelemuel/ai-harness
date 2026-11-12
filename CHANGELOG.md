@@ -3,6 +3,18 @@
 ## Sin publicar
 
 ### Agregado
+- Plantilla Rust, `tests/kernel.rs::hex_8_*` (HEX-8). Uno falla si el kernel
+  declara cualquier dependencia: `[dependencies]`, `[dev-dependencies]`,
+  `[build-dependencies]` o las de `[target.…]`. Así las firmas de sus capacidades
+  solo pueden usar `std` y kernel. El otro falla si un trait público del kernel
+  no es un marcador de modelo (`ValueObject`, `Entity`, `AggregateRoot`,
+  `Identifier`) ni una capacidad de la lista cerrada (`Clock`, `IdGenerator`,
+  `FaultReporter`). Las dos listas viven en `tests/common/mod.rs`.
+- Plantilla Rust, `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept`
+  (HEX-5, segunda mitad). En `infrastructure`, todo tipo que implementa un
+  puerto de `ports/outbound` de su contexto o una capacidad del kernel se llama
+  `{Prefijo}{Concepto}Adapter`, con prefijo no vacío. Concepto es el puerto sin
+  su sufijo de rol, o el nombre completo si es una capacidad.
 - Plantilla Rust, `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types`
   (HEX-4). Recorre los crates de `application`. Falla si un campo público o una
   variante de `*Command`, `*Query`, `*Response` o `*Error` (en `commands/` y
@@ -29,6 +41,24 @@
   3.11 y 3.14 reales.
 
 ### Cambiado
+- HEX-8 reconoce las **capacidades técnicas transversales**, con criterio y
+  lista cerrada: `Clock`, `IdGenerator` y `FaultReporter`. El criterio exige que
+  sea técnica, sin vocabulario de negocio, usada por más de un contexto y con
+  firma solo de tipos estándar y del kernel. Su nombre no lleva sufijo de rol;
+  es la única excepción a HEX-5 para puertos y a HEX-3 para su ubicación. Sus
+  adaptadores sí siguen HEX-5. Sale "dentro del kernel, `domain` no depende de
+  `application`", que describía el kernel de Java. La reemplaza "si el kernel se
+  divide en capas, HEX-1 rige dentro de él". HEX-3 y HEX-5 remiten a la
+  excepción. Nuevo antipatrón: "Agregar un trait al kernel porque varios
+  contextos lo usan" → "Solo capacidades de la lista de HEX-8".
+- HEX-5, **Verificación**: un test por mitad (puertos y adaptadores).
+- ERR-4 cita `FaultReporter` como capacidad del kernel, también en su antipatrón.
+- Plantilla Rust: `UuidIdGenerator` pasa a `UuidIdGeneratorAdapter`, en
+  `uuid_id_generator.rs` (antes `uuid_id.rs`), también en el composition root.
+  Los comentarios del kernel llaman "capacidad" a `IdGenerator` y `FaultReporter`.
+- `hexagonal-architecture`: el bloque del kernel describe las capacidades.
+  `stacks/rust/README.md`: fila "Capacidades del kernel" (antes "Generación de
+  IDs"), Enforcement con los dos tests y violaciones típicas nuevas.
 - TDD-1, **Verificación**: deja de prometer un hook. No es automatizable de
   forma fiable, porque los hooks garantizan verde y no rojo primero. Queda
   asignado al revisor: todo cambio de producción del diff trae el test que lo
@@ -76,6 +106,13 @@
   `ModerationError.Unavailable`.
 
 ### Verificado
+- HEX-8, inyectado y revertido: un `pub trait CommunityLookup` en
+  `kernel/src/lib.rs` (falla el test de traits, con archivo y línea) y
+  `uuid` en `[dependencies]` del kernel (falla el de dependencias).
+- HEX-5 adaptadores: en rojo con `UuidIdGenerator` antes del renombre, y en
+  verde después. Inyectado y revertido en infraestructura:
+  `PostgresCommunityRepositoryAdapter` (repite el rol) y `CommunityAdapter`
+  (sin prefijo). Fallan los dos, también con la ruta completa del trait.
 - Alcance de las skills, con sesiones headless reales sobre copias de las
   plantillas y ambos plugins instalados a nivel de usuario (el peor caso).
   - Astro, "agrega una página de servicios": antes del cambio en `astro-stack`
@@ -86,16 +123,31 @@
     `rust-stack`, `hexagonal-architecture`, `error-handling` y `tdd`, antes y
     después del cambio.
 
+### Decisiones
+- La lista cerrada de capacidades vive en el código en `tests/common/mod.rs`
+  (`CAPABILITIES`), junto a los marcadores (`MODEL_MARKERS`). La usan el test
+  del kernel y el de nombres de adaptadores. Los marcadores son los que HEX-8
+  nombra. Los "marcadores de error y de evento" que menciona sin nombrar
+  tendrán que nombrarse en HEX-8 antes de entrar al kernel.
+- `Clock` está en la lista aunque la plantilla aún no lo use.
+- El test de dependencias del kernel lee también `[dev-dependencies]`,
+  `[build-dependencies]` y `[target.…]`. El encargo pedía `[dependencies]`; una
+  dependencia de test o de plataforma también rompe "solo `std`".
+- El test de nombres solo recorre `infrastructure`. Los tipos que implementan
+  `FaultReporter` en el composition root (`StderrFaultReporter`), en
+  `edge/http` y en los tests de `api` quedan fuera de su alcance y no se
+  renombraron.
+
 ### Inventario de las secciones "Verificación"
 
-Lo que este cambio deja resuelto: HEX-4 (contrato), TDD-1 (revisor) y TDD-2. El
-resto queda para otro encargo:
+Lo que dejan resuelto los cambios sin publicar: HEX-4 (contrato), TDD-1
+(revisor), TDD-2, HEX-5 (adaptadores) y HEX-8. El resto queda para otro encargo:
 
 | Estado | Promesas |
 |--------|----------|
-| Cubiertas | HEX-1, HEX-2, HEX-4, HEX-5, HEX-6, TDD-2 (dependencias), ERR-1 en `domain`, ERR-2 (exhaustividad del compilador), WEB-1, WEB-2, WEB-3, WEB-6, WEB-7 (terceros), WEB-8, WEB-9 (metadatos), RS-1, RS-3, RS-4, AS-4, AS-5, AS-6 |
+| Cubiertas | HEX-1, HEX-2, HEX-4, HEX-5 (puertos y adaptadores), HEX-6, HEX-8, TDD-2 (dependencias), ERR-1 en `domain`, ERR-2 (exhaustividad del compilador), WEB-1, WEB-2, WEB-3, WEB-6, WEB-7 (terceros), WEB-8, WEB-9 (metadatos), RS-1, RS-3, RS-4, AS-4, AS-5, AS-6 |
 | Asignadas al revisor | HEX-7, TDD-1, TDD-2 (forma), RS-2 (`panic!` solo para invariantes), ERR-3 (semántica), WEB-4 (`alt`), WEB-7 (aviso), WEB-9 (JSON-LD) |
-| Automatizables sin test | HEX-3 (puertos en `domain`), HEX-8 (test propio del kernel), ERR-1 (errores de `application`), ERR-4 (`println!` y `eprintln!` en el núcleo), WEB-10 (`.gitignore`), VER-1 (el verificador no comprueba que el test citado exista) |
+| Automatizables sin test | HEX-3 (puertos en `domain`), ERR-1 (errores de `application`), ERR-4 (`println!` y `eprintln!` en el núcleo), WEB-10 (`.gitignore`), VER-1 (el verificador no comprueba que el test citado exista) |
 | Configuradas sin verificar | WEB-4, WEB-5 y WEB-9 con Lighthouse: nunca corrió localmente |
 | No automatizables y sin revisor | ERR-2 y ERR-3 (un test por variante), AS-3 (código en inglés) |
 

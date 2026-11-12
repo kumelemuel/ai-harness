@@ -65,6 +65,8 @@ nombres de capa y la dirección de dependencias no.
 
 **Regla.** Puertos entrantes (`ports/inbound`) y salientes (`ports/outbound`) se declaran en `application`. `domain` contiene solo modelos y reglas de negocio.
 
+Única excepción de ubicación: las capacidades técnicas transversales de la lista cerrada de HEX-8 (`Clock`, `IdGenerator`, `FaultReporter`), que viven en el kernel.
+
 **Fundamento.** La aplicación es la frontera lógica del caso de uso: declara qué ofrece y qué necesita. Persistencia e integraciones son detalle de orquestación, no reglas de negocio. Un dominio sin puertos no cambia cuando cambia la frontera técnica, y no conoce quién lo invoca.
 
 > **Nota de precisión teórica.** Esto diverge conscientemente de Evans (*DDD*, 2003), que ubica las interfaces de `Repository` en la capa de dominio. Es coherente con Cockburn, donde los puertos pertenecen al borde de la *aplicación*. La divergencia debe quedar explícita para que nadie la "corrija" citando a Evans.
@@ -114,11 +116,13 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 | `CommunityRepository` | `PostgresCommunityAdapter`, `InMemoryCommunityAdapter` |
 | `ModerationGateway` | `HttpModerationAdapter`, `StubModerationAdapter` |
 
+Única excepción: las capacidades técnicas transversales del kernel (HEX-8) no llevan sufijo de rol. Sus adaptadores sí siguen esta regla, con el nombre completo de la capacidad como Concepto: `UuidIdGeneratorAdapter`, `SystemClockAdapter`.
+
 **Fundamento.** Al leer la firma de un handler se sabe qué toca: una base de datos, un tercero, un servicio propio. `Port` es uniforme pero opaco. En el adaptador, el rol ya está implícito en la tecnología (`Postgres` es persistencia, `Http` es remoto); repetirlo solo alarga el nombre.
 
 **Violaciones típicas.** `Service` usado como cajón de sastre. Un `Gateway` para un servicio propio. `PostgresCommunityRepositoryAdapter` (repite el rol).
 
-**Verificación.** Test de arquitectura sobre nombres de interfaces en `ports/outbound`.
+**Verificación.** Tests de arquitectura, uno por mitad de la regla. Los puertos de `ports/outbound` llevan un sufijo de rol y nunca `Port`. En `infrastructure`, todo tipo que implementa un puerto de su contexto o una capacidad del kernel se llama `{Prefijo}{Concepto}Adapter`, con prefijo no vacío. Así falla `PostgresCommunityRepositoryAdapter`, que repite el rol. En Rust: `tests/naming.rs::hex_5_*`.
 
 ---
 
@@ -169,15 +173,34 @@ Agregados inmutables con comportamiento en sus métodos. Las reglas se evalúan 
 
 ## HEX-8 — Kernel compartido delgado
 
-**Regla.** Un módulo de kernel compartido contiene **solo primitivas**: `Result`, marcadores de modelo (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`), marcadores de error y de evento, y helpers genéricos (`Clock`). Nunca agregados de un contexto, puertos de un caso de uso ni datos sensibles. Sin framework. Dentro del kernel, `domain` no depende de `application`.
+**Regla.** Un módulo de kernel compartido contiene **solo primitivas**: `Result`, marcadores de modelo (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`), marcadores de error y de evento, y las **capacidades técnicas transversales** de la lista de abajo. Nunca agregados de un contexto, puertos de un caso de uso ni datos sensibles. Sin framework ni dependencias: solo el lenguaje estándar. Si el kernel se divide en capas, HEX-1 rige dentro de él.
 
 Las jerarquías cerradas de cada contexto viven en el contexto, no en el kernel (los marcadores del kernel son abiertos).
 
-**Fundamento.** Un sitio único para los bloques de construcción evita copiar contratos sin acoplar contextos entre sí. Si crece, se vuelve un acoplamiento disfrazado.
+**Capacidades técnicas transversales.** Son los únicos puertos que viven fuera de `application/ports`. Una capacidad entra solo si cumple **todos** estos criterios:
 
-**Violaciones típicas.** Mover un agregado al kernel "porque dos servicios lo usan".
+- Es una capacidad técnica, sin vocabulario de negocio.
+- La necesita más de un contexto.
+- Su firma se expresa solo con tipos del lenguaje estándar y del kernel.
 
-**Verificación.** Test de arquitectura propio del kernel.
+La lista es **cerrada**:
+
+| Capacidad | Qué hace |
+|-----------|----------|
+| `Clock` | Da la hora actual |
+| `IdGenerator` | Genera identificadores |
+| `FaultReporter` | Registra las fallas del árbol B desde el manejador global (`ERR-4`) |
+
+Agregar una exige cambiar esta lista y el test del kernel en el mismo commit.
+
+- **Nombre:** sustantivo de agente por lo que hace, sin sufijo de rol y nunca `Port`. Es la única excepción a HEX-5 para puertos y la única a HEX-3 para su ubicación.
+- **Adaptadores:** siguen HEX-5. Como la capacidad no tiene sufijo de rol que quitar, el Concepto es su nombre completo: `UuidIdGeneratorAdapter`, `SystemClockAdapter`.
+
+**Fundamento.** Un sitio único para los bloques de construcción evita copiar contratos sin acoplar contextos entre sí. Si crece, se vuelve un acoplamiento disfrazado. Por eso las capacidades tienen criterio y lista cerrada: "varios contextos lo usan" no basta, porque un puerto de negocio compartido es justo el acoplamiento que el kernel debe evitar. Sin sufijo de rol, porque el rol de una capacidad no varía. Un `Clock` no es ni persistencia ni un tercero: es el reloj.
+
+**Violaciones típicas.** Mover un agregado al kernel "porque dos servicios lo usan". Agregar un puerto con vocabulario de negocio (`CommunityLookup`) al kernel para compartirlo entre contextos. Una capacidad que no está en la lista. Un adaptador de capacidad sin sufijo (`UuidIdGenerator`).
+
+**Verificación.** Test de arquitectura propio del kernel: no tiene dependencias, y todo trait público es un marcador de modelo o una capacidad de la lista. Los nombres de los adaptadores los cubre el test de HEX-5. En Rust: `tests/kernel.rs::hex_8_*` y `tests/naming.rs::hex_5_adapters_*`.
 
 ---
 
@@ -194,6 +217,7 @@ Las jerarquías cerradas de cada contexto viven en el contexto, no en el kernel 
 | Adaptador *driving* que inyecta el handler | Inyectar el `UseCase` |
 | `api` importando tipos de `domain` | Contrato del caso de uso sin tipos de dominio |
 | Framework o librerías utilitarias en el núcleo | Estándar del lenguaje + kernel |
+| Agregar un trait al kernel porque varios contextos lo usan | Solo capacidades de la lista de HEX-8 |
 | Reglas de negocio en el handler | Encapsularlas en el dominio |
 
 ---

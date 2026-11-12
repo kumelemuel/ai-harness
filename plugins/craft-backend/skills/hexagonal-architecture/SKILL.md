@@ -81,9 +81,17 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 - Agregados inmutables, con comportamiento.
 
 **Kernel compartido (HEX-8)**
-- Solo primitivas: `Result`, marcadores (`ValueObject`, `Entity`,
-  `AggregateRoot`, `Identifier`), marcadores de error y de evento, `Clock`.
-- Nunca agregados, puertos de casos de uso ni datos sensibles.
+- Solo primitivas y solo el lenguaje estándar: `Result`, marcadores
+  (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`), marcadores de error
+  y de evento, y las capacidades técnicas transversales.
+- Capacidades: lista **cerrada**, `Clock`, `IdGenerator`, `FaultReporter`.
+  Técnicas, sin vocabulario de negocio, usadas por más de un contexto y con
+  firma solo de tipos estándar y del kernel. Sin sufijo de rol: es la única
+  excepción a HEX-3 y HEX-5. Agregar una exige cambiar HEX-8.
+- Sus adaptadores sí siguen HEX-5, con el nombre completo como Concepto:
+  `UuidIdGeneratorAdapter`, `SystemClockAdapter`.
+- Nunca agregados, puertos de un contexto ni datos sensibles. Que varios
+  contextos usen un trait no basta para llevarlo al kernel.
 
 **Verificación (VER-1)**
 - Si el proyecto tiene tests de arquitectura, córrelos al terminar.

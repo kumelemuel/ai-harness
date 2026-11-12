@@ -50,7 +50,8 @@ impl fmt::Debug for Fault {
     }
 }
 
-/// Puerto de registro del árbol B. Lo invoca solo el manejador global (ERR-4).
+/// Registro del árbol B: capacidad técnica transversal (HEX-8). Lo invoca solo
+/// el manejador global (ERR-4).
 pub trait FaultReporter: Send + Sync {
     fn report(&self, fault: &Fault);
 }

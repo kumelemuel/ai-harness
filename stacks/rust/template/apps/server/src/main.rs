@@ -7,7 +7,7 @@ use axum::middleware::{self, Next};
 use axum::response::Response;
 use communities_api::CommunitiesApi;
 use communities_application::commands::create_community::CreateCommunityHandler;
-use communities_infrastructure::{InMemoryCommunityAdapter, UuidIdGenerator};
+use communities_infrastructure::{InMemoryCommunityAdapter, UuidIdGeneratorAdapter};
 use edge_http::AuthenticatedAccount;
 use kernel::{Fault, FaultReporter};
 use std::sync::Arc;
@@ -39,7 +39,7 @@ async fn authenticate(mut request: Request, next: Next) -> Response {
 
 fn communities(faults: Arc<dyn FaultReporter>) -> CommunitiesApi {
     let repository = Arc::new(InMemoryCommunityAdapter::default());
-    let ids = Arc::new(UuidIdGenerator);
+    let ids = Arc::new(UuidIdGeneratorAdapter);
 
     CommunitiesApi {
         create_community: Arc::new(CreateCommunityHandler::new(repository, ids)),
