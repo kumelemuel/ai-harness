@@ -18,6 +18,10 @@
   variante de `Error` con alias de módulo, parámetro del `UseCase`, `pub use`
   en `lib.rs` y glob.
 - `LICENSE` MIT en la raíz (2026, Kumelemuel). Los `plugin.json` ya declaraban MIT.
+- `.gitignore` de la raíz: además del bytecode, ignora `target/`,
+  `node_modules/`, `.env` y `.env.*` (salvo `.env.example`), `.dev.vars` y
+  `.DS_Store`. No había archivos generados en el índice: `6587a49` ya había
+  sacado `__pycache__/`.
 
 ### Cambiado
 - TDD-1, **Verificación**: deja de prometer un hook. No es automatizable de

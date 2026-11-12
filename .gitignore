@@ -1,2 +1,16 @@
+# Bytecode de los hooks y del verificador
 __pycache__/
 *.pyc
+
+# Artefactos de build de las plantillas
+target/
+node_modules/
+
+# Secretos locales
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Sistema operativo
+.DS_Store
