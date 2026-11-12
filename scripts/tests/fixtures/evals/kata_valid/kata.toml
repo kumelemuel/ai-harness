@@ -1,0 +1,9 @@
+description = "Caso de uso nuevo en la plantilla Rust"
+template = "stacks/rust/template"
+plugins = ["craft-backend"]
+setup = ["cargo build --workspace --tests"]
+acceptance = "python3 acceptance/check.py"
+timeout_minutes = 40
+
+[env]
+CARGO_TARGET_DIR = "{cache}/target"

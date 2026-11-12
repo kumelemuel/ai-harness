@@ -1,0 +1,10 @@
+description = "Rust, caso de uso nuevo: renombrar una comunidad, solo el dueño"
+template = "stacks/rust/template"
+plugins = ["craft-backend"]
+# Compila antes para que el primer hook no espere la compilación desde cero.
+setup = ["cargo build --workspace --tests"]
+acceptance = "python3 acceptance/check.py"
+timeout_minutes = 45
+
+[env]
+CARGO_TARGET_DIR = "{cache}/target"

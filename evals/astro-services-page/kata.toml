@@ -1,0 +1,6 @@
+description = "Astro, página: servicios con tres servicios"
+template = "stacks/astro/template"
+plugins = ["craft-web"]
+setup = ["npm ci --prefer-offline --no-audit --no-fund"]
+acceptance = "python3 acceptance/check.py"
+timeout_minutes = 30

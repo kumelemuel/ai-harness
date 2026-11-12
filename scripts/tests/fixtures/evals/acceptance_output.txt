@@ -1,0 +1,4 @@
+compilando el servidor...
+PASS rename_by_owner
+FAIL rename_by_non_owner_is_forbidden: status 200, se esperaba 403
+PASS architecture_tests

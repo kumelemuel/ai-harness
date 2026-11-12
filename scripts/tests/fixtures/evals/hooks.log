@@ -1,0 +1,4 @@
+post-edit	pass	contexts/a.rs
+post-edit	block	contexts/b.rs
+stop	block	clippy
+stop	pass	
