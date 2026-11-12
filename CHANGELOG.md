@@ -37,6 +37,20 @@
   del cliente. Los comentarios y los nombres de test no son código: la propia
   plantilla los escribe en español.
 
+### Cambiado
+- CI del harness: el filtro `astro-changes` compara también
+  `.github/workflows/harness.yml`. Un cambio que solo toca la definición de
+  `astro-e2e` lo corre. Simulado con el historial: `5b4879e` contra su padre da
+  `changed=false` con el filtro viejo y `true` con el nuevo, y un commit que
+  solo toca el CHANGELOG sigue en `false`.
+  - El push de `5b4879e` no se saltó `astro-e2e`: fue un fast-forward de todo
+    el pull request #3, y el diff contra el `main` anterior incluía
+    `stacks/astro`. Lighthouse corrió y pasó en ese push y en el pull request.
+    El hueco era real para un cambio aislado del workflow.
+  - Los jobs `consistency`, `rust` y `astro` no tienen filtro de rutas:
+    corren en todo pull request y en todo push a `main`, y solo se saltan la
+    ejecución semanal, que es de `astro-e2e`.
+
 ### Filas que cambiaron de mecanismo
 Respecto del inventario de 0.9.0:
 - ERR-2 (un test por variante): de "sin revisor" a

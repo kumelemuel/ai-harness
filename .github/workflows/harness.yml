@@ -94,10 +94,12 @@ jobs:
       - run: npm run check
       - run: npm test
 
-  # ¿Cambió stacks/astro/? Sin acción de terceros: diff contra la base del
-  # pull request o contra el commit anterior del push.
+  # ¿Cambió stacks/astro/ o este workflow? Sin acción de terceros: diff contra
+  # la base del pull request o contra el commit anterior del push. El workflow
+  # cuenta porque define el job: un arreglo de astro-e2e que solo lo toca a él
+  # también tiene que correr.
   astro-changes:
-    name: Cambios en stacks/astro
+    name: Cambios en stacks/astro o en el workflow
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -114,7 +116,8 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- stacks/astro; then
+          elif git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- \
+            stacks/astro .github/workflows/harness.yml; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
