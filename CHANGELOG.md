@@ -1,5 +1,22 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- CI del harness, job `astro-e2e` para `stacks/astro/template`: `npm run build`,
+  e2e con Playwright contra `wrangler dev` (WEB-4, WEB-6, WEB-7 y WEB-9) y
+  Lighthouse CI con los presupuestos de WEB-5, usando el Chromium de Playwright.
+  Corre cuando un pull request o un push cambia `stacks/astro/` (job
+  `astro-changes`, con `git diff` contra el merge-base y sin acciones de
+  terceros), cada lunes y con `workflow_dispatch`. La ejecución semanal solo
+  corre este job. Sube los reportes como artefacto.
+  - Corrido localmente por primera vez (Node 24.19, Chromium 1254): los 16 e2e
+    en verde, y Lighthouse en 1.0 en performance, accesibilidad,
+    best-practices y SEO en las cinco páginas, con LCP de unos 760 ms, CLS
+    menor que 0.001 y TBT 0. No se tocó ningún umbral. Rojo: un `<p>` con
+    `style` inline en `/` deja best-practices en 0.92 (la CSP lo bloquea y
+    queda un error de consola), y Lighthouse sale con 1.
+
 ## 0.8.0 — 2026-11-12
 
 Plugins: `craft-backend` 0.6.0 y `craft-web` 0.2.0. Publica lo que estaba en

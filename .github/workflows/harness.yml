@@ -1,13 +1,16 @@
 name: Harness
 
 # VER-1 aplicado al propio harness: consistencia de la documentación y las dos
-# plantillas en verde. Los e2e y Lighthouse de Astro corren en el CI propio de
-# la plantilla (stacks/astro/template/.github/workflows/ci.yml).
+# plantillas en verde. El job astro-e2e corre los e2e y Lighthouse de la
+# plantilla Astro cuando cambia stacks/astro/, cada semana y a mano.
 
 on:
   pull_request:
   push:
     branches: [main]
+  # Semanal, solo para astro-e2e: detecta deriva de navegador, wrangler y Lighthouse.
+  schedule:
+    - cron: "17 6 * * 1"
   workflow_dispatch:
 
 concurrency:
@@ -20,6 +23,7 @@ permissions:
 jobs:
   consistency:
     name: Verificador de consistencia
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -47,6 +51,7 @@ jobs:
 
   rust:
     name: Plantilla Rust
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -66,6 +71,7 @@ jobs:
 
   astro:
     name: Plantilla Astro
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -82,3 +88,83 @@ jobs:
       - run: npm run lint
       - run: npm run check
       - run: npm test
+
+  # ¿Cambió stacks/astro/? Sin acción de terceros: diff contra la base del
+  # pull request o contra el commit anterior del push.
+  astro-changes:
+    name: Cambios en stacks/astro
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- stacks/astro; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # WEB-4, WEB-6, WEB-7 y WEB-9 (e2e con axe, CSP, terceros y metadatos) y
+  # WEB-5 (presupuestos de Lighthouse) sobre el build servido por wrangler dev.
+  astro-e2e:
+    name: Plantilla Astro, e2e y Lighthouse
+    needs: astro-changes
+    if: >-
+      !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      || needs.astro-changes.outputs.changed == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: stacks/astro/template
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: stacks/astro/template/.nvmrc
+          cache: npm
+          cache-dependency-path: stacks/astro/template/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Versión de Playwright
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Caché del navegador de Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Instalar Chromium
+        timeout-minutes: 5
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end (páginas, CSP, axe, terceros, formulario)
+        run: npm run test:e2e
+      # Lighthouse usa el Chromium de Playwright: no depende del Chrome del runner.
+      - name: Presupuestos de Lighthouse (WEB-5)
+        run: |
+          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
+          npm run lighthouse
+      - name: Reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: astro-reports
+          path: |
+            stacks/astro/template/playwright-report/
+            stacks/astro/template/test-results/
+            stacks/astro/template/.lighthouseci/
+          if-no-files-found: ignore
+          retention-days: 14

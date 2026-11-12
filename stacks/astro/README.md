@@ -3,12 +3,12 @@
 > **Estado:** v0.1 (2026-11-12)
 > **Toolchain:** Astro 7, Node 24, Cloudflare Workers, Tailwind 4.
 > **Referencia ejecutable:** [`template/`](template/): build limpio, `astro check` sin errores,
-> tests unitarios y e2e todos en verde (los unitarios, en el
-> [CI del harness](../../.github/workflows/harness.yml); los e2e, en el
-> [CI de la plantilla](template/.github/workflows/ci.yml)). Los tests detectan cada violación inyectada:
-> `unsafe-inline`, una página on-demand no declarada, un `<h1>` duplicado, una imagen sin
-> `alt` y una fuente de terceros. Lighthouse está configurado pero **aún no se corrió
-> localmente**.
+> tests unitarios, e2e y presupuestos de Lighthouse todos en verde, en el
+> [CI del harness](../../.github/workflows/harness.yml) (los e2e y Lighthouse, cuando cambia
+> `stacks/astro/`, cada semana y a mano) y en el [CI de la plantilla](template/.github/workflows/ci.yml).
+> Los tests detectan cada violación inyectada: `unsafe-inline`, una página on-demand no
+> declarada, un `<h1>` duplicado, una imagen sin `alt` y una fuente de terceros. Lighthouse
+> falla con un estilo inline bloqueado por la CSP (best-practices bajo 0.95).
 
 Traducción de [`core/principles/web.md`](../../core/principles/web.md) a Astro. Destilado de
 kumelemuel.dev (barra de calidad) y kidus-akaal.com (Cloudflare, antispam).

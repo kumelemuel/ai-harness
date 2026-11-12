@@ -83,8 +83,11 @@ El CI ([`.github/workflows/harness.yml`](.github/workflows/harness.yml)) corre
 el verificador y sus tests (con `--base` en los pull requests hacia `main` y en
 los push a `main`); en la plantilla Rust, `cargo fmt --check`,
 `clippy -D warnings` y `cargo test --workspace`, y en la plantilla Astro, lint,
-`astro check` y los tests unitarios. Los e2e y Lighthouse de Astro corren en el
-CI propio de la plantilla.
+`astro check` y los tests unitarios. El job `astro-e2e` hace el build de la
+plantilla Astro y corre los e2e con Playwright contra `wrangler dev` y los
+presupuestos de Lighthouse CI (WEB-5). Corre cuando un pull request o un push
+cambia `stacks/astro/`, cada semana (lunes) y a mano (`workflow_dispatch`); la
+ejecución semanal solo corre ese job.
 
 ## Publicar una versión
 
