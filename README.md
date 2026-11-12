@@ -9,6 +9,7 @@ subagentes y hooks que el agente carga solo cuando los necesita.
 
 ```
 core/principles/        Fuente de verdad, un archivo por tema (HEX, ERR, TDD, VER, WEB)
+core/verification.md    Inventario: cómo se verifica cada principio y decisión de stack
 stacks/                 Traducción por stack; rust/template y astro/template son ejecutables
 templates/web/          Proceso comercial: descubrimiento, spec, cotización, entrega
 plugins/craft-backend/  Plugin de Claude Code: hexagonal, errores, TDD, Rust
@@ -67,7 +68,11 @@ python3 -m unittest discover -s scripts/tests          # tests del verificador
 | `STACK-PATH` | Una ruta entre comillas invertidas en la descripción de una skill de stack que no existe en la plantilla |
 | `STACK-STATUS` | Una versión de stack distinta en `stacks/README.md` y en su guía |
 | `VOLATILE-COUNT` | Un conteo de tests en la documentación (fuera del CHANGELOG) |
-| `MISSING-TEST` | Un test citado entre comillas invertidas en una sección "Verificación" o en una tabla de Enforcement que no existe en la plantilla: una función con prefijo de principio (`hex_4_…`, admite `*`), con o sin archivo (`tests/naming.rs::hex_4_*`), o un archivo de test (`routes.test.ts`) |
+| `MISSING-TEST` | Un test citado entre comillas invertidas en una sección "Verificación", en una tabla de Enforcement o en una fila `test` del inventario que no existe en la plantilla (o una fila `test` que no cita ninguno): una función con prefijo de principio (`hex_4_…`, admite `*`), con o sin archivo (`tests/naming.rs::hex_4_*`), o un archivo de test (`routes.test.ts`) |
+| `VERIF-MISSING-ID` | Un ID definido en `core/principles/` o en una guía de stack sin fila en [`core/verification.md`](core/verification.md) |
+| `VERIF-UNKNOWN-ID` | Una fila del inventario con un ID que no existe |
+| `VERIF-BAD-MECHANISM` | Un mecanismo fuera de la lista cerrada (`test`, `herramienta`, `revisor:<agente>`, `pendiente`), o una `herramienta` o un `pendiente` sin detalle |
+| `VERIF-REVIEWER` | Un `revisor:<agente>` que no existe o cuyo archivo no menciona el ID |
 | `VERSION-NOT-BUMPED` | Con `--base`: cambió un archivo que llega a un plugin y su versión no subió |
 | `CHANGELOG-UNRELEASED` | Con `--base`: el CHANGELOG tiene una sección "Sin publicar" |
 

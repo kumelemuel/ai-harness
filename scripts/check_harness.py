@@ -31,6 +31,19 @@ Comprobaciones:
                  (`tests/naming.rs::hex_4_*`), o un archivo de test
                  (`routes.test.ts`, `tests/naming.rs`)
 
+  Inventario `core/verification.md` (si existe; VER-1 lo enlaza, así que
+  borrarlo es un MD-LINK). Una tabla `ID | Aspecto | Mecanismo | Detalle`:
+  VERIF-MISSING-ID    un ID definido en `core/principles/` o en una guía de
+                      stack no tiene ninguna fila
+  VERIF-UNKNOWN-ID    una fila con un ID que no está definido
+  VERIF-BAD-MECHANISM un mecanismo fuera de la lista cerrada (`test`,
+                      `herramienta`, `revisor:<agente>`, `pendiente`), o una
+                      `herramienta` o un `pendiente` sin detalle
+  VERIF-REVIEWER      `revisor:<agente>`: el agente no existe en
+                      `plugins/*/agents/` o su archivo no menciona el ID
+  MISSING-TEST        una fila `test` no cita ningún test, o cita uno que no
+                      existe (misma búsqueda que en "Verificación")
+
 Con --base REF (CI, cambios que entran a main), desde el merge-base de REF y HEAD:
   VERSION-NOT-BUMPED   cambió un archivo que llega a un plugin (su directorio o
                        lo que alcanza por symlinks) y su `version` no es mayor
@@ -154,27 +167,33 @@ def read_lines(path: Path) -> list[str]:
 # --------------------------------------------------------------------------- IDs
 
 
-def check_ids(root: Path, files: list[Path]) -> list[Problem]:
-    problems: list[Problem] = []
-    defined: dict[str, set[str]] = {}
+def definitions(root: Path) -> list[tuple[str, str, int]]:
+    """(ID, archivo fuente, línea) de cada definición, en orden y con repeticiones."""
+    found: list[tuple[str, str, int]] = []
     for prefix, source in ID_SOURCES.items():
         path = root / source
         if not path.is_file():
             continue
-        seen: dict[str, int] = {}
         for number, line in enumerate(read_lines(path), start=1):
             match = DEFINITION.match(line)
-            if not match or match.group(2) != prefix:
-                continue
-            identifier = match.group(1)
-            if identifier in seen:
-                problems.append(Problem(
-                    source, number, "ID-DUPLICATE",
-                    f"{identifier} ya está definido en la línea {seen[identifier]}",
-                ))
-            else:
-                seen[identifier] = number
-        defined[prefix] = set(seen)
+            if match and match.group(2) == prefix:
+                found.append((match.group(1), source, number))
+    return found
+
+
+def check_ids(root: Path, files: list[Path]) -> list[Problem]:
+    problems: list[Problem] = []
+    defined: dict[str, set[str]] = {}
+    seen: dict[str, int] = {}
+    for identifier, source, number in definitions(root):
+        if identifier in seen:
+            problems.append(Problem(
+                source, number, "ID-DUPLICATE",
+                f"{identifier} ya está definido en la línea {seen[identifier]}",
+            ))
+        else:
+            seen[identifier] = number
+            defined.setdefault(identifier.split("-")[0], set()).add(identifier)
 
     for path in files:
         if path.suffix not in TEXT_SUFFIXES:
@@ -520,8 +539,8 @@ def check_cited_tests(root: Path, files: list[Path]) -> list[Problem]:
     indexes = {template: index_tests(template) for template in every}
     problems: list[Problem] = []
     for path in files:
-        if path.suffix != ".md" or rel(root, path) == "CHANGELOG.md":
-            continue
+        if path.suffix != ".md" or rel(root, path) in ("CHANGELOG.md", INVENTORY):
+            continue  # el inventario lo revisa check_inventory, fila por fila
         searched = templates_for(root, path, every)
         for number, line in verification_lines(read_lines(path)):
             for token in re.findall(r"`([^`]+)`", line):
@@ -535,6 +554,105 @@ def check_cited_tests(root: Path, files: list[Path]) -> list[Problem]:
                     rel(root, path), number, "MISSING-TEST",
                     f"`{token.strip()}` no existe en los tests de {where}",
                 ))
+    return problems
+
+
+# ------------------------------------------------------------------ inventario
+
+INVENTORY = "core/verification.md"
+INVENTORY_HEADER = ["ID", "Aspecto", "Mecanismo", "Detalle"]
+MECHANISMS = ("test", "herramienta", "pendiente")
+REVIEWER_PREFIX = "revisor:"
+ID_CELL = re.compile(rf"^(?:{_PREFIXES})-\d+$")
+
+
+def table_cells(line: str) -> list[str]:
+    """Celdas de una fila de tabla Markdown; `\\|` no separa."""
+    body = line.strip()
+    body = body[1:] if body.startswith("|") else body
+    body = body[:-1] if body.endswith("|") and not body.endswith("\\|") else body
+    return [cell.strip().replace("\\|", "|") for cell in re.split(r"(?<!\\)\|", body)]
+
+
+def inventory_rows(lines: list[str]):
+    """(línea, ID, aspecto, mecanismo, detalle) de las tablas del inventario."""
+    in_fence = in_inventory = False
+    for number, line in enumerate(lines, start=1):
+        if FENCE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence or not TABLE_ROW.match(line):
+            in_inventory = False
+            continue
+        cells = table_cells(line)
+        if cells == INVENTORY_HEADER:
+            in_inventory = True
+            continue
+        if not in_inventory or all(re.fullmatch(r":?-+:?", c) for c in cells):
+            continue
+        cells = (cells + ["", "", "", ""])[:4]
+        identifier, aspect, mechanism, detail = cells
+        yield number, identifier, aspect, mechanism.strip("`").strip(), detail
+
+
+def agent_files(root: Path) -> dict[str, Path]:
+    plugins_dir = root / "plugins"
+    if not plugins_dir.is_dir():
+        return {}
+    return {path.stem: path for path in sorted(plugins_dir.glob("*/agents/*.md"))}
+
+
+def check_inventory(root: Path) -> list[Problem]:
+    path = root / INVENTORY
+    if not path.is_file():
+        return []
+    defined = {identifier: (source, line) for identifier, source, line in reversed(definitions(root))}
+    agents = agent_files(root)
+    every = templates(root)
+    indexes = [index_tests(template) for template in every]
+    covered: set[str] = set()
+    problems: list[Problem] = []
+
+    def problem(number: int, code: str, message: str) -> None:
+        problems.append(Problem(INVENTORY, number, code, message))
+
+    for number, identifier, _aspect, mechanism, detail in inventory_rows(read_lines(path)):
+        if not ID_CELL.match(identifier) or identifier not in defined:
+            problem(number, "VERIF-UNKNOWN-ID",
+                    f"`{identifier}` no es un ID definido en core/principles/ ni en una guía de stack")
+            continue
+        covered.add(identifier)
+        if mechanism.startswith(REVIEWER_PREFIX):
+            agent = mechanism[len(REVIEWER_PREFIX):].strip()
+            if not agent:
+                problem(number, "VERIF-BAD-MECHANISM", "`revisor:` sin agente: `revisor:<agente>`")
+            elif agent not in agents:
+                problem(number, "VERIF-REVIEWER",
+                        f"el agente `{agent}` no existe en plugins/*/agents/")
+            elif identifier not in {m.group(0) for m in CITATION.finditer(
+                    agents[agent].read_text(encoding="utf-8"))}:
+                problem(number, "VERIF-REVIEWER",
+                        f"`{rel(root, agents[agent])}` no menciona {identifier}: el revisor no sabe que le toca")
+        elif mechanism not in MECHANISMS:
+            problem(number, "VERIF-BAD-MECHANISM",
+                    f"`{mechanism}` no es un mecanismo: usa test, herramienta, revisor:<agente> o pendiente")
+        elif mechanism == "test":
+            cited = [c for c in (cited_test(t.strip()) for t in re.findall(r"`([^`]+)`", detail)) if c]
+            if not cited:
+                problem(number, "MISSING-TEST", f"la fila `test` de {identifier} no cita ningún test")
+            for file, function in cited:
+                if not find_test(indexes, file, function):
+                    shown = f"{file}::{function}" if file and function else file or function
+                    where = ", ".join(rel(root, t) for t in every) or "ninguna plantilla"
+                    problem(number, "MISSING-TEST", f"`{shown}` no existe en los tests de {where}")
+        elif not detail:
+            problem(number, "VERIF-BAD-MECHANISM",
+                    f"`{mechanism}` sin detalle: nombra la herramienta o explica por qué está pendiente")
+
+    for identifier, (source, line) in sorted(defined.items(), key=lambda item: item[1]):
+        if identifier not in covered:
+            problems.append(Problem(source, line, "VERIF-MISSING-ID",
+                                    f"{identifier} no tiene ninguna fila en {INVENTORY}"))
     return problems
 
 
@@ -686,6 +804,7 @@ def check(root: Path) -> list[Problem]:
         *check_stack_status(root),
         *check_volatile_counts(root, files),
         *check_cited_tests(root, files),
+        *check_inventory(root),
     ]
     return sorted(problems, key=lambda p: (p.path, p.line, p.code, p.message))
 

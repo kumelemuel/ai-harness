@@ -56,6 +56,15 @@ en este orden:
      `git log --reverse --name-only <rango>`. El test aparece antes que la producción o
      en el mismo commit, nunca después.
 
+9. **AS-3: código en inglés, contenido en el idioma del cliente.** En `src/` (salvo
+   `src/content/`), `tests/` y la config, los identificadores van en inglés: variables,
+   funciones, tipos, componentes, props, claves de `ROUTES` y archivos de lógica. Lo que
+   lee el visitante va en el idioma del cliente: textos, `alt`, títulos, mensajes de error
+   del formulario y URLs. Señala los dos desvíos: un identificador en español
+   (`enviarFormulario`, `ROUTES.contacto`) y un texto visible en inglés en un sitio en
+   español. Los archivos de página siguen a la URL (`contacto/index.astro`), y los
+   comentarios y nombres de test no son código: AS-3 no los alcanza.
+
 ## Formato del reporte
 
 Por cada hallazgo:

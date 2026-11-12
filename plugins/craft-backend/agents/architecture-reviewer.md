@@ -29,6 +29,13 @@ arquitectura:
 3. **ERR-1 / ERR-2: árboles de errores.** Excepciones para fallos de negocio,
    `catch` amplios que convierten fallos técnicos en errores de negocio, errores
    envueltos en vez de hojas planas, variantes imposibles en el contrato.
+   - **ERR-2: un test por variante admitida.** El compilador garantiza que el
+     `match` del borde sea exhaustivo, no que cada variante esté probada. Por
+     cada contrato `{Verb}{Noun}Error` que el diff crea o modifica, lista sus
+     variantes y busca, para cada una, un test del handler que la produzca
+     (afirmando sobre `Failure::Expected(Variante(…))`) y uno del endpoint que
+     la traduzca a su respuesta. Reporta cada variante sin uno de los dos, con
+     el nombre del test que falta.
 4. **ERR-4: fugas de transporte o logging** hacia el núcleo; datos sensibles en
    mensajes.
 5. **TDD-1 / TDD-2: tests.** TDD-1 no es automatizable de forma fiable: los
@@ -46,7 +53,14 @@ arquitectura:
    - También: tests modificados para pasar sin justificación, y contenedor o
      mocks de librería en tests de núcleo (TDD-2).
 
-Después revisa dependencias, vocabulario y nombres (HEX-1 a HEX-6, HEX-8). Si el
+6. **RS-2 (Rust): `panic!` solo para invariantes rotos.** Clippy ya prohíbe
+   `unwrap`. Revisa cada `panic!`, `expect`, `unreachable!` y `todo!` del diff:
+   el mensaje de `expect` empieza con `"invariante: …"` y nombra cuál, y nunca
+   cubre un fallo de negocio (árbol A) ni uno técnico que debería ser `Fault`.
+   Los tests y `testing.rs` están exentos.
+
+Después revisa dependencias, vocabulario y nombres (HEX-1, HEX-2, HEX-3, HEX-4,
+HEX-5, HEX-6 y HEX-8). Si el
 proyecto tiene tests de arquitectura, córrelos en vez de revisar a mano lo que ya
 cubren, y reporta qué reglas expresables como test no están cubiertas (VER-1).
 

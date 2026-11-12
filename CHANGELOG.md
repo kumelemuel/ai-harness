@@ -1,5 +1,59 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- `core/verification.md`: el inventario de verificación pasa a ser un
+  documento vivo y verificado. Una tabla `ID | Aspecto | Mecanismo | Detalle`,
+  con varias filas por ID cuando cada aspecto se verifica distinto. Los
+  mecanismos son una lista cerrada: `test`, `herramienta`,
+  `revisor:<agente>` y `pendiente`. No existe "sin revisor". Lo enlazan el
+  README y VER-1. El CHANGELOG deja de copiar el inventario: cada versión
+  registra solo las filas que cambiaron de mecanismo.
+- `scripts/check_harness.py`, comprobaciones del inventario (solo si existe
+  `core/verification.md`; VER-1 lo enlaza, así que borrarlo es un `MD-LINK`):
+  - `VERIF-MISSING-ID`: un ID definido en `core/principles/` o en una guía de
+    stack sin ninguna fila. Se reporta en la definición.
+  - `VERIF-UNKNOWN-ID`: una fila con un ID que no existe (también da
+    `ID-UNDEFINED`, porque es una cita).
+  - `VERIF-BAD-MECHANISM`: un mecanismo fuera de la lista, `revisor:` sin
+    agente, o una `herramienta` o un `pendiente` sin detalle.
+  - `VERIF-REVIEWER`: el agente no existe en `plugins/*/agents/` o su archivo
+    no menciona el ID.
+  - `MISSING-TEST`: una fila `test` que no cita ningún test o cita uno que no
+    existe. El inventario sale de la búsqueda por secciones "Verificación"
+    para no reportar dos veces.
+  - Rojo primero con un fixture por código. En el repo real, cada inyección
+    falla con su código: borrar la fila de HEX-7, `sin-revisor` en AS-3,
+    `revisor:architecture-reviewer` en AS-3, un test renombrado en una fila
+    `test` y borrar el archivo.
+- `architecture-reviewer`: ERR-2, un test por variante admitida (por cada
+  variante de `{Verb}{Noun}Error`, un test del handler que la produce y uno
+  del endpoint que la traduce), y RS-2 (`panic!` y `expect` solo para
+  invariantes). Nombra cada HEX que revisa. Al crear el inventario,
+  `VERIF-REVIEWER` encontró que el archivo no mencionaba RS-2, que le estaba
+  asignado desde 0.8.0.
+- `site-auditor`: AS-3, identificadores en inglés y lo visible en el idioma
+  del cliente. Los comentarios y los nombres de test no son código: la propia
+  plantilla los escribe en español.
+
+### Filas que cambiaron de mecanismo
+Respecto del inventario de 0.9.0:
+- ERR-2 (un test por variante): de "sin revisor" a
+  `revisor:architecture-reviewer`.
+- AS-3: de "sin revisor" a `revisor:site-auditor`.
+- ERR-3 (un caso por variante): de "automatizable sin test" a `herramienta`
+  desde 0.10.0. El compilador lo garantiza con `scenario_of` y los campos
+  obligatorios de `moderation_gateway_contract!`. Sus casos los genera una
+  macro, así que `MISSING-TEST` no puede citarlos, y lo mismo vale para la
+  batería de TDD-2.
+- WEB-2 (redirecciones): de cubierta a `pendiente`. `REDIRECTS` está vacío en
+  la plantilla y sus tests recorren un conjunto vacío.
+- AS-1 (`herramienta`) y AS-2 (`test`, y `pendiente` para los tokens en
+  `@theme`): no estaban en el inventario.
+- Desaparece la categoría "Configuradas sin verificar": WEB-5 es
+  `herramienta` (Lighthouse CI en `astro-e2e`).
+
 ## 0.10.0 — 2026-11-12
 
 Plugins: `craft-backend` 0.8.0; `craft-web` sigue en 0.3.0. La cobertura de la
@@ -206,6 +260,12 @@ punta en el CI del harness.
   renombrado después no lo invalida.
 
 ### Inventario de las secciones "Verificación"
+
+> **Errata.** Esta sección se escribió antes de publicar 0.9.0. "Los cambios
+> sin publicar" son los de esta versión, y "la rama no está publicada"
+> describe ese momento. El job `astro-e2e` corrió y pasó en GitHub, también
+> Lighthouse, en el pull request #3 y en el push a `main` de `5b4879e`. Desde
+> la siguiente versión, el inventario vive en `core/verification.md`.
 
 Lo que dejan resuelto los cambios sin publicar: HEX-3, ERR-1 en `application`,
 ERR-4, WEB-10, VER-1 (tests citados), y WEB-4, WEB-5, WEB-6, WEB-7 y WEB-9 en el

@@ -17,6 +17,8 @@ Formato de cada principio: ver [README](README.md).
 
 **Verificación.** Existe un test de arquitectura por módulo y corre en CI. Las reglas que no son automatizables (p. ej. `HEX-7`) quedan explícitamente asignadas a un revisor. Todo test citado en una sección **Verificación** o en una tabla de enforcement existe: si se renombra o se borra, la documentación falla.
 
+El [inventario de verificación](../verification.md) dice, para cada ID, con qué mecanismo se comprueba: `test`, `herramienta`, `revisor:<agente>` o `pendiente`. No hay una categoría "sin revisor". El verificador del harness exige una fila por ID, un mecanismo de la lista, que el test citado exista y que el revisor asignado mencione el ID en su archivo.
+
 ---
 
 ## Decisiones por stack

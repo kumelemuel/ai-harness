@@ -185,6 +185,77 @@ class MissingTests(unittest.TestCase):
         self.assertIn("stacks/rust/template", messages["hex_7_*"])
 
 
+class VerificationInventory(unittest.TestCase):
+    """`core/verification.md`: cada ID tiene al menos una fila, con un mecanismo
+    de la lista cerrada (`test`, `herramienta`, `revisor:<agente>`, `pendiente`)."""
+
+    def found(self, fixture: str) -> list[tuple[str, str, int, str]]:
+        return sorted((p.code, p.path, p.line, p.message) for p in problems(fixture))
+
+    def test_valid_inventory_has_several_rows_per_id_and_escaped_pipes(self) -> None:
+        # Cubierto por ValidRepo; aquí, que el fixture de verdad trae inventario.
+        self.assertTrue((FIXTURES / "valid/core/verification.md").is_file())
+
+    def test_every_defined_id_needs_a_row(self) -> None:
+        found = self.found("verif_missing_id")
+        self.assertEqual(
+            [("VERIF-MISSING-ID", "core/principles/hexagonal.md", 5)],
+            [(code, path, line) for code, path, line, _ in found],
+        )
+        self.assertIn("HEX-2", found[0][3])
+        self.assertIn("core/verification.md", found[0][3])
+
+    def test_row_id_must_exist(self) -> None:
+        found = self.found("verif_unknown_id")
+        unknown = [(line, message) for code, path, line, message in found
+                   if code == "VERIF-UNKNOWN-ID"]
+        self.assertEqual([7, 8], [line for line, _ in unknown])
+        self.assertIn("HEX-9", unknown[0][1])
+        self.assertIn("todo", unknown[1][1])
+        # El ID inexistente también es una cita sin definir; nada más.
+        self.assertEqual(
+            {"VERIF-UNKNOWN-ID", "ID-UNDEFINED"}, {code for code, *_ in found},
+        )
+        self.assertTrue(all(path == "core/verification.md" for _, path, _, _ in found))
+
+    def test_mechanism_must_be_in_the_closed_list(self) -> None:
+        found = self.found("verif_bad_mechanism")
+        self.assertEqual(
+            [("VERIF-BAD-MECHANISM", "core/verification.md", line) for line in (5, 6, 7)],
+            [(code, path, line) for code, path, line, _ in found],
+        )
+        self.assertIn("sin-revisor", found[0][3])
+        self.assertIn("revisor:", found[1][3])
+        self.assertIn("pendiente", found[2][3])
+
+    def test_reviewer_must_exist_and_mention_the_id(self) -> None:
+        found = self.found("verif_reviewer")
+        self.assertEqual(
+            [("VERIF-REVIEWER", "core/verification.md", line) for line in (6, 7, 8)],
+            [(code, path, line) for code, path, line, _ in found],
+        )
+        self.assertIn("ghost", found[0][3])
+        self.assertIn("no existe", found[0][3])
+        self.assertIn("other", found[1][3])
+        self.assertIn("HEX-2", found[1][3])
+        self.assertIn("HEX-2", found[2][3])
+
+    def test_test_rows_cite_existing_tests(self) -> None:
+        found = self.found("verif_missing_test")
+        self.assertEqual(
+            [("MISSING-TEST", "core/verification.md", 6),
+             ("MISSING-TEST", "core/verification.md", 7)],
+            [(code, path, line) for code, path, line, _ in found],
+        )
+        self.assertIn("hex_1_gone", found[0][3])
+        self.assertIn("no cita", found[1][3])
+
+    def test_without_inventory_nothing_is_required(self) -> None:
+        # Los demás fixtures no tienen `core/verification.md`: no se exige. En el
+        # repo real, VER-1 lo enlaza, así que borrarlo es un MD-LINK.
+        self.assertEqual([], [p for p in problems("duplicate_id") if p.code.startswith("VERIF-")])
+
+
 class Release(unittest.TestCase):
     """`--base`: lo que entra a `main` publica una versión nueva.
 
