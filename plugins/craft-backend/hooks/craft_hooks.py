@@ -5,7 +5,8 @@ post-edit  Tras editar un .rs o Cargo.toml en un workspace Rust con
            `tools/architecture`: formatea el archivo y corre los tests de
            arquitectura. Si fallan, devuelve las violaciones al agente.
 stop       Antes de que el agente termine, si hay cambios Rust sin commit:
-           clippy -D warnings + cargo test. Si fallan, no lo deja terminar.
+           clippy -D warnings (solo crates que siguen la arquitectura) +
+           cargo test --workspace. Si fallan, no lo deja terminar.
 
 Fuera de un workspace con `tools/architecture` no hace nada.
 
@@ -25,6 +26,7 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ARCH_PACKAGE = "architecture"
@@ -50,6 +52,37 @@ def workspace_root(start: Path) -> Path | None:
 def has_architecture_tests(root: Path) -> bool:
     manifest = root / "tools" / ARCH_PACKAGE / "Cargo.toml"
     return manifest.is_file()
+
+
+LAYER_DIRS = ("domain", "application", "infrastructure", "api")
+
+
+def package_name(crate_dir: Path) -> str | None:
+    manifest = crate_dir / "Cargo.toml"
+    if not manifest.is_file():
+        return None
+    try:
+        return tomllib.loads(manifest.read_text())["package"]["name"]
+    except (tomllib.TOMLDecodeError, KeyError):
+        return None
+
+
+def architected_packages(root: Path) -> list[str]:
+    """Crates que siguen la arquitectura, con la misma convención de ubicación que
+    `tools/architecture`. Los contextos legacy (`contexts/{ctx}/Cargo.toml`) y los
+    crates fuera de la convención quedan fuera del gate de clippy."""
+    dirs: list[Path] = [root / "kernel", root / "app"]
+    for group in ("edge", "apps", "tools"):
+        base = root / group
+        if base.is_dir():
+            dirs.extend(sorted(p for p in base.iterdir() if p.is_dir()))
+    contexts = root / "contexts"
+    if contexts.is_dir():
+        for context in sorted(p for p in contexts.iterdir() if p.is_dir()):
+            if (context / "Cargo.toml").is_file():
+                continue  # legacy
+            dirs.extend(context / layer for layer in LAYER_DIRS)
+    return [name for name in map(package_name, dirs) if name]
 
 
 def run(command: list[str], cwd: Path, timeout: int) -> subprocess.CompletedProcess:
@@ -149,8 +182,9 @@ def stop(payload: dict) -> int:
     if root is None or not has_architecture_tests(root) or not rust_changes(root):
         return 0
 
+    packages = [arg for name in architected_packages(root) for arg in ("-p", name)]
     checks = [
-        ("clippy", ["cargo", "clippy", "--quiet", "--workspace", "--all-targets", "--", "-D", "warnings"]),
+        ("clippy", ["cargo", "clippy", "--quiet", "--no-deps", "--all-targets", *packages, "--", "-D", "warnings"]),
         ("tests", ["cargo", "test", "--quiet", "--workspace", "--no-fail-fast"]),
     ]
     for name, command in checks:

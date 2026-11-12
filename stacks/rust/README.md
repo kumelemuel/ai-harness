@@ -116,6 +116,7 @@ pub enum Failure<E> {
 | Contrato acotado (ERR-2) | `pub enum CreateCommunityError { Validation(Validation), Conflict(Conflict) }` + `From<Hoja>` por variante. Las variantes del enum **son** la declaración de qué hojas admite. |
 | Error de dominio → hoja | `.map_err(\|_\| Failure::expected(Validation { field: "slug" }))?`. Sin envolver: nunca `FromDomain(InvalidCommunitySlug)`. |
 | Puerto sin errores declarados | `Result<T, Fault>`; en el handler, `.await?` lo convierte en `Failure::Unexpected` |
+| Caso de uso sin árbol A (ERR-1) | `BoxFuture<'_, Result<Response, Fault>>`: sin tipo de error ni `Failure` |
 | Puerto con errores declarados (ERR-3) | `Result<T, Failure<{Contrato}Error>>`; el handler traduce con `.map_err(\|f\| f.map_expected(…))` |
 | Falla técnica en un adaptador | `?` convierte cualquier `E: Error` en `Fault` (`impl From<E> for Fault`) |
 | No encontrado | `find_*` devuelve `Option`; el handler decide si es `NotFound` o `Conflict` |
@@ -185,7 +186,7 @@ genéricos en los caminos calientes sin cambiar los principios.
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
 | HEX-1…6 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
-| Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy -D warnings` + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
+| Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
 | HEX-7, ERR-1…3 | `architecture-reviewer` | revisión |
 
 **Hooks del plugin.** Se activan solos en cualquier workspace con
@@ -213,6 +214,9 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
   `kernel/`, `edge/`, `contexts/{ctx}/{capa}/`, `apps/` y `app/` (p. ej. un `shared/`).
 - Un crate migrado que dependa de uno legacy desde `domain`/`application` falla en
   HEX-2 (lo ve como crate externo): el núcleo migrado no puede apoyarse en legacy.
+- El gate de Stop aplica clippy solo a los crates de la arquitectura (`--no-deps -p …`);
+  los tests sí corren en todo el workspace. Así el código legacy con warnings no
+  bloquea, pero un test legacy roto sí.
 - Con contextos legacy, lista los miembros explícitamente
   (`"contexts/iam", "contexts/communities/*"`): el glob `contexts/*/*` tomaría
   `contexts/iam/src` como miembro y `exclude` no lo evita.

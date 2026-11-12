@@ -14,8 +14,17 @@
   - Verificado inyectando 4 violaciones nuevas.
 - ERR-4: Problem Details lleva un `code` estable como miembro de extensión.
 
+- Hook `Stop`: clippy con `--no-deps` solo sobre los crates que siguen la
+  arquitectura (misma convención de ubicación que `tools/architecture`). Los
+  contextos legacy ya no bloquean por warnings; sus tests siguen corriendo.
+
 ### Agregado
 - Sección "Migración incremental" en `stacks/rust`.
+
+### Validado en un proyecto real
+- Migración del contexto `communities` de kumenity-backend-rust a RS-1, con iam
+  como legacy. 112 tests, clippy y fmt limpios en los crates migrados, y prueba
+  de punta a punta con JWT real.
 
 ## 0.4.0 — 2026-11-12
 

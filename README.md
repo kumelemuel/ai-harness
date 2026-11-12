@@ -31,7 +31,7 @@ que hay una sola copia de cada principio.
 | Hook | Cuándo | Qué hace |
 |------|--------|----------|
 | `PostToolUse` | Tras editar un `.rs` o `Cargo.toml` | `rustfmt` del archivo y tests de arquitectura; las violaciones vuelven al agente con su ID |
-| `Stop` | Antes de que el agente termine, si hay cambios Rust | `clippy -D warnings` + `cargo test --workspace`; si falla, no lo deja terminar (una vez por turno) |
+| `Stop` | Antes de que el agente termine, si hay cambios Rust | `clippy -D warnings` (solo crates de la arquitectura) + `cargo test --workspace`; si falla, no lo deja terminar (una vez por turno) |
 
 Variables: `CRAFT_BACKEND_HOOKS=0` apaga ambos, `CRAFT_BACKEND_STOP_GATE=0` solo el
 de Stop y `CRAFT_BACKEND_HOOKS_LOG=/ruta` registra cada decisión.
