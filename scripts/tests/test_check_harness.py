@@ -9,8 +9,11 @@ archivo y lo esencial del mensaje, y que no aparezca nada más.
 
 from __future__ import annotations
 
+import json
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -132,6 +135,146 @@ class VolatileNumbers(unittest.TestCase):
             [("README.md", 6, "36 tests"), ("docs/guia.md", 3, "1 test"),
              ("docs/guia.md", 3, "16 e2e"), ("docs/guia.md", 3, "22 tests")],
             sorted((p.path, p.line, p.message.split("`")[1]) for p in found),
+        )
+
+
+class Release(unittest.TestCase):
+    """`--base`: lo que entra a `main` publica una versión nueva.
+
+    Cada test copia `fixtures/version_bump` a un repo git temporal, hace un
+    commit base, aplica un cambio en un segundo commit y verifica contra la base.
+    En el fixture, `demo` alcanza `core/principles/tdd.md` y `stacks/demo/template`
+    por symlinks, y `other` alcanza `core/principles/web.md`.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "repo"
+        shutil.copytree(FIXTURES / "version_bump", self.root, symlinks=True)
+        self.git("init", "-q", "-b", "main")
+        self.commit("base")
+        self.base = self.git("rev-parse", "HEAD").strip()
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-C", str(self.root), *args],
+            capture_output=True, text=True, check=True,
+        ).stdout
+
+    def commit(self, message: str) -> None:
+        self.git("add", "-A")
+        self.git("commit", "-q", "--allow-empty", "-m", message)
+
+    def append(self, path: str, text: str = "cambio\n") -> None:
+        with open(self.root / path, "a", encoding="utf-8") as handle:
+            handle.write(text)
+
+    def bump(self, plugin: str, version: str) -> None:
+        manifest = self.root / "plugins" / plugin / ".claude-plugin" / "plugin.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        data["version"] = version
+        manifest.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    def release_problems(self) -> list[check_harness.Problem]:
+        self.commit("cambio")
+        return check_harness.check_release(self.root, self.base)
+
+    def test_file_reached_by_symlink_without_bump_fails_naming_the_plugin(self) -> None:
+        self.append("core/principles/tdd.md")
+        found = self.release_problems()
+        self.assertEqual(
+            {("VERSION-NOT-BUMPED", "plugins/demo/.claude-plugin/plugin.json")},
+            {(p.code, p.path) for p in found},
+        )
+        self.assertIn("demo", found[0].message)
+        self.assertIn("1.0.0", found[0].message)
+        self.assertIn("core/principles/tdd.md", found[0].message)
+
+    def test_bumped_version_passes(self) -> None:
+        self.append("core/principles/tdd.md")
+        self.bump("demo", "1.0.1")
+        self.assertEqual([], [p.render() for p in self.release_problems()])
+
+    def test_file_inside_a_symlinked_directory_counts(self) -> None:
+        self.append("stacks/demo/template/src/main.rs", "// cambio\n")
+        self.assertEqual(
+            {("VERSION-NOT-BUMPED", "plugins/demo/.claude-plugin/plugin.json")},
+            {(p.code, p.path) for p in self.release_problems()},
+        )
+
+    def test_new_and_deleted_files_count(self) -> None:
+        (self.root / "stacks/demo/template/src/lib.rs").write_text("", encoding="utf-8")
+        (self.root / "plugins/other/skills/web/SKILL.md").unlink()
+        self.assertEqual(
+            {
+                ("VERSION-NOT-BUMPED", "plugins/demo/.claude-plugin/plugin.json"),
+                ("VERSION-NOT-BUMPED", "plugins/other/.claude-plugin/plugin.json"),
+            },
+            {(p.code, p.path) for p in self.release_problems()},
+        )
+
+    def test_file_inside_the_plugin_directory_counts(self) -> None:
+        self.append("plugins/other/skills/web/SKILL.md")
+        found = self.release_problems()
+        self.assertEqual(
+            {("VERSION-NOT-BUMPED", "plugins/other/.claude-plugin/plugin.json")},
+            {(p.code, p.path) for p in found},
+        )
+        self.assertIn("0.1.0", found[0].message)
+
+    def test_only_affected_plugins_need_a_bump(self) -> None:
+        self.append("core/principles/web.md")
+        self.bump("other", "0.2.0")
+        self.append("README.md")
+        self.append("core/principles/suelto.md")
+        self.assertEqual([], [p.render() for p in self.release_problems()])
+
+    def test_version_must_increase(self) -> None:
+        self.append("core/principles/tdd.md")
+        self.bump("demo", "0.9.0")
+        found = self.release_problems()
+        self.assertEqual(["VERSION-NOT-BUMPED"], [p.code for p in found])
+        self.assertIn("0.9.0", found[0].message)
+
+    def test_new_plugin_needs_no_bump(self) -> None:
+        plugin = self.root / "plugins" / "nuevo" / ".claude-plugin"
+        plugin.mkdir(parents=True)
+        (plugin / "plugin.json").write_text('{"name": "nuevo", "version": "0.1.0"}\n', encoding="utf-8")
+        marketplace = self.root / ".claude-plugin" / "marketplace.json"
+        data = json.loads(marketplace.read_text(encoding="utf-8"))
+        data["plugins"].append({"name": "nuevo", "source": "./plugins/nuevo"})
+        marketplace.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        self.assertEqual([], [p.render() for p in self.release_problems()])
+
+    def test_unreleased_section_fails(self) -> None:
+        changelog = self.root / "CHANGELOG.md"
+        changelog.write_text(
+            "# Changelog\n\n## Sin publicar\n\n- Algo.\n\n## 1.0.0 — 2026-11-12\n",
+            encoding="utf-8",
+        )
+        found = self.release_problems()
+        self.assertEqual([("CHANGELOG-UNRELEASED", "CHANGELOG.md", 3)],
+                         [(p.code, p.path, p.line) for p in found])
+
+    def test_unreleased_section_is_fine_without_base(self) -> None:
+        (self.root / "CHANGELOG.md").write_text("# Changelog\n\n## Sin publicar\n", encoding="utf-8")
+        self.assertEqual([], [p.render() for p in check_harness.check(self.root)])
+
+    def test_cli_with_base(self) -> None:
+        self.append("core/principles/tdd.md")
+        self.commit("cambio")
+        result = subprocess.run(
+            [sys.executable, "-B", str(SCRIPTS / "check_harness.py"), str(self.root),
+             "--base", self.base],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertNotEqual(0, result.returncode)
+        self.assertRegex(
+            result.stdout,
+            r"^plugins/demo/\.claude-plugin/plugin\.json:\d+: VERSION-NOT-BUMPED: ",
         )
 
 

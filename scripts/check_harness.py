@@ -2,7 +2,8 @@
 """Verificador de consistencia del harness: VER-1 aplicado al propio repo.
 
 Uso:
-  python3 scripts/check_harness.py [raíz]     (por defecto, la raíz del repo)
+  python3 scripts/check_harness.py [raíz]               (por defecto, la raíz del repo)
+  python3 scripts/check_harness.py [raíz] --base REF    (además, lo que entra a main)
 
 Sale con 0 si no hay problemas; si no, con 1 y una línea por problema:
   ruta:línea: CÓDIGO: mensaje
@@ -24,13 +25,21 @@ Comprobaciones:
                  Se escribe "todos en verde" y lo demuestra el CI; solo el
                  CHANGELOG conserva conteos, porque registra un momento.
 
+Con --base REF (CI, cambios que entran a main), desde el merge-base de REF y HEAD:
+  VERSION-NOT-BUMPED   cambió un archivo que llega a un plugin (su directorio o
+                       lo que alcanza por symlinks) y su `version` no es mayor
+  CHANGELOG-UNRELEASED el CHANGELOG tiene una sección "Sin publicar"
+
 Solo biblioteca estándar (Python 3.11+), igual que los hooks.
 """
 
 from __future__ import annotations
 
+import argparse
+import json
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -363,6 +372,139 @@ def check_volatile_counts(root: Path, files: list[Path]) -> list[Problem]:
     return problems
 
 
+# ----------------------------------------------------------------- publicación
+
+
+UNRELEASED = re.compile(r"^##\s+Sin publicar\b", re.IGNORECASE)
+
+
+def git(root: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise ReleaseError(f"git {' '.join(args)}: {result.stderr.strip()}")
+    return result.stdout
+
+
+class ReleaseError(Exception):
+    """La comparación con la base no se pudo hacer (commit inexistente, sin git)."""
+
+
+def plugins(root: Path) -> list[tuple[str, Path]]:
+    """(nombre, directorio) de cada plugin con ruta relativa del marketplace."""
+    marketplace = root / ".claude-plugin" / "marketplace.json"
+    if not marketplace.is_file():
+        return []
+    entries = json.loads(marketplace.read_text(encoding="utf-8")).get("plugins", [])
+    return [
+        (entry["name"], (root / entry["source"]).resolve())
+        for entry in entries
+        if isinstance(entry.get("source"), str)
+    ]
+
+
+def reach(root: Path, plugin_dir: Path) -> list[str]:
+    """Rutas (relativas a la raíz, sin `/` final) cuyo contenido llega al plugin.
+
+    El propio directorio y el destino de cada symlink que contiene, también los
+    symlinks dentro de directorios enlazados. No baja a IGNORED_DIRS: lo generado
+    no está versionado y no viaja en una instalación desde git.
+    """
+    reached: set[str] = set()
+    pending = [plugin_dir]
+    while pending:
+        current = pending.pop()
+        try:
+            target = rel(root, current.resolve())
+        except ValueError:
+            continue  # fuera del repo: Claude Code no lo copia
+        if target in reached:
+            continue
+        reached.add(target)
+        if not current.is_dir():
+            continue
+        for here, dirnames, filenames in os.walk(current):
+            base = Path(here)
+            kept = []
+            for name in dirnames:
+                if name in IGNORED_DIRS:
+                    continue
+                (pending.append(base / name) if (base / name).is_symlink() else kept.append(name))
+            dirnames[:] = kept
+            pending.extend(base / name for name in filenames if (base / name).is_symlink())
+    return sorted(reached)
+
+
+def reaches(path: str, roots: list[str]) -> bool:
+    return any(root in ("", ".") or path == root or path.startswith(root + "/") for root in roots)
+
+
+def version_key(version: str) -> tuple[int, ...] | None:
+    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version.strip())
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
+def version_line(manifest: Path) -> int:
+    for number, line in enumerate(read_lines(manifest), start=1):
+        if '"version"' in line:
+            return number
+    return 1
+
+
+def check_version_bumps(root: Path, base: str) -> list[Problem]:
+    merge_base = git(root, "merge-base", base, "HEAD").strip()
+    changed = [
+        line for line in git(
+            root, "diff", "--name-only", "--no-renames", merge_base, "HEAD",
+        ).splitlines() if line
+    ]
+    problems: list[Problem] = []
+    for name, plugin_dir in plugins(root):
+        manifest = plugin_dir / ".claude-plugin" / "plugin.json"
+        manifest_rel = rel(root, manifest)
+        try:
+            before = json.loads(git(root, "show", f"{merge_base}:{manifest_rel}"))
+        except ReleaseError:
+            continue  # plugin nuevo: su primera versión no compite con nada
+        roots = reach(root, plugin_dir)
+        touched = [path for path in changed if reaches(path, roots) and path != manifest_rel]
+        if not touched:
+            continue
+        old = str(before.get("version", ""))
+        new = str(json.loads(manifest.read_text(encoding="utf-8")).get("version", ""))
+        old_key, new_key = version_key(old), version_key(new)
+        bumped = new != old and (old_key is None or new_key is None or new_key > old_key)
+        if bumped:
+            continue
+        shown = ", ".join(touched[:3]) + (f" (y {len(touched) - 3} más)" if len(touched) > 3 else "")
+        state = f"sigue en {old}" if new == old else f"pasa de {old} a {new}, que no es mayor"
+        problems.append(Problem(
+            manifest_rel, version_line(manifest), "VERSION-NOT-BUMPED",
+            f"`{name}` {state} y cambió su contenido: {shown}",
+        ))
+    return problems
+
+
+def check_unreleased(root: Path) -> list[Problem]:
+    changelog = root / "CHANGELOG.md"
+    return [
+        Problem("CHANGELOG.md", number, "CHANGELOG-UNRELEASED",
+                "`main` no tiene \"Sin publicar\": publica esas entradas como una versión")
+        for number, line in enumerate(read_lines(changelog), start=1)
+        if UNRELEASED.match(line)
+    ]
+
+
+def check_release(root: Path, base: str) -> list[Problem]:
+    """Lo que entra a `main` desde `base`: versiones subidas y nada sin publicar."""
+    root = root.resolve()
+    return sorted(
+        [*check_version_bumps(root, base), *check_unreleased(root)],
+        key=lambda p: (p.path, p.line, p.code, p.message),
+    )
+
+
 # --------------------------------------------------------------------------- main
 
 
@@ -382,8 +524,20 @@ def check(root: Path) -> list[Problem]:
 
 
 def main(argv: list[str]) -> int:
-    root = Path(argv[1]) if len(argv) > 1 else Path(__file__).resolve().parent.parent
-    problems = check(root)
+    parser = argparse.ArgumentParser(description="Verificador de consistencia del harness.")
+    parser.add_argument("root", nargs="?", type=Path, default=Path(__file__).resolve().parent.parent)
+    parser.add_argument(
+        "--base", metavar="REF",
+        help="commit base del cambio que entra a main: exige versiones nuevas y nada sin publicar",
+    )
+    args = parser.parse_args(argv[1:])
+    problems = check(args.root)
+    if args.base:
+        try:
+            problems += check_release(args.root, args.base)
+        except ReleaseError as error:
+            print(f"No se pudo comparar con la base {args.base}: {error}", file=sys.stderr)
+            return 2
     for problem in problems:
         print(problem.render())
     if problems:
