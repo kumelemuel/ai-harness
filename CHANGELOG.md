@@ -9,7 +9,8 @@ punta en el CI del harness.
 ### Agregado
 - CI del harness, job `astro-e2e` para `stacks/astro/template`: `npm run build`,
   e2e con Playwright contra `wrangler dev` (WEB-4, WEB-6, WEB-7 y WEB-9) y
-  Lighthouse CI con los presupuestos de WEB-5, usando el Chromium de Playwright.
+  Lighthouse CI con los presupuestos de WEB-5, con el Google Chrome del runner:
+  el Chromium de Playwright aborta en Ubuntu 24.04 por el sandbox.
   Corre cuando un pull request o un push cambia `stacks/astro/` (job
   `astro-changes`, con `git diff` contra el merge-base y sin acciones de
   terceros), cada lunes y con `workflow_dispatch`. La ejecución semanal solo

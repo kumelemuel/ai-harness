@@ -152,11 +152,11 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: End-to-end (páginas, CSP, axe, terceros, formulario)
         run: npm run test:e2e
-      # Lighthouse usa el Chromium de Playwright: no depende del Chrome del runner.
+      # Lighthouse usa el Google Chrome del runner, como el CI de la plantilla. El
+      # Chromium de Playwright aborta en Ubuntu 24.04 ("No usable sandbox": AppArmor
+      # restringe los user namespaces), y pasarle --no-sandbox desactivaría el sandbox.
       - name: Presupuestos de Lighthouse (WEB-5)
-        run: |
-          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
-          npm run lighthouse
+        run: npm run lighthouse
       - name: Reportes
         if: always()
         uses: actions/upload-artifact@v4
