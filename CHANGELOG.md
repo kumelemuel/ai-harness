@@ -17,6 +17,7 @@
   de `Response` (el del encargo), campo de `Command` con ruta completa,
   variante de `Error` con alias de módulo, parámetro del `UseCase`, `pub use`
   en `lib.rs` y glob.
+- `LICENSE` MIT en la raíz (2026, Kumelemuel). Los `plugin.json` ya declaraban MIT.
 
 ### Cambiado
 - TDD-1, **Verificación**: deja de prometer un hook. No es automatizable de
