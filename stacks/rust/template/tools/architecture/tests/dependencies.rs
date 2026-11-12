@@ -33,6 +33,11 @@ fn may_depend_on(from: &Crate, to: &Crate) -> bool {
 fn hex_1_dependencies_point_inward() {
     let crates = crates();
     let by_name: HashMap<&str, &Crate> = crates.iter().map(|c| (c.name.as_str(), c)).collect();
+    let edges = crates
+        .iter()
+        .flat_map(|c| c.dependencies())
+        .filter(|dep| by_name.contains_key(dep.as_str()))
+        .count();
 
     let violations = crates
         .iter()
@@ -52,6 +57,10 @@ fn hex_1_dependencies_point_inward() {
     assert_no_violations(
         "HEX-1: las dependencias apuntan hacia adentro; api solo ve el application de su contexto y edge; \
          api e infrastructure no se ven entre sí; sin dependencias entre contextos",
+        &[
+            ("crates", crates.len()),
+            ("dependencias entre crates del workspace", edges),
+        ],
         violations,
     );
 }
@@ -63,10 +72,13 @@ fn hex_1_dependencies_point_inward() {
 fn hex_2_core_depends_only_on_std_and_the_kernel() {
     let crates = crates();
     let internal: Vec<&str> = crates.iter().map(|c| c.name.as_str()).collect();
-
-    let violations = crates
+    let core: Vec<&Crate> = crates
         .iter()
         .filter(|c| matches!(c.layer, Layer::Kernel | Layer::Domain | Layer::Application))
+        .collect();
+
+    let violations = core
+        .iter()
         .flat_map(|c| {
             c.dependencies()
                 .into_iter()
@@ -78,15 +90,20 @@ fn hex_2_core_depends_only_on_std_and_the_kernel() {
     assert_no_violations(
         "HEX-2 / TDD-2: domain, application y kernel solo usan std y el kernel, \
          también en [dev-dependencies] (sus tests no levantan runtime ni framework)",
+        &[("crates de kernel, domain y application", core.len())],
         violations,
     );
 }
 
 #[test]
 fn hex_2_server_frameworks_only_at_the_edge() {
-    let violations = crates()
+    let crates = crates();
+    let inner: Vec<&Crate> = crates
         .iter()
         .filter(|c| !matches!(c.layer, Layer::Api | Layer::Edge | Layer::Bootstrap))
+        .collect();
+    let violations = inner
+        .iter()
         .flat_map(|c| {
             c.dependencies()
                 .into_iter()
@@ -97,6 +114,10 @@ fn hex_2_server_frameworks_only_at_the_edge() {
 
     assert_no_violations(
         "HEX-2: los frameworks de servidor solo viven en api, edge y bootstrap",
+        &[(
+            "crates fuera de api, edge y bootstrap (kernel, domain, application, infrastructure)",
+            inner.len(),
+        )],
         violations,
     );
 }

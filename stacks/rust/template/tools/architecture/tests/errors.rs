@@ -157,8 +157,10 @@ fn error_impls(file: &Path) -> Vec<(usize, String, &'static str)> {
 #[test]
 fn err_1_domain_errors_do_not_implement_std_error() {
     let mut violations = Vec::new();
+    let mut files = 0;
     for krate in crates().into_iter().filter(|c| c.layer == Layer::Domain) {
         for file in rust_files(&krate.dir.join("src")) {
+            files += 1;
             for (line, target, origin) in error_impls(&file) {
                 violations.push(format!(
                     "{}:{line}: `impl Error for {target}` ({origin}) — un error de dominio \
@@ -171,9 +173,14 @@ fn err_1_domain_errors_do_not_implement_std_error() {
     assert_no_violations(
         "ERR-1: los errores de dominio no implementan std::error::Error \
          (si lo hicieran, `?` los convertiría en Fault sin que nadie lo decida)",
+        &[("archivos de domain", files)],
         violations,
     );
 }
+
+const LEAF: &str = "hoja de errors.rs";
+const CONTRACT: &str = "contrato {Verb}{Noun}Error";
+const PORT: &str = "error declarado de un puerto";
 
 /// Errores del árbol A que declara un crate de `application`, con el motivo.
 ///
@@ -195,9 +202,7 @@ impl<'ast> Visit<'ast> for FailureArgs<'_> {
             && let Some(syn::GenericArgument::Type(syn::Type::Path(t))) = args.args.first()
             && let Some(last) = t.path.segments.last()
         {
-            self.0
-                .entry(last.ident.to_string())
-                .or_insert("error declarado de un puerto");
+            self.0.entry(last.ident.to_string()).or_insert(PORT);
         }
         syn::visit::visit_path_segment(self, node);
     }
@@ -217,11 +222,11 @@ impl DeclaredErrors {
                 .to_string();
             let syntax = parse(&file);
             let reason = match first.as_str() {
-                "errors" => Some("hoja de errors.rs"),
-                "commands" | "queries" => Some("contrato {Verb}{Noun}Error"),
+                "errors" => Some(LEAF),
+                "commands" | "queries" => Some(CONTRACT),
                 "ports" => {
                     FailureArgs(&mut declared.names).visit_file(&syntax);
-                    Some("error declarado de un puerto")
+                    Some(PORT)
                 }
                 _ => None,
             };
@@ -235,6 +240,10 @@ impl DeclaredErrors {
             }
         }
         declared
+    }
+
+    fn count(&self, reason: &str) -> usize {
+        self.names.values().filter(|r| **r == reason).count()
     }
 
     fn reason(&self, target: &str) -> Option<&'static str> {
@@ -263,12 +272,16 @@ impl<'ast> Visit<'ast> for TypeNames {
 #[test]
 fn err_1_application_errors_do_not_implement_std_error() {
     let mut violations = Vec::new();
+    let (mut leaves, mut contracts, mut ports) = (0, 0, 0);
     for krate in crates()
         .into_iter()
         .filter(|c| c.layer == Layer::Application)
     {
         let src = krate.dir.join("src");
         let declared = DeclaredErrors::of(&src);
+        leaves += declared.count(LEAF);
+        contracts += declared.count(CONTRACT);
+        ports += declared.count(PORT);
         // El `impl` puede vivir en cualquier archivo del crate, no solo junto al tipo.
         for file in rust_files(&src) {
             for (line, target, origin) in error_impls(&file) {
@@ -286,6 +299,11 @@ fn err_1_application_errors_do_not_implement_std_error() {
         "ERR-1: los errores de `application` (hojas, contratos y errores de puertos) no \
          implementan std::error::Error (`impl From<E: Error> for Fault` los absorbería en el \
          árbol B)",
+        &[
+            ("hojas de errors.rs", leaves),
+            ("contratos {Verb}{Noun}Error", contracts),
+            ("errores declarados de puertos", ports),
+        ],
         violations,
     );
 }

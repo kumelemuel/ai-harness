@@ -67,7 +67,12 @@ jobs:
           workspaces: stacks/rust/template
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      # La plantilla debe ejercitar cada regla: un test de arquitectura sin
+      # material falla. Un proyecto nuevo hereda los tests sin la variable,
+      # porque ahí un conjunto vacío (todavía sin queries/) es legítimo.
       - run: cargo test --workspace
+        env:
+          ARCH_REQUIRE_MATERIAL: "1"
 
   astro:
     name: Plantilla Astro

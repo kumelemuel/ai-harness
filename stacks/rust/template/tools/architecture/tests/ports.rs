@@ -136,8 +136,10 @@ fn scan(tokens: TokenStream, imports: &KernelImports, found: &mut BTreeSet<(usiz
 #[test]
 fn hex_3_domain_does_not_use_kernel_io_primitives() {
     let mut violations = Vec::new();
+    let mut files = 0;
     for krate in crates().into_iter().filter(|c| c.layer == Layer::Domain) {
         for file in rust_files(&krate.dir.join("src")) {
+            files += 1;
             let mut imports = KernelImports::default();
             imports.visit_file(&parse(&file));
 
@@ -165,6 +167,7 @@ fn hex_3_domain_does_not_use_kernel_io_primitives() {
     assert_no_violations(
         "HEX-3: el dominio no declara puertos (no usa `BoxFuture`, `Fault` ni `Failure` del \
          kernel: un puerto implica E/S)",
+        &[("archivos de domain", files)],
         violations,
     );
 }

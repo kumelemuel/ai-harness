@@ -81,9 +81,11 @@ fn last_segment(path: &syn::Path) -> String {
 #[test]
 fn hex_4_inbound_ports_are_single_method_use_cases() {
     let mut violations = Vec::new();
+    let mut traits = 0;
 
     for (file, items) in scan(&dirs_of(Layer::Application, "src/ports/inbound"), None) {
         for t in &items.traits {
+            traits += 1;
             let name = t.ident.to_string();
             if !name.ends_with("UseCase") {
                 violations.push(format!(
@@ -108,6 +110,7 @@ fn hex_4_inbound_ports_are_single_method_use_cases() {
 
     assert_no_violations(
         "HEX-4: un puerto entrante = un `UseCase` con un único `execute`",
+        &[("traits de ports/inbound", traits)],
         violations,
     );
 }
@@ -119,6 +122,7 @@ fn hex_4_use_case_implementations_are_handlers() {
         .flat_map(|sub| dirs_of(Layer::Application, sub))
         .collect();
     let mut violations = Vec::new();
+    let mut implementations = 0;
 
     for (file, items) in scan(&dirs, None) {
         for imp in &items.impls {
@@ -128,6 +132,7 @@ fn hex_4_use_case_implementations_are_handlers() {
             if !last_segment(trait_path).ends_with("UseCase") {
                 continue;
             }
+            implementations += 1;
             let syn::Type::Path(self_ty) = &*imp.self_ty else {
                 continue;
             };
@@ -142,6 +147,10 @@ fn hex_4_use_case_implementations_are_handlers() {
 
     assert_no_violations(
         "HEX-4: la implementación de un caso de uso se llama {Verb}{Noun}Handler",
+        &[(
+            "implementaciones de un UseCase en commands/ y queries/",
+            implementations,
+        )],
         violations,
     );
 }
@@ -150,8 +159,10 @@ fn hex_4_use_case_implementations_are_handlers() {
 fn hex_4_api_depends_on_use_cases_never_on_handlers() {
     let dirs = [dirs_of(Layer::Api, "src"), dirs_of(Layer::Api, "tests")].concat();
     let mut violations = Vec::new();
+    let files = scan(&dirs, None);
+    let scanned = files.len();
 
-    for (file, items) in scan(&dirs, None) {
+    for (file, items) in files {
         for ident in items
             .idents
             .iter()
@@ -163,6 +174,7 @@ fn hex_4_api_depends_on_use_cases_never_on_handlers() {
 
     assert_no_violations(
         "HEX-4: api depende del UseCase, nunca del Handler",
+        &[("archivos de api (src/ y tests/)", scanned)],
         violations,
     );
 }
@@ -337,6 +349,7 @@ fn domain_crate_of(application: &Crate, all: &[Crate]) -> Option<String> {
 fn hex_4_use_case_contracts_do_not_expose_domain_types() {
     let all = crates();
     let mut violations = Vec::new();
+    let mut contracts = 0;
 
     for app in all.iter().filter(|c| c.layer == Layer::Application) {
         let Some(krate) = domain_crate_of(app, &all) else {
@@ -371,6 +384,7 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
                                 .any(|x| s.ident.to_string().ends_with(x)) =>
                     {
                         contract_in_file = true;
+                        contracts += 1;
                         for field in s
                             .fields
                             .iter()
@@ -391,6 +405,7 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
                                 .any(|x| e.ident.to_string().ends_with(x)) =>
                     {
                         contract_in_file = true;
+                        contracts += 1;
                         for variant in &e.variants {
                             for field in &variant.fields {
                                 for (line, found) in
@@ -406,6 +421,7 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
                     }
                     syn::Item::Trait(t) if in_inbound => {
                         contract_in_file = true;
+                        contracts += 1;
                         let mut found = domain_paths(&names, |v| {
                             v.visit_generics(&t.generics);
                             for bound in &t.supertraits {
@@ -442,6 +458,10 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
     assert_no_violations(
         "HEX-4: el contrato del caso de uso (Command, Query, Response, Error y el UseCase) \
          no expone tipos de domain; api no ve domain (HEX-1)",
+        &[(
+            "tipos de contrato (Command, Query, Response, Error) y traits UseCase",
+            contracts,
+        )],
         violations,
     );
 }
@@ -449,12 +469,14 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
 #[test]
 fn hex_5_outbound_ports_are_named_by_role() {
     let mut violations = Vec::new();
+    let mut ports = 0;
 
     for (file, items) in scan(
         &dirs_of(Layer::Application, "src/ports/outbound"),
         Some("dtos"),
     ) {
         for t in &items.traits {
+            ports += 1;
             let name = t.ident.to_string();
             if name.ends_with("Port") || !OUTBOUND_SUFFIXES.iter().any(|s| name.ends_with(s)) {
                 violations.push(format!(
@@ -466,6 +488,7 @@ fn hex_5_outbound_ports_are_named_by_role() {
 
     assert_no_violations(
         "HEX-5: puertos salientes con sufijo de rol, nunca `Port`",
+        &[("traits de ports/outbound", ports)],
         violations,
     );
 }
@@ -505,6 +528,7 @@ fn adapter_files(context: &Crate) -> Vec<PathBuf> {
 fn hex_5_adapters_are_named_by_technology_and_concept() {
     let all = crates();
     let mut violations = Vec::new();
+    let mut adapters = 0;
 
     for krate in &all {
         let files = adapter_files(krate);
@@ -529,6 +553,7 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
                 if !ports.contains(&contract) && !CAPABILITIES.contains(&contract.as_str()) {
                     continue;
                 }
+                adapters += 1;
                 let syn::Type::Path(self_ty) = &*imp.self_ty else {
                     continue;
                 };
@@ -557,6 +582,10 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
     assert_no_violations(
         "HEX-5: un adaptador se llama {Tecnología}{Concepto}Adapter; Concepto es el puerto \
          sin su sufijo de rol o, si es una capacidad del kernel (HEX-8), su nombre completo",
+        &[(
+            "implementaciones de un puerto saliente o una capacidad",
+            adapters,
+        )],
         violations,
     );
 }
@@ -564,12 +593,14 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
 #[test]
 fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
     let mut violations = Vec::new();
+    let mut dtos = 0;
 
     for (file, items) in scan(
         &dirs_of(Layer::Application, "src/ports/outbound/dtos"),
         None,
     ) {
         for name in &items.types {
+            dtos += 1;
             if let Some(s) = RESERVED_SUFFIXES.iter().find(|s| name.ends_with(*s)) {
                 violations.push(format!("{file}: `{name}` usa el sufijo reservado `{s}`"));
             }
@@ -578,6 +609,7 @@ fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
 
     assert_no_violations(
         "HEX-6: DTOs de puerto saliente con `Request` o el nombre del concepto",
+        &[("tipos de ports/outbound/dtos", dtos)],
         violations,
     );
 }
@@ -585,11 +617,13 @@ fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
 #[test]
 fn hex_6_transport_types_carry_the_transport_name() {
     let mut violations = Vec::new();
+    let mut transport = 0;
 
     for (file, items) in scan(&dirs_of(Layer::Api, "src"), None) {
         for name in &items.types {
             let is_transport = name.ends_with("Request") || name.ends_with("Response");
             let named = name.ends_with("HttpRequest") || name.ends_with("HttpResponse");
+            transport += usize::from(is_transport);
             if is_transport && !named {
                 violations.push(format!(
                     "{file}: `{name}` debe ser {{Caso}}HttpRequest / {{Caso}}HttpResponse"
@@ -600,6 +634,7 @@ fn hex_6_transport_types_carry_the_transport_name() {
 
     assert_no_violations(
         "HEX-6: tipos de transporte con el nombre del transporte",
+        &[("tipos *Request/*Response de api", transport)],
         violations,
     );
 }

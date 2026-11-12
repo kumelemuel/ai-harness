@@ -45,6 +45,9 @@ fn hex_8_kernel_depends_only_on_std() {
     assert_no_violations(
         "HEX-8: el kernel no tiene dependencias, solo std \
          (así las firmas de sus capacidades usan solo std y kernel)",
+        // Lee un solo manifiesto, no recorre un conjunto: que no declare
+        // dependencias es justo lo esperado.
+        &[],
         violations,
     );
 }
@@ -79,10 +82,12 @@ fn is_test_module(module: &syn::ItemMod) -> bool {
 fn hex_8_kernel_traits_are_model_markers_or_listed_capabilities() {
     let kernel = kernel();
     let mut violations = Vec::new();
+    let mut checked = 0;
 
     for path in rust_files(&kernel.dir.join("src")) {
         let mut traits = Vec::new();
         public_traits(&parse(&path).items, &mut traits);
+        checked += traits.len();
         for (line, name) in traits {
             if !MODEL_MARKERS.contains(&name.as_str()) && !CAPABILITIES.contains(&name.as_str()) {
                 violations.push(format!(
@@ -98,6 +103,7 @@ fn hex_8_kernel_traits_are_model_markers_or_listed_capabilities() {
         "HEX-8: todo trait público del kernel es un marcador de modelo o una capacidad \
          técnica transversal de la lista cerrada; un puerto de un contexto va en su \
          application/ports (HEX-3)",
+        &[("traits públicos del kernel", checked)],
         violations,
     );
 }

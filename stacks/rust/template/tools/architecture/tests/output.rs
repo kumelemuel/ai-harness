@@ -135,6 +135,7 @@ fn invocations(tokens: TokenStream, found: &mut Vec<(usize, String)>) {
 #[test]
 fn err_4_core_does_not_write_to_output() {
     let mut violations = Vec::new();
+    let mut checked = 0;
     for krate in crates()
         .into_iter()
         .filter(|c| matches!(c.layer, Layer::Domain | Layer::Application))
@@ -159,6 +160,7 @@ fn err_4_core_does_not_write_to_output() {
             if whole_file || test_files.iter().any(|t| file.starts_with(t)) {
                 continue;
             }
+            checked += 1;
             let text = fs::read_to_string(file).expect("invariante: archivo legible");
             let tokens: TokenStream = text.parse().expect("invariante: tokens válidos");
             let mut found = Vec::new();
@@ -177,6 +179,10 @@ fn err_4_core_does_not_write_to_output() {
     assert_no_violations(
         "ERR-4: `domain` y `application` no invocan `println!`, `eprintln!`, `print!`, \
          `eprint!` ni `dbg!` fuera de `#[cfg(test)]` (el registro ocurre en el borde)",
+        &[(
+            "archivos de domain y application que compilan sin test",
+            checked,
+        )],
         violations,
     );
 }

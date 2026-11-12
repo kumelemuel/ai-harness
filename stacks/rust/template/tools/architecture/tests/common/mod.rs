@@ -169,7 +169,44 @@ pub fn relative(path: &Path) -> String {
         .to_string()
 }
 
-pub fn assert_no_violations(rule: &str, violations: Vec<String>) {
+/// Variable de entorno que convierte un conjunto vacío en un fallo.
+///
+/// Un test que no encuentra nada sobre qué actuar es indistinguible de uno que
+/// verificó todo. En un proyecto recién creado puede ser legítimo que aún no
+/// haya, por ejemplo, `queries/`, así que sin la variable un conjunto vacío
+/// pasa. El CI del harness la activa sobre la plantilla, que debe ejercitar
+/// cada regla.
+pub const REQUIRE_MATERIAL: &str = "ARCH_REQUIRE_MATERIAL";
+
+fn material_required() -> bool {
+    std::env::var(REQUIRE_MATERIAL).is_ok_and(|v| v == "1")
+}
+
+/// Cierra un test de arquitectura.
+///
+/// - `material`: cada conjunto que recorrió la regla, `(qué, cuántos)`. Se
+///   informa siempre (visible con `--nocapture`). Con `ARCH_REQUIRE_MATERIAL=1`,
+///   un conjunto vacío es un fallo que nombra la regla y lo que faltó.
+/// - `violations`: lo que la regla encontró mal.
+pub fn assert_no_violations(rule: &str, material: &[(&str, usize)], violations: Vec<String>) {
+    let id = rule.split(':').next().unwrap_or(rule);
+    for (what, count) in material {
+        eprintln!("{id}: revisó {count} {what}");
+    }
+    let missing: Vec<&str> = material
+        .iter()
+        .filter(|(_, count)| *count == 0)
+        .map(|(what, _)| *what)
+        .collect();
+    assert!(
+        missing.is_empty() || !material_required(),
+        "\n{rule}\nSin material ({REQUIRE_MATERIAL}=1): la regla no encontró sobre qué actuar.\n{}\n",
+        missing
+            .iter()
+            .map(|what| format!("  - 0 {what}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
     assert!(
         violations.is_empty(),
         "\n{rule}\n{}\n",

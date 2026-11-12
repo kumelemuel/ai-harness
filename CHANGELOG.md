@@ -32,6 +32,22 @@
     `impl Error for ModerationError`, el fake devolviendo `Unavailable` ante un
     rechazo, el `NoOp` con todo `supported` y un campo omitido en la
     invocación (no compila).
+- Plantilla Rust, `ARCH_REQUIRE_MATERIAL` en los tests de arquitectura. Un test
+  que no encuentra nada sobre qué actuar es indistinguible de uno que verificó
+  todo. `assert_no_violations` (`tests/common/mod.rs`) recibe ahora cada
+  conjunto que recorrió la regla, `(qué, cuántos)`, y lo informa (visible con
+  `--nocapture`). Con `ARCH_REQUIRE_MATERIAL=1`, un conjunto vacío falla con
+  la regla y lo que faltó. Sin la variable pasa, porque en un proyecto nuevo
+  puede ser legítimo (todavía sin `queries/`). Lo usan los 16 tests que
+  recorren un conjunto. `err_1_application_errors_*` informa por separado
+  hojas, contratos y errores de puertos, así la parte de puertos no se
+  esconde detrás de las otras. `hex_8_kernel_depends_only_on_std` lee un solo
+  manifiesto y no declara material.
+  - El job `rust` del CI del harness corre `cargo test --workspace` con la
+    variable activa. Con el cambio de `ModerationGateway`, ningún test queda
+    sin material.
+  - Rojo: con la variable, `hex_6_outbound_dtos_*` pasaba con `dtos/` borrado.
+    Ahora falla con `0 tipos de ports/outbound/dtos`, y sin la variable pasa.
 - Ejemplos de HEX-6 y ERR-3, en core y en las skills `hexagonal-architecture`
   y `error-handling`: los nombres coinciden con el código
   (`ReviewContentRequest`, `ModerationVerdict` con `Rejected`,

@@ -292,6 +292,15 @@ communities_application::moderation_gateway_contract! {
 | TDD-2 / ERR-3 el doble y los adaptadores cumplen el mismo contrato del puerto | Batería de contrato (`application::testing::contracts`) | `cargo test` |
 | HEX-7, ERR-1…3, TDD-1 (test antes o junto a la producción en el diff y en el orden de commits) | `architecture-reviewer`. Los hooks garantizan verde, no rojo primero | revisión |
 
+**Sin material no hay verde (`ARCH_REQUIRE_MATERIAL`).** Un test de arquitectura que no
+encuentra nada sobre qué actuar es indistinguible de uno que verificó todo. Cada test informa
+cuántos elementos revisó por conjunto (crates de una capa, archivos, tipos de una categoría;
+visible con `cargo test -p architecture -- --nocapture`), a través de `assert_no_violations`
+de `tests/common/mod.rs`. Con `ARCH_REQUIRE_MATERIAL=1`, un conjunto vacío es un fallo que
+nombra la regla y lo que faltó. Sin la variable pasa, porque en un proyecto recién creado
+puede ser legítimo que todavía no haya, por ejemplo, `queries/`. El CI del harness la activa
+sobre la plantilla; el CI mínimo de abajo, el que hereda un proyecto, no.
+
 **Hooks del plugin.** Se activan solos en cualquier workspace con
 `tools/architecture/Cargo.toml`; fuera de eso no hacen nada. Se pueden apagar con
 `CRAFT_BACKEND_HOOKS=0` (ambos) o `CRAFT_BACKEND_STOP_GATE=0` (solo Stop). El gate de
