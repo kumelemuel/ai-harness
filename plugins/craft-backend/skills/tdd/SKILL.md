@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Disciplina TDD (rojo → verde → refactor) y estrategia de tests por capa. Usar SIEMPRE antes de escribir o modificar código de producción, al agregar un caso de uso, agregado o adaptador, y cuando un test falla y hay tentación de cambiar el test.
+description: Disciplina TDD (rojo → verde → refactor) y estrategia de tests por capa (dominio, handler con fakes de puertos, adaptador, transporte) para backends con capas domain/application/api/infrastructure. Usar SIEMPRE antes de escribir o modificar código de producción en un backend de ese tipo, al agregar un caso de uso, agregado o adaptador, y cuando un test de ese backend falla y hay tentación de cambiar el test. No aplica a sitios web informativos: ahí rige `web-principles`.
 ---
 
 # TDD

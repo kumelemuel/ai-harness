@@ -1,6 +1,6 @@
 ---
 name: error-handling
-description: Reglas de manejo de errores para backends con Result y dos árboles de errores (negocio frente a excepcional). Usar SIEMPRE antes de crear o modificar tipos de error, firmas que devuelven Result, adaptadores que llaman a terceros o persistencia, manejadores globales de excepciones o la traducción de errores a HTTP/Problem Details.
+description: Reglas de manejo de errores para backends con capas domain/application/api/infrastructure, con Result y dos árboles de errores (negocio frente a excepcional). Usar SIEMPRE, en un backend de ese tipo, antes de crear o modificar tipos de error, firmas que devuelven Result, adaptadores que llaman a terceros o persistencia, manejadores globales de excepciones o la traducción de errores a HTTP/Problem Details.
 ---
 
 # Manejo de errores

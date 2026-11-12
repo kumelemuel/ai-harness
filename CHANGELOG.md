@@ -36,6 +36,29 @@
 - HEX-4, **Verificación**: describe el test nuevo y por qué Cargo no basta.
 - `stacks/rust/README.md`: la tabla de Enforcement suma el contrato de HEX-4,
   TDD-2 en `hex_2_core_*` y TDD-1 en el revisor.
+- Las siete skills nombran en su descripción el tipo de proyecto donde aplican.
+  `tdd` y `error-handling` quedan acotadas a backends con capas
+  domain/application/api/infrastructure, como `hexagonal-architecture`. `tdd`
+  conserva sus disparadores, incluido "un test falla y hay tentación de cambiar
+  el test". `tdd`, `hexagonal-architecture` y `web-principles` dicen a qué
+  proyectos no aplican. `client-delivery` se acota a sitios informativos.
+- `astro-stack` y `rust-stack` piden cargar sus skills de principios antes de
+  crear o modificar algo. Antes solo decían que las complementaban, y en el
+  sitio Astro el agente cargaba `astro-stack` sin `web-principles`.
+- README, **Instalación**: recomienda instalar cada plugin con
+  `--scope project` y explica por qué. Las skills se cargan por su
+  descripción, no por detección del proyecto como los hooks.
+
+### Verificado
+- Alcance de las skills, con sesiones headless reales sobre copias de las
+  plantillas y ambos plugins instalados a nivel de usuario (el peor caso).
+  - Astro, "agrega una página de servicios": antes del cambio en `astro-stack`
+    solo se cargaba `astro-stack`. Después se cargan `astro-stack` y
+    `web-principles`. `tdd` y `hexagonal-architecture` no se cargaron en
+    ninguna de las dos sesiones.
+  - Rust, "agrega el caso de uso para renombrar una comunidad": se cargan
+    `rust-stack`, `hexagonal-architecture`, `error-handling` y `tdd`, antes y
+    después del cambio.
 
 ### Inventario de las secciones "Verificación"
 

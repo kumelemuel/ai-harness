@@ -1,11 +1,13 @@
 ---
 name: astro-stack
-description: Cómo se construye un sitio informativo con la plantilla craft-web en Astro 7, Cloudflare Workers y Tailwind 4 (`src/routes.ts`, `src/site.ts`, `src/security.ts`, Astro Actions, `wrangler.jsonc`). Usar SIEMPRE al trabajar en un proyecto Astro que tenga `src/routes.ts`, al crear una página, colección, formulario o cabecera, y al arrancar un sitio nuevo de cliente.
+description: Cómo se construye un sitio informativo con la plantilla craft-web en Astro 7, Cloudflare Workers y Tailwind 4 (`src/routes.ts`, `src/site.ts`, `src/security.ts`, Astro Actions, `wrangler.jsonc`). Usar SIEMPRE al trabajar en un proyecto Astro que tenga `src/routes.ts`, al crear una página, colección, formulario o cabecera, y al arrancar un sitio nuevo de cliente. Se usa junto con web-principles.
 ---
 
 # Astro (craft-web)
 
 Complementa `web-principles`: esa skill dice **qué**; esta dice **cómo en Astro**.
+**Carga también `web-principles` antes de crear o modificar algo** (si no está
+cargada): esta skill no repite sus reglas.
 
 - `references/astro.md`: guía completa (decisiones AS-1 a AS-6, tabla WEB → mecanismo,
   detalles que costó descubrir, Turnstile, alternativa Vercel).

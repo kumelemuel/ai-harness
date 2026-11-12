@@ -1,6 +1,6 @@
 ---
 name: hexagonal-architecture
-description: Reglas de arquitectura hexagonal (puertos y adaptadores) para backends. Usar SIEMPRE antes de crear o modificar casos de uso, handlers, puertos, adaptadores, agregados o el composition root en un proyecto con capas domain/application/api/infrastructure, y al revisar código de ese tipo de proyecto.
+description: Reglas de arquitectura hexagonal (puertos y adaptadores) para backends. Usar SIEMPRE antes de crear o modificar casos de uso, handlers, puertos, adaptadores, agregados o el composition root en un proyecto con capas domain/application/api/infrastructure, y al revisar código de ese tipo de proyecto. No aplica a sitios web informativos.
 ---
 
 # Arquitectura hexagonal

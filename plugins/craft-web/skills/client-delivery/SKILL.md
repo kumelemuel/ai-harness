@@ -1,6 +1,6 @@
 ---
 name: client-delivery
-description: Proceso comercial para sitios web de clientes, de punta a punta. Cubre el cuestionario de descubrimiento, la spec del sitio, la cotización, la construcción con la plantilla y el checklist de entrega. Usar cuando se inicia, cotiza, planifica o entrega un sitio para un cliente, cuando hay que preparar una reunión de descubrimiento, o cuando se pregunta qué falta para publicar.
+description: Proceso comercial para sitios web informativos de clientes, de punta a punta. Cubre el cuestionario de descubrimiento, la spec del sitio, la cotización, la construcción con la plantilla y el checklist de entrega. Usar cuando se inicia, cotiza, planifica o entrega un sitio para un cliente, cuando hay que preparar una reunión de descubrimiento, o cuando se pregunta qué falta para publicar.
 ---
 
 # Entrega de sitios a clientes

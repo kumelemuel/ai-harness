@@ -1,12 +1,13 @@
 ---
 name: rust-stack
-description: Cómo se expresan los principios craft-backend (hexagonal, errores, TDD) en Rust con un workspace Cargo. Usar SIEMPRE que se trabaje en un backend Rust con crates por capa (`kernel/`, `contexts/*/domain`, `contexts/*/application`, `contexts/*/infrastructure`, `contexts/*/api`, `edge/http`, `apps/server`), al crear un contexto, crate, caso de uso, puerto, adaptador, error o test en Rust, o al revisar un `Cargo.toml`.
+description: Cómo se expresan los principios craft-backend (hexagonal, errores, TDD) en Rust con un workspace Cargo. Usar SIEMPRE que se trabaje en un backend Rust con crates por capa (`kernel/`, `contexts/*/domain`, `contexts/*/application`, `contexts/*/infrastructure`, `contexts/*/api`, `edge/http`, `apps/server`), al crear un contexto, crate, caso de uso, puerto, adaptador, error o test en Rust, o al revisar un `Cargo.toml`. Se usa junto con hexagonal-architecture, error-handling y tdd.
 ---
 
 # Rust (craft-backend)
 
 Complementa `hexagonal-architecture`, `error-handling` y `tdd`: esas skills
-dicen **qué**; esta dice **cómo en Rust**.
+dicen **qué**; esta dice **cómo en Rust**. **Cárgalas también antes de crear o
+modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
 
 - `references/rust.md`: guía completa (decisiones RS-1 a RS-4, tablas de traducción).
 - `references/template/`: workspace de referencia que compila y pasa todos los tests.

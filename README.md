@@ -78,17 +78,30 @@ CI propio de la plantilla.
 
 ## Instalación
 
-Desde GitHub:
+Instala cada plugin con alcance de proyecto, en el repo donde aplica:
+`craft-backend` en los backends y `craft-web` en los sitios.
 
 ```
 /plugin marketplace add kumelemuel/ai-harness
-/plugin install craft-backend@ai-harness
-/plugin install craft-web@ai-harness
+
+# En un backend
+claude plugin install craft-backend@ai-harness --scope project
+
+# En un sitio Astro
+claude plugin install craft-web@ai-harness --scope project
 ```
+
+Por qué: los hooks se activan solos al detectar el tipo de proyecto, pero las
+skills se cargan por su descripción. Las descripciones nombran el tipo de
+proyecto donde aplican, aunque eso solo reduce el riesgo. Con ambos plugins a
+nivel de usuario, el agente ve las siete skills en todos los repos y puede
+cargar, por ejemplo, `tdd` (handlers con fakes de puertos) en un sitio Astro.
+El alcance de proyecto queda en `.claude/settings.json`, se versiona con el
+repo y le da a todo el equipo el mismo harness.
 
 Desde un clon local, para desarrollar el harness:
 
 ```
 /plugin marketplace add /ruta/a/ai-harness
-/plugin install craft-backend@ai-harness
+claude plugin install craft-backend@ai-harness --scope project
 ```

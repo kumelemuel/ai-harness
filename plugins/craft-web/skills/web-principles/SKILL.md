@@ -1,6 +1,6 @@
 ---
 name: web-principles
-description: Barra de calidad para sitios web informativos (WEB-1 a WEB-10): estático por defecto, una sola fuente de rutas, contenido tipado, accesibilidad WCAG 2.2 AA, presupuestos de rendimiento, CSP sin unsafe-inline, privacidad sin terceros, formularios robustos, SEO técnico y secretos. Usar SIEMPRE al crear o modificar páginas, componentes, estilos, contenido, formularios, metadatos o cabeceras de un sitio web informativo o de un cliente, y al revisarlo.
+description: Barra de calidad para sitios web informativos (WEB-1 a WEB-10): estático por defecto, una sola fuente de rutas, contenido tipado, accesibilidad WCAG 2.2 AA, presupuestos de rendimiento, CSP sin unsafe-inline, privacidad sin terceros, formularios robustos, SEO técnico y secretos. Usar SIEMPRE al crear o modificar páginas, componentes, estilos, contenido, formularios, metadatos o cabeceras de un sitio web informativo o de un cliente, y al revisarlo. No aplica a backends con capas domain/application.
 ---
 
 # Principios web
