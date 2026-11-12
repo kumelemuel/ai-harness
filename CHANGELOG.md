@@ -27,6 +27,18 @@
   que devuelve `BoxFuture` (la del encargo), la ruta completa, los dos alias,
   la macro y el glob. Un `enum Failure` o un `struct Fault` propios del
   dominio, y un `BoxFuture` en un comentario, no son violación.
+- Plantilla Rust, `tests/errors.rs::err_1_application_errors_do_not_implement_std_error`
+  (ERR-1 en `application`). Mismo motivo que en el dominio: el
+  `impl From<E: Error> for Fault` los absorbería en el árbol B. Protege las
+  hojas de `errors.rs`, los `*Error` de `commands/` y `queries/`, y los errores
+  declarados de los puertos: los `*Error` de `ports/` y todo `E` de un
+  `Failure<E>` en `ports/`. Busca el `impl` en cualquier archivo del crate,
+  con ruta completa o con alias de `Error`. Un `impl` generado por macro sobre
+  `$tipo` cuenta, porque no se puede resolver. Rojo con cada inyección: una
+  hoja de `errors.rs`, `CreateCommunityError` implementado desde `lib.rs`, un
+  error de puerto vía `Failure<E>` con alias, un `*Error` de `ports/` y una
+  macro. Un tipo privado del handler fuera de esas categorías no es violación.
+  El detector de `impl Error` del test del dominio pasa a una función común.
 
 ## 0.8.0 — 2026-11-12
 

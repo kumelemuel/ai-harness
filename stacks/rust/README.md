@@ -135,7 +135,8 @@ dentro de los adaptadores. A la vez, `?` **no** convierte un error de dominio ni
 `impl From<E: Error>` no los alcanza. En los dos casos el compilador obliga a escribir
 la traducción. Si alguien agrega `impl Error` a un error de dominio, el `?` hacia
 `Fault` vuelve a compilar y el fallo de negocio termina como un 500 genérico. Por eso
-un test de arquitectura lo impide (ERR-1). El compilador incluso sugiere ese `impl`
+un test de arquitectura lo impide (ERR-1), y otro hace lo mismo con los errores de
+`application`: hojas, contratos `{Verb}{Noun}Error` y errores de los puertos. El compilador incluso sugiere ese `impl`
 como arreglo del E0277.
 
 ---
@@ -248,7 +249,8 @@ communities_application::community_repository_contract! {
 | HEX-5 adaptadores `{Prefijo}{Concepto}Adapter`: en `infrastructure` y en `application/src/testing*` (dobles), todo tipo que implementa un puerto de `ports/outbound` de su contexto o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
 | HEX-8 el kernel no declara dependencias (ni de test ni por `target`), y sus traits públicos son marcadores de modelo o capacidades de la lista cerrada | `tests/kernel.rs::hex_8_*` (`toml` + `syn`) | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
-| ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_*` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
+| ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
+| ERR-1 en `application` tampoco: las hojas de `errors.rs`, los `*Error` de `commands/` y `queries/` (`{Verb}{Noun}Error`), y los errores de los puertos (los `*Error` de `ports/` y todo `E` de un `Failure<E>` en `ports/`). El `impl` se busca en cualquier archivo del crate, y uno generado por macro sobre `$tipo` cuenta | `tests/errors.rs::err_1_application_errors_do_not_implement_std_error` (`syn`) | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
 | HEX-1…6, HEX-8, ERR-1 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
 | Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |

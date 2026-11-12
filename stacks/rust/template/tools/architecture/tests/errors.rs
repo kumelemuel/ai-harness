@@ -1,9 +1,12 @@
-//! Errores (ERR-1, RS-2).
+//! Errores (ERR-1, RS-2): ni el dominio ni los errores de `application` implementan
+//! `std::error::Error`.
 
 mod common;
 
 use common::{Layer, assert_no_violations, crates, parse, relative, rust_files};
 use proc_macro2::{TokenStream, TokenTree};
+use std::collections::BTreeMap;
+use std::path::Path;
 use syn::visit::Visit;
 
 /// Rutas con las que se nombra `std::error::Error` sin alias.
@@ -137,21 +140,26 @@ impl<'ast> Visit<'ast> for ErrorImpls {
     }
 }
 
+/// `impl Error for …` de un archivo: `(línea, tipo, origen)`.
+fn error_impls(file: &Path) -> Vec<(usize, String, &'static str)> {
+    let syntax = parse(file);
+    let mut impls = ErrorImpls::default();
+    // Primero los alias: un `use … as` puede venir después del `impl`.
+    for item in &syntax.items {
+        if let syn::Item::Use(u) = item {
+            impls.visit_item_use(u);
+        }
+    }
+    impls.visit_file(&syntax);
+    impls.found
+}
+
 #[test]
 fn err_1_domain_errors_do_not_implement_std_error() {
     let mut violations = Vec::new();
     for krate in crates().into_iter().filter(|c| c.layer == Layer::Domain) {
         for file in rust_files(&krate.dir.join("src")) {
-            let syntax = parse(&file);
-            let mut impls = ErrorImpls::default();
-            // Primero los alias: un `use … as` puede venir después del `impl`.
-            for item in &syntax.items {
-                if let syn::Item::Use(u) = item {
-                    impls.visit_item_use(u);
-                }
-            }
-            impls.visit_file(&syntax);
-            for (line, target, origin) in impls.found {
+            for (line, target, origin) in error_impls(&file) {
                 violations.push(format!(
                     "{}:{line}: `impl Error for {target}` ({origin}) — un error de dominio \
                      implementa solo Debug + Display",
@@ -163,6 +171,121 @@ fn err_1_domain_errors_do_not_implement_std_error() {
     assert_no_violations(
         "ERR-1: los errores de dominio no implementan std::error::Error \
          (si lo hicieran, `?` los convertiría en Fault sin que nadie lo decida)",
+        violations,
+    );
+}
+
+/// Errores del árbol A que declara un crate de `application`, con el motivo.
+///
+/// - Hojas: todo `struct`/`enum` de `errors.rs` (o `errors/`).
+/// - Contratos: los `*Error` de `commands/` y `queries/` (`{Verb}{Noun}Error`).
+/// - Puertos: los `*Error` de `ports/` y todo `E` de un `Failure<E>` en `ports/`.
+#[derive(Default)]
+struct DeclaredErrors {
+    names: BTreeMap<String, &'static str>,
+}
+
+/// Recoge el `E` de cada `Failure<E>`.
+struct FailureArgs<'a>(&'a mut BTreeMap<String, &'static str>);
+
+impl<'ast> Visit<'ast> for FailureArgs<'_> {
+    fn visit_path_segment(&mut self, node: &'ast syn::PathSegment) {
+        if node.ident == "Failure"
+            && let syn::PathArguments::AngleBracketed(args) = &node.arguments
+            && let Some(syn::GenericArgument::Type(syn::Type::Path(t))) = args.args.first()
+            && let Some(last) = t.path.segments.last()
+        {
+            self.0
+                .entry(last.ident.to_string())
+                .or_insert("error declarado de un puerto");
+        }
+        syn::visit::visit_path_segment(self, node);
+    }
+}
+
+impl DeclaredErrors {
+    fn of(src: &Path) -> Self {
+        let mut declared = Self::default();
+        for file in rust_files(src) {
+            let rel = file.strip_prefix(src).expect("invariante: bajo src");
+            let first = rel
+                .components()
+                .next()
+                .and_then(|c| c.as_os_str().to_str())
+                .unwrap_or_default()
+                .trim_end_matches(".rs")
+                .to_string();
+            let syntax = parse(&file);
+            let reason = match first.as_str() {
+                "errors" => Some("hoja de errors.rs"),
+                "commands" | "queries" => Some("contrato {Verb}{Noun}Error"),
+                "ports" => {
+                    FailureArgs(&mut declared.names).visit_file(&syntax);
+                    Some("error declarado de un puerto")
+                }
+                _ => None,
+            };
+            let Some(reason) = reason else { continue };
+            let mut types = TypeNames::default();
+            types.visit_file(&syntax);
+            for name in types.0 {
+                if first == "errors" || name.ends_with("Error") {
+                    declared.names.entry(name).or_insert(reason);
+                }
+            }
+        }
+        declared
+    }
+
+    fn reason(&self, target: &str) -> Option<&'static str> {
+        // Un `impl` generado por macro sobre `$tipo` no se puede resolver: cuenta.
+        if target.starts_with('$') {
+            return Some("tipo generado por macro, no verificable");
+        }
+        let last = target.rsplit("::").next().unwrap_or(target);
+        self.names.get(last).copied()
+    }
+}
+
+/// Nombres de los `struct` y `enum` de un archivo.
+#[derive(Default)]
+struct TypeNames(Vec<String>);
+
+impl<'ast> Visit<'ast> for TypeNames {
+    fn visit_item_struct(&mut self, node: &'ast syn::ItemStruct) {
+        self.0.push(node.ident.to_string());
+    }
+    fn visit_item_enum(&mut self, node: &'ast syn::ItemEnum) {
+        self.0.push(node.ident.to_string());
+    }
+}
+
+#[test]
+fn err_1_application_errors_do_not_implement_std_error() {
+    let mut violations = Vec::new();
+    for krate in crates()
+        .into_iter()
+        .filter(|c| c.layer == Layer::Application)
+    {
+        let src = krate.dir.join("src");
+        let declared = DeclaredErrors::of(&src);
+        // El `impl` puede vivir en cualquier archivo del crate, no solo junto al tipo.
+        for file in rust_files(&src) {
+            for (line, target, origin) in error_impls(&file) {
+                if let Some(reason) = declared.reason(&target) {
+                    violations.push(format!(
+                        "{}:{line}: `impl Error for {target}` ({origin}, {reason}) — un error \
+                         del árbol A implementa solo Debug (y Display si hace falta)",
+                        relative(&file)
+                    ));
+                }
+            }
+        }
+    }
+    assert_no_violations(
+        "ERR-1: los errores de `application` (hojas, contratos y errores de puertos) no \
+         implementan std::error::Error (`impl From<E: Error> for Fault` los absorbería en el \
+         árbol B)",
         violations,
     );
 }
