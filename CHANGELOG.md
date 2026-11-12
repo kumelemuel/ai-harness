@@ -22,6 +22,11 @@
   `node_modules/`, `.env` y `.env.*` (salvo `.env.example`), `.dev.vars` y
   `.DS_Store`. No había archivos generados en el índice: `6587a49` ya había
   sacado `__pycache__/`.
+- Los hooks de ambos plugins comprueban la versión de Python al arrancar. Con
+  una versión menor que 3.11 (`tomllib`), lo avisan por stderr y salen con 0,
+  igual que con `FileNotFoundError`. El README lo documenta en **Hooks**.
+  Verificado simulando Python 3.10 en los dos scripts (aviso y salida 0), y con
+  3.11 y 3.14 reales.
 
 ### Cambiado
 - TDD-1, **Verificación**: deja de prometer un hook. No es automatizable de

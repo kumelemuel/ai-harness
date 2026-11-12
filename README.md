@@ -40,6 +40,12 @@ que hay una sola copia de cada principio.
 Variables: `CRAFT_BACKEND_HOOKS=0` apaga ambos, `CRAFT_BACKEND_STOP_GATE=0` solo el
 de Stop y `CRAFT_BACKEND_HOOKS_LOG=/ruta` registra cada decisión.
 
+Los hooks de ambos plugins requieren `python3` 3.11 o superior en el `PATH`
+(`craft-backend` lee los `Cargo.toml` con `tomllib`). Con una versión menor, cada
+hook lo avisa por stderr y sale con 0: un entorno incompleto no bloquea al
+agente, igual que cuando falta `cargo`, `rustfmt` o `node`. En ese caso no se
+verifica nada.
+
 ## Verificación del harness
 
 El harness se somete a VER-1 como cualquier proyecto. `scripts/check_harness.py`

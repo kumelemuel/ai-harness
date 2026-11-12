@@ -26,6 +26,16 @@ import json
 import os
 import subprocess
 import sys
+if sys.version_info < (3, 11):
+    # Entorno incompleto: avisar sin bloquear al agente (como con FileNotFoundError).
+    print(
+        "craft-backend: los hooks requieren Python 3.11 o superior; hay "
+        + ".".join(map(str, sys.version_info[:3]))
+        + ". Se omiten.",
+        file=sys.stderr,
+    )
+    sys.exit(0)
+
 import tomllib
 from pathlib import Path
 
