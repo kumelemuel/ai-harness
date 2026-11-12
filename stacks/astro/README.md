@@ -36,12 +36,12 @@ kumelemuel.dev (barra de calidad) y kidus-akaal.com (Cloudflare, antispam).
 | WEB-2 Una sola fuente de rutas | `src/routes.ts`: `ROUTES`, `route()`, `articlePath()`, `NAV`, `REDIRECTS` (301 en `astro.config.mjs`) | `routes.test.ts`: cada ruta tiene su página, ningún `.astro` escribe `href="/…"` a mano y cada redirección tiene destino; e2e de redirecciones |
 | WEB-3 Contenido tipado | `src/site.ts`; colección `articles` con schema (descripción de 70 a 170); `robots.txt` generado desde `SITE` | El build falla si el schema no se cumple; `astro check` |
 | WEB-4 Accesibilidad | Un único `<h1>` desde el Layout, `lang`, enlace de salto, `:focus-visible`, `prefers-reduced-motion`, enlaces subrayados | e2e: axe WCAG 2.2 AA en cada página después del scroll; un `<h1>`; enlace de salto |
-| WEB-5 Rendimiento | Imágenes en build, fuentes con `fonts` de Astro (servidas desde el propio dominio), JS mínimo | `lighthouserc.cjs` con aserciones `error` |
+| WEB-5 Rendimiento | Imágenes en build, fuentes con `fonts` de Astro (servidas desde el propio dominio), JS mínimo | `lighthouserc.cjs` con aserciones `error`, en el CI del harness y en el de la plantilla |
 | WEB-6 CSP estricta | `CSP_DIRECTIVES` + hashes de Astro (`<meta>` en estáticas, cabecera en on-demand); `SECURITY_HEADERS` en `_headers` y en el middleware | `security.test.ts`: sin `unsafe-inline` y `_headers` alineado; e2e: cabeceras, CSP y cero violaciones |
 | WEB-7 Privacidad | Sin terceros en el navegador; aviso en `privacidad.astro` | e2e: toda solicitud va al propio origen |
 | WEB-8 Formularios | `src/lib/contact.ts` (reglas puras), `src/actions/index.ts` (orquesta), `contacto/enviado.astro` (on-demand), `CONTACT_RATE_LIMITER` | `contact.test.ts`; e2e con y sin JS por la vía del campo trampa |
 | WEB-9 SEO | `SeoMeta.astro` (canonical absoluto, OG, JSON-LD `WebSite` + `Organization` + `Article`), sitemap filtrado por `NOINDEX` | e2e: metadatos, `noindex`, sitemap y robots |
-| WEB-10 Secretos | `env.schema` en `astro.config.mjs`; `.env.example`; `.gitignore` con `.env*` y `.dev.vars` | El build y el runtime fallan si falta una variable |
+| WEB-10 Secretos | `env.schema` en `astro.config.mjs`; `.env.example`; `.gitignore` con `.env*` y `.dev.vars` | El build y el runtime fallan si falta una variable; `env.test.ts`: `git check-ignore` en un repo temporal con solo el `.gitignore` de la plantilla ignora `.env`, `.env.*` y `.dev.vars` y no `.env.example`, y `.env.example` declara claves sin valores |
 
 ---
 

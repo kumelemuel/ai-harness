@@ -52,6 +52,15 @@
   dentro de `vec!`, en un `macro_rules!`, en `testing` y en un `mod x;` externo
   sin `cfg(test)`. Un módulo `#[cfg(test)]` en línea o externo, un
   `cfg(all(test, unix))`, un comentario y un string no son violación.
+- Plantilla Astro, `tests/unit/env.test.ts` (WEB-10). El `.gitignore` se evalúa
+  con `git check-ignore`, no con una imitación de sus reglas, en un repo
+  temporal que solo tiene el `.gitignore` de la plantilla y sin configuración
+  global. Dentro del harness, el `.gitignore` de la raíz también ignora `.env`
+  y daría un falso verde. Comprueba que ignora `.env`, `.env.local`,
+  `.env.production`, `.dev.vars` y `src/.env`, que no ignora `.env.example`, y
+  que cada línea de `.env.example` que no es comentario es `CLAVE=` sin valor.
+  Rojo al quitar cada una de las cuatro reglas del `.gitignore` y al poner un
+  valor en `.env.example`.
 
 ## 0.8.0 — 2026-11-12
 
