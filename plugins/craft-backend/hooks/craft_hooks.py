@@ -26,6 +26,7 @@ import json
 import os
 import subprocess
 import sys
+
 if sys.version_info < (3, 11):
     # Entorno incompleto: avisar sin bloquear al agente (como con FileNotFoundError).
     print(
@@ -40,6 +41,7 @@ import tomllib
 from pathlib import Path
 
 ARCH_PACKAGE = "architecture"
+DEFAULT_EDITION = "2024"
 MAX_FEEDBACK_LINES = 60
 
 
@@ -75,6 +77,21 @@ def package_name(crate_dir: Path) -> str | None:
         return tomllib.loads(manifest.read_text())["package"]["name"]
     except (tomllib.TOMLDecodeError, KeyError):
         return None
+
+
+def rust_edition(root: Path) -> str:
+    """La edición del workspace: `[workspace.package].edition` o, si el workspace no
+    hereda la edición, `[package].edition` del manifiesto raíz. `DEFAULT_EDITION`
+    si no declara ninguna o el manifiesto no parsea."""
+    try:
+        manifest = tomllib.loads((root / "Cargo.toml").read_text())
+    except (OSError, tomllib.TOMLDecodeError):
+        return DEFAULT_EDITION
+    for section in (manifest.get("workspace", {}).get("package", {}), manifest.get("package", {})):
+        edition = section.get("edition")
+        if isinstance(edition, str):
+            return edition
+    return DEFAULT_EDITION
 
 
 def architected_packages(root: Path) -> list[str]:
@@ -146,7 +163,7 @@ def post_edit(payload: dict) -> int:
 
     if path.suffix == ".rs" and path.is_file():
         # Best effort: si no parsea, el compilador lo dirá con más contexto.
-        run(["rustfmt", "--edition", "2024", str(path)], root, timeout=30)
+        run(["rustfmt", "--edition", rust_edition(root), str(path)], root, timeout=30)
 
     result = run(
         ["cargo", "test", "--quiet", "-p", ARCH_PACKAGE, "--no-fail-fast"],

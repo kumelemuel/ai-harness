@@ -58,6 +58,12 @@
 - README, **Instalación**: recomienda instalar cada plugin con
   `--scope project` y explica por qué. Las skills se cargan por su
   descripción, no por detección del proyecto como los hooks.
+- `craft_hooks.py`: `rustfmt` usa la edición del workspace
+  (`[workspace.package].edition`, o `[package].edition` del manifiesto raíz) en
+  vez de 2024 fija. 2024 queda como valor por defecto. Verificado con un
+  workspace de edición 2021 y un `let gen=1;` sin formatear: con la edición
+  fija, `rustfmt` no lo parsea (`gen` está reservada en 2024) y el archivo queda
+  igual. Con la del workspace, lo formatea.
 
 ### Verificado
 - Alcance de las skills, con sesiones headless reales sobre copias de las
