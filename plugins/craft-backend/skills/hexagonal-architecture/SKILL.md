@@ -58,15 +58,15 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 - Sufijo por rol: `Repository`, `Cache`, `Gateway` (tercero), `Client` (servicio
   propio), `Synchronizer`, `Service` (último recurso). **Prohibido `Port`.**
 - Adaptadores: `{Tecnología}{Concepto}Adapter`, con el Concepto **sin** el sufijo
-  de rol: `PaymentRepository` → `PostgresPaymentAdapter`, `InMemoryPaymentAdapter`.
-  Nunca `PostgresPaymentRepositoryAdapter`.
+  de rol: `CommunityRepository` → `PostgresCommunityAdapter`, `InMemoryCommunityAdapter`.
+  Nunca `PostgresCommunityRepositoryAdapter`.
 
 **Vocabulario sin colisiones (HEX-6)**
 
 | Frontera | Entrada | Salida |
 |----------|---------|--------|
 | Caso de uso | `Command` / `Query` | `Response` |
-| Puerto saliente | `Request` | Nombre del concepto (`Authorization`) |
+| Puerto saliente | `Request` | Nombre del concepto (`ModerationVerdict`) |
 | Transporte (`api`) | `{Caso}HttpRequest` | `{Caso}HttpResponse` |
 
 - DTOs de puertos salientes en `ports/outbound/dtos/{Contrato}Payloads`, nunca

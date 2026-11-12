@@ -54,6 +54,8 @@ Formato de cada principio: ver [README](README.md).
 - Si el colaborador **no pudo completar** (no encontrado, timeout, caída), eso es un error **declarado** en la firma del puerto (`{Contrato}Error`).
 - El adaptador cumple la firma: lo declarado → `err`; cualquier otra falla técnica → árbol B. **El adaptador no decide qué ramificará el caso de uso.**
 
+Ejemplo: al crear una comunidad, un `ModerationGateway` evalúa el nombre. Si el servicio de moderación responde que no es aceptable, el puerto devuelve `ok` con un `ModerationVerdict` de rechazo y el caso de uso decide qué hacer. Si el servicio no responde a tiempo, devuelve `err(ModerationError.Unavailable)`, declarado en la firma.
+
 **Fundamento.** Separa la respuesta de negocio de la disponibilidad técnica y mantiene la decisión de negocio en el núcleo.
 
 **Violaciones típicas.** Un adaptador que convierte un rechazo de negocio en excepción. Un adaptador que "ayuda" al caso de uso devolviendo un error ya pensado para HTTP.

@@ -88,7 +88,7 @@ nombres de capa y la dirección de dependencias no.
 
 **Fundamento.** Un caso de uso es la unidad de cambio y de prueba. Interfaces de un solo método evitan "servicios de aplicación" que crecen sin límite. El adaptador depende de una abstracción, así que se puede sustituir o probar sin la clase concreta.
 
-**Violaciones típicas.** Un `PaymentService` con diez métodos. Un controller que inyecta el handler. Un `Response` que expone el agregado tal cual.
+**Violaciones típicas.** Un `CommunityService` con diez métodos. Un controller que inyecta el handler. Un `Response` que expone el agregado tal cual.
 
 **Verificación.** Test de arquitectura: `api` no depende de `*Handler` y cada `*UseCase` declara un solo método. Tampoco expone tipos de `domain`: ni en los campos públicos y variantes de `Command`, `Query`, `Response` y `Error`, ni en las firmas del `UseCase`, ni en una reexportación pública desde `application`. Las conversiones (`From<&Agregado> for Response`) y los `use` del handler no son contrato. Que `api` no declare `domain` no basta: un valor de dominio que llega por un campo público se puede usar sin importar el crate. En Rust: `tests/naming.rs::hex_4_*`.
 
@@ -111,12 +111,12 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 
 | Puerto | Adaptador |
 |--------|-----------|
-| `PaymentRepository` | `PostgresPaymentAdapter`, `InMemoryPaymentAdapter` |
-| `FraudGateway` | `HttpFraudAdapter`, `StubFraudAdapter` |
+| `CommunityRepository` | `PostgresCommunityAdapter`, `InMemoryCommunityAdapter` |
+| `ModerationGateway` | `HttpModerationAdapter`, `StubModerationAdapter` |
 
 **Fundamento.** Al leer la firma de un handler se sabe qué toca: una base de datos, un tercero, un servicio propio. `Port` es uniforme pero opaco. En el adaptador, el rol ya está implícito en la tecnología (`Postgres` es persistencia, `Http` es remoto); repetirlo solo alarga el nombre.
 
-**Violaciones típicas.** `Service` usado como cajón de sastre. Un `Gateway` para un servicio propio. `PostgresPaymentRepositoryAdapter` (repite el rol).
+**Violaciones típicas.** `Service` usado como cajón de sastre. Un `Gateway` para un servicio propio. `PostgresCommunityRepositoryAdapter` (repite el rol).
 
 **Verificación.** Test de arquitectura sobre nombres de interfaces en `ports/outbound`.
 
@@ -132,7 +132,7 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 | Frontera | Entrada | Salida | Dónde |
 |----------|---------|--------|-------|
 | Caso de uso | `Command` / `Query` | `Response` | `application/commands`, `application/queries` |
-| Puerto saliente | `Request` | Nombre del concepto, sin sufijo (`Authorization`, `DetokenizedCard`) | `application/ports/outbound/dtos` |
+| Puerto saliente | `Request` | Nombre del concepto, sin sufijo (`ModerationVerdict`, `UserProfile`) | `application/ports/outbound/dtos` |
 | Transporte | `{Caso}{Transporte}Request` | `{Caso}{Transporte}Response` | `api` |
 | Control de flujo | — | `Result` (`ERR-1`) | kernel |
 
@@ -141,7 +141,7 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 
 **Fundamento.** La interfaz queda como lista de operaciones. Un vocabulario sin colisiones hace que el nombre de un tipo diga a qué frontera pertenece. Los tipos de transporte llevan el nombre del transporte porque son los únicos que cambian si cambia el transporte.
 
-**Violaciones típicas.** `ChargeCommand` como DTO de un gateway. `AuthorizationResult` como payload de éxito. Un controller que recibe un `ChargeRequest` (colisiona con el vocabulario del puerto saliente) o devuelve el `Response` del caso de uso tal cual.
+**Violaciones típicas.** `ReviewContentCommand` como DTO de un gateway. `ModerationResult` como payload de éxito. Un controller que recibe un `CreateCommunityRequest` (colisiona con el vocabulario del puerto saliente) o devuelve el `Response` del caso de uso tal cual.
 
 **Verificación.** Test de arquitectura: ningún tipo en `ports/outbound/dtos` termina en `Command`, `Query`, `Response` ni `Result`; en `api`, los tipos `*Request`/`*Response` llevan el nombre del transporte.
 

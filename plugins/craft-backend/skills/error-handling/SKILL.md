@@ -43,9 +43,12 @@ Reglas:
 ## Adaptadores (ERR-3)
 
 - El colaborador **respondió** (aprobó, rechazó, evaluó): es **éxito** del
-  puerto. El rechazo viaja en el DTO.
+  puerto. El rechazo viaja en el DTO. Ejemplo: el servicio de moderación
+  rechaza el nombre de una comunidad → `ok` con un `ModerationVerdict` de
+  rechazo.
 - El colaborador **no pudo completar** (no encontrado, timeout, caída): es un
-  error **declarado** en la firma del puerto (`{Contrato}Error`).
+  error **declarado** en la firma del puerto (`{Contrato}Error`). Ejemplo:
+  la moderación no responde a tiempo → `ModerationError.Unavailable`.
 - Cualquier otra falla técnica: árbol B.
 - El adaptador no decide la rama de negocio ni devuelve errores pensados
   para HTTP.

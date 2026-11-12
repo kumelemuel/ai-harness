@@ -64,6 +64,16 @@
   workspace de edición 2021 y un `let gen=1;` sin formatear: con la edición
   fija, `rustfmt` no lo parsea (`gen` está reservada en 2024) y el archivo queda
   igual. Con la del workspace, lo formatea.
+- Ejemplos de HEX-4, HEX-5 y HEX-6 (en `core/principles/hexagonal.md` y en
+  `hexagonal-architecture`): pasan del dominio de pagos al de comunidades.
+  `PaymentRepository` → `CommunityRepository`, `FraudGateway` →
+  `ModerationGateway`, `Authorization` y `DetokenizedCard` →
+  `ModerationVerdict` y `UserProfile`, `ChargeCommand` →
+  `ReviewContentCommand`. Cada ejemplo sigue ilustrando la misma regla.
+- ERR-3 (core y `error-handling`) gana un ejemplo: si el servicio de moderación
+  rechaza el nombre de una comunidad, el puerto devuelve éxito con un
+  `ModerationVerdict` de rechazo. Si no responde a tiempo, devuelve
+  `ModerationError.Unavailable`.
 
 ### Verificado
 - Alcance de las skills, con sesiones headless reales sobre copias de las
