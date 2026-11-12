@@ -73,7 +73,7 @@ nombres de capa y la dirección de dependencias no.
 
 **Violaciones típicas.** Crear `domain/ports` por costumbre. Un agregado que recibe un repositorio para cargarse a sí mismo.
 
-**Verificación.** Test de arquitectura: ningún tipo de `domain` es una interfaz de puerto; `domain` no depende de `application`.
+**Verificación.** Test de arquitectura: ningún tipo de `domain` es una interfaz de puerto; `domain` no depende de `application`. El nombre no distingue un puerto de una abstracción de dominio legítima (una política, una especificación); la semántica sí: un puerto implica E/S. El test comprueba que `domain` no use las primitivas de E/S del stack (asincronía, falla de infraestructura).
 
 ---
 

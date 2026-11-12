@@ -241,6 +241,7 @@ communities_application::community_repository_contract! {
 | HEX-2 núcleo solo con `std` + kernel; TDD-2 sus tests tampoco usan runtime ni framework (lee también `[dev-dependencies]`) | `tests/dependencies.rs::hex_2_core_*` | `cargo test` |
 | HEX-2 frameworks de servidor solo en `api`, `edge` y bootstrap | `tests/dependencies.rs::hex_2_server_*` | `cargo test` |
 | HEX-3 `domain` no ve `application` | Cargo (no está declarado) + `hex_1` | compilación |
+| HEX-3 `domain` no declara puertos: no nombra `BoxFuture`, `Fault` ni `Failure` del kernel (por ruta, por nombre importado o con alias, también dentro de macros; `use kernel::*` falla porque no se puede verificar). El criterio es semántico, no de nombres: un puerto implica E/S | `tests/ports.rs::hex_3_*` (`syn` + tokens) | `cargo test` |
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
 | HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
 | HEX-5 puertos salientes con sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` | `cargo test` |

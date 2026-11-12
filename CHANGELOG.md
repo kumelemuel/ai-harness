@@ -16,6 +16,17 @@
     menor que 0.001 y TBT 0. No se tocó ningún umbral. Rojo: un `<p>` con
     `style` inline en `/` deja best-practices en 0.92 (la CSP lo bloquea y
     queda un error de consola), y Lighthouse sale con 1.
+- Plantilla Rust, `tests/ports.rs::hex_3_domain_does_not_use_kernel_io_primitives`
+  (HEX-3). El nombre no distingue un puerto de una abstracción de dominio
+  legítima, así que el test usa la semántica: un puerto implica E/S. Falla si
+  un crate de `domain` nombra `BoxFuture`, `Fault` o `Failure` del kernel por
+  ruta (`kernel::Fault`, `kernel::fault::Fault`), por nombre importado o con
+  alias (`use kernel as k`, `use kernel::{Failure as F}`), también dentro de un
+  `macro_rules!`: recorre los tokens, no solo los ítems. `use kernel::*` falla
+  porque no se puede verificar. Rojo con cada inyección: un trait de dominio
+  que devuelve `BoxFuture` (la del encargo), la ruta completa, los dos alias,
+  la macro y el glob. Un `enum Failure` o un `struct Fault` propios del
+  dominio, y un `BoxFuture` en un comentario, no son violación.
 
 ## 0.8.0 — 2026-11-12
 
