@@ -121,6 +121,20 @@ class Stacks(unittest.TestCase):
         self.assertTrue(any("astro/README.md" in m for m in messages))
 
 
+class VolatileNumbers(unittest.TestCase):
+    def test_docs_do_not_count_tests_except_the_changelog(self) -> None:
+        found = problems("volatile_count")
+        self.assertEqual(
+            {("VOLATILE-COUNT", "README.md"), ("VOLATILE-COUNT", "docs/guia.md")},
+            summary("volatile_count"),
+        )
+        self.assertEqual(
+            [("README.md", 6, "36 tests"), ("docs/guia.md", 3, "1 test"),
+             ("docs/guia.md", 3, "16 e2e"), ("docs/guia.md", 3, "22 tests")],
+            sorted((p.path, p.line, p.message.split("`")[1]) for p in found),
+        )
+
+
 class Cli(unittest.TestCase):
     def run_cli(self, fixture: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(

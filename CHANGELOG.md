@@ -10,9 +10,10 @@
   symlinks y enlaces relativos de Markdown rotos, frontmatter de skills y
   subagentes (`name`, `description`, `name` igual a su carpeta o archivo),
   rutas de la descripción de una skill de stack que no existen en la plantilla,
-  y versiones de stack distintas entre `stacks/README.md` y la guía.
+  y versiones de stack distintas entre `stacks/README.md` y la guía. Además,
+  conteos de tests en la documentación fuera del CHANGELOG (`VOLATILE-COUNT`).
   - Tests con `unittest` y fixtures en `scripts/tests/fixtures/`: un mini-repo
-    válido y uno por cada tipo de problema (11 tests). Se verificó que anular
+    válido y uno por cada tipo de problema (12 tests). Se verificó que anular
     cada comprobación hace fallar al menos un test.
 - `.github/workflows/harness.yml`: el verificador y sus tests; en la plantilla
   Rust, `cargo fmt --check`, `clippy -D warnings` y `cargo test --workspace`; en
@@ -45,6 +46,7 @@
   `edge/grpc` en la descripción de `rust-stack`, `ERR-2` duplicado, un enlace a `LEEME.md`, un
   `name` distinto de su carpeta, un subagente sin `description` y Astro v0.3 en
   el índice. Se detectaron los 8, uno por línea, con exit 1.
+  `36 tests` en `stacks/rust/README.md`: `VOLATILE-COUNT`, exit 1.
 - Los comandos del CI, en local: fmt, clippy y 36 tests de Rust en verde; lint,
   `astro check` (0 errores) y 22 tests unitarios de Astro en verde.
 - Instalación desde GitHub (no desde el clon local), con Claude Code 2.1.316,

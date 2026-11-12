@@ -20,6 +20,9 @@ Comprobaciones:
                  plantilla. Cuenta como ruta todo lo que lleve `/` o `.`; admite `*`.
   STACK-STATUS   la versión de un stack en `stacks/README.md` no coincide con el
                  `**Estado:**` de su guía
+  VOLATILE-COUNT un conteo de tests ("36 tests", "16 e2e") en la documentación.
+                 Se escribe "todos en verde" y lo demuestra el CI; solo el
+                 CHANGELOG conserva conteos, porque registra un momento.
 
 Solo biblioteca estándar (Python 3.11+), igual que los hooks.
 """
@@ -81,6 +84,7 @@ SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 STATUS_ROW = re.compile(r"^\|\s*\[[^\]]+\]\(([^)]+)\)[^|]*\|\s*([^|]*)\|")
 VERSION = re.compile(r"\bv\d+(?:\.\d+)*\b")
+VOLATILE_COUNT = re.compile(r"\b\d+\s+(?:tests?|unitarios|e2e)\b", re.IGNORECASE)
 GUIDE_STATUS = re.compile(r"\*\*Estado:\*\*\s*(v\d+(?:\.\d+)*)")
 
 
@@ -341,6 +345,24 @@ def check_stack_status(root: Path) -> list[Problem]:
     return problems
 
 
+# ------------------------------------------------------------- números volátiles
+
+
+def check_volatile_counts(root: Path, files: list[Path]) -> list[Problem]:
+    """Incluye los bloques de código: ahí también se desactualizan."""
+    problems: list[Problem] = []
+    for path in files:
+        if path.suffix != ".md" or rel(root, path) == "CHANGELOG.md":
+            continue
+        for number, line in enumerate(read_lines(path), start=1):
+            for match in VOLATILE_COUNT.finditer(line):
+                problems.append(Problem(
+                    rel(root, path), number, "VOLATILE-COUNT",
+                    f"`{match.group(0)}`: usa \"todos en verde\" y deja que el CI lo demuestre",
+                ))
+    return problems
+
+
 # --------------------------------------------------------------------------- main
 
 
@@ -354,6 +376,7 @@ def check(root: Path) -> list[Problem]:
         *check_frontmatter(root, files),
         *check_stack_descriptions(root, files),
         *check_stack_status(root),
+        *check_volatile_counts(root, files),
     ]
     return sorted(problems, key=lambda p: (p.path, p.line, p.code, p.message))
 

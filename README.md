@@ -59,6 +59,7 @@ python3 -m unittest discover -s scripts/tests          # tests del verificador
 | `FRONTMATTER` | Un `SKILL.md` o subagente sin `name` o `description`, o con un `name` que no coincide con su carpeta o archivo |
 | `STACK-PATH` | Una ruta entre comillas invertidas en la descripción de una skill de stack que no existe en la plantilla |
 | `STACK-STATUS` | Una versión de stack distinta en `stacks/README.md` y en su guía |
+| `VOLATILE-COUNT` | Un conteo de tests en la documentación (fuera del CHANGELOG) |
 
 En las descripciones de las skills de stack (las que tienen `references/template`),
 toda ruta va entre comillas invertidas para que el verificador la compruebe. La
@@ -67,7 +68,7 @@ comportamiento, no solo la documentación.
 
 La documentación no lleva números volátiles (conteos de tests): dice "todos en
 verde" y el CI lo demuestra. Solo el CHANGELOG conserva conteos, porque registra
-un momento.
+un momento. `VOLATILE-COUNT` lo hace cumplir.
 
 El CI ([`.github/workflows/harness.yml`](.github/workflows/harness.yml)) corre
 el verificador y sus tests; en la plantilla Rust, `cargo fmt --check`,
