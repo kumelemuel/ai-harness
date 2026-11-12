@@ -22,6 +22,8 @@
   `craft-web` y `scripts/`.
 
 ### Cambiado
+- `plugins/craft-backend/hooks/__pycache__/*.pyc` deja de estar versionado (viajaba
+  a la caché de los plugins). `.gitignore` en la raíz con `__pycache__/` y `*.pyc`.
 - Skill `rust-stack`: la descripción ya no menciona `apps/api` (desapareció en
   0.5.0). Ahora lista `contexts/*/api` y `edge/http`. Las rutas de las
   descripciones de `rust-stack` y `astro-stack` van entre comillas invertidas
