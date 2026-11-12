@@ -18,10 +18,11 @@ Formato de cada principio: ver [README](README.md).
 - `Result` es propio o nativo del lenguaje, con API mínima: `ok`, `err`, `map`, `flatMap`, `mapError`, `fold`. **Sin `getOrThrow`**: reintroduce el árbol B por la puerta trasera.
 - Búsquedas `find*` devuelven opcional; el handler convierte "vacío" en `NotFound` solo cuando el caso de uso exige existencia.
 - Si un caso de uso no tiene árbol A, no tiene tipo de error.
+- Ningún error del árbol A se convierte en árbol B de forma implícita: si un fallo de negocio debe tratarse como excepcional (p. ej. datos persistidos corruptos), la conversión se escribe a mano y con contexto.
 
 **Fundamento.** La firma es el contrato: quien llama no puede olvidar un fallo de negocio. Mezclar los dos árboles obliga a capturar lo que no se puede manejar o permite ignorar lo que sí.
 
-**Violaciones típicas.** Lanzar excepciones genéricas para reglas de negocio. Un `catch` amplio que convierte fallos de infraestructura en errores de negocio.
+**Violaciones típicas.** Lanzar excepciones genéricas para reglas de negocio. Un `catch` amplio que convierte fallos de infraestructura en errores de negocio. Un mecanismo de conversión automática (`?`, un `catch` genérico) que absorbe errores de negocio en el canal excepcional.
 
 **Verificación.** Test de arquitectura: tipos de error del árbol A no extienden la jerarquía de excepciones. Tests de caso de uso afirman sobre `Result`, no sobre excepciones.
 

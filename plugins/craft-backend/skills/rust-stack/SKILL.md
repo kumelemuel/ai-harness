@@ -23,7 +23,9 @@ dicen **qué**; esta dice **cómo en Rust**.
 - **RS-2: árbol B = `kernel::Fault`**, propagado con `?`. Firmas:
   `Result<T, Failure<{Verb}{Noun}Error>>` en casos de uso, `Result<T, Fault>` en
   puertos sin errores declarados. `panic!`/`expect("invariante: …")` solo para bugs.
-  **`unwrap` prohibido.**
+  **`unwrap` prohibido.** Los errores de dominio no implementan `std::error::Error`:
+  así `?` no los convierte en `Fault`. La conversión a `Fault` se escribe a mano y
+  solo para datos persistidos corruptos.
 - **RS-3: puertos async con `kernel::BoxFuture`**. Nunca `async-trait` en el núcleo.
   Firma canónica: un único lifetime `'a` para `self` y para los argumentos
   prestados, así el future puede tomar prestado todo sin clonar:

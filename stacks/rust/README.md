@@ -2,7 +2,7 @@
 
 > **Estado:** v0.2 (2026-11-12)
 > **Toolchain:** Rust estable, edición 2024 (verificado con 1.97).
-> **Referencia ejecutable:** [`template/`](template/) — compila, 35 tests en verde y
+> **Referencia ejecutable:** [`template/`](template/) — compila, 36 tests en verde y
 > los tests de arquitectura detectan cada violación (verificado inyectándolas).
 
 Traducción de [`core/principles`](../../core/principles/README.md) a Rust. Los
@@ -114,6 +114,7 @@ pub enum Failure<E> {
 |-----------|-----------------|
 | Hoja compartida (ERR-2) | `pub struct Conflict { pub resource: &'static str }` en `application/src/errors.rs` |
 | Contrato acotado (ERR-2) | `pub enum CreateCommunityError { Validation(Validation), Conflict(Conflict) }` + `From<Hoja>` por variante. Las variantes del enum **son** la declaración de qué hojas admite. |
+| Error de dominio | Solo `Debug` + `Display`; **no implementa `Error`**. Así `?` no lo convierte en `Fault`. Si un dato persistido ya no cumple la regla, es dato corrupto: se convierte a mano y con contexto, `.map_err(\|e\| Fault::new(format!("slug persistido inválido: {e}")))?` |
 | Error de dominio → hoja | `.map_err(\|_\| Failure::expected(Validation { field: "slug" }))?`. Sin envolver: nunca `FromDomain(InvalidCommunitySlug)`. |
 | Puerto sin errores declarados | `Result<T, Fault>`; en el handler, `.await?` lo convierte en `Failure::Unexpected` |
 | Caso de uso sin árbol A (ERR-1) | `BoxFuture<'_, Result<Response, Fault>>`: sin tipo de error ni `Failure` |
@@ -126,8 +127,14 @@ pub enum Failure<E> {
 
 **Por qué `Fault` no implementa `Error`.** Permite el `impl<E: Error> From<E> for Fault`
 (mismo truco que `anyhow`), así `?` funciona con `sqlx::Error`, `io::Error`, etc.
-dentro de los adaptadores. A la vez, `?` **no** convierte un error de dominio en
-`Failure<E>`: el compilador obliga a traducirlo explícitamente a una hoja.
+dentro de los adaptadores. A la vez, `?` **no** convierte un error de dominio ni en
+`Failure<E>` (no existe `From<ErrorDeDominio> for Failure<E>`) ni en `Fault`. Esto
+último es así porque los errores de dominio no implementan `Error`, así que el
+`impl From<E: Error>` no los alcanza. En los dos casos el compilador obliga a escribir
+la traducción. Si alguien agrega `impl Error` a un error de dominio, el `?` hacia
+`Fault` vuelve a compilar y el fallo de negocio termina como un 500 genérico. Por eso
+un test de arquitectura lo impide (ERR-1). El compilador incluso sugiere ese `impl`
+como arreglo del E0277.
 
 ---
 
@@ -184,8 +191,9 @@ genéricos en los caminos calientes sin cambiar los principios.
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
 | HEX-5 sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_*` | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
+| ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_*` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
-| HEX-1…6 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
+| HEX-1…6, ERR-1 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
 | Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
 | HEX-7, ERR-1…3 | `architecture-reviewer` | revisión |
 
@@ -232,6 +240,7 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 | `uuid`, `serde`, `chrono` en `domain`/`application` | Solo `std` + kernel; la implementación va en infraestructura |
 | `trait CommunityRepositoryPort` | `trait CommunityRepository` |
 | Inbound `CommunityCreationPort` + impl `CreateCommunityUseCase` | Inbound `CreateCommunityUseCase` + impl `CreateCommunityHandler` |
+| `impl Error for InvalidCommunitySlug` (o en `domain_error!`) "para que `?` compile" | Solo `Debug` + `Display`; traducir a una hoja, o a `Fault` a mano si es dato corrupto (ERR-1) |
 | Un `SystemError` global en todas las firmas | `Failure<{Verb}{Noun}Error>` acotado |
 | Errores clasificados por capa (`Domain`/`Application`/`Infrastructure`) | Clasificados por árbol: `Expected` / `Unexpected` |
 | Mapear a HTTP por código de error string (`match code { "X" => 409 }`) | `match` exhaustivo sobre el enum del contrato |

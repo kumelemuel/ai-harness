@@ -9,8 +9,26 @@
   el agente cree que el test está mal, no lo modifica, explica el estado y
   termina (TDD-1). La skill `tdd` y los README de `stacks/rust` y `stacks/astro`
   dicen lo mismo con las mismas palabras.
+- Plantilla Rust: los errores de dominio (`domain_error!`) ya no implementan
+  `std::error::Error`, solo `Debug` y `Display` (ERR-1, RS-2). Antes, en una
+  función que devuelve `Result<_, Fault>`, un `?` sobre un error de dominio lo
+  convertía en `Fault` por el `impl From<E: Error> for Fault`, y el fallo de
+  negocio terminaba como un 500 genérico. Ningún código dependía de esa
+  conversión: el workspace compiló sin cambios.
+- `core/principles/errors.md`, ERR-1: ningún error del árbol A pasa al árbol B
+  de forma implícita, y se agrega la violación típica correspondiente.
+- `stacks/rust/README.md`: fila "Error de dominio" en la tabla de RS-2, el
+  párrafo sobre `Fault` corregido (el compilador obliga a traducir tanto hacia
+  `Failure<E>` como hacia `Fault`), la regla en Enforcement y la fila en
+  "Violaciones típicas". Skill `rust-stack`: la regla en el bullet de RS-2.
 
 ### Agregado
+- Plantilla Rust: test de arquitectura
+  `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` (`syn`).
+  Detecta `impl Error for …` en los crates `domain` con cualquier ruta
+  (`Error`, `std::error::Error`, `::core::error::Error`, un alias `use … as`),
+  incluido el cuerpo de un `macro_rules!`. Informa la línea, para lo que se
+  activa `span-locations` de `proc-macro2`. La plantilla pasa a 36 tests.
 - `core/principles/web.md`: principios WEB-1 a WEB-10 para sitios informativos
   (estático, rutas, contenido tipado, a11y, rendimiento, CSP, privacidad,
   formularios, SEO, secretos). Destilados de kumelemuel.dev y kidus-akaal.com.
@@ -48,6 +66,16 @@
   - Astro (`contactSubject` recorta el nombre a 60): el `post-edit` y el gate
     bloquearon una vez cada uno. El agente terminó en rojo sin tocar el test ni
     `src/lib/contact.ts`.
+- ERR-1/RS-2, inyectando violaciones en una copia de la plantilla:
+  1. Restaurar `impl Error for $name {}` en `domain_error!`: el test falla con
+     la línea `ERR-1`. En una sesión real, el `post-edit` la devolvió al agente.
+     En una primera sesión, el agente se negó a editar solo con leer el
+     comentario del módulo, y hubo que ordenárselo explícitamente.
+  2. `fn f() -> Result<(), Fault> { CommunitySlug::new("no valido".into())?; … }`
+     en `application`: no compila (E0277, `InvalidCommunitySlug: std::error::Error`
+     is not satisfied).
+  3. `impl std::error::Error for X` con ruta completa: se detecta igual que la
+     forma corta. También se detectan `::core::error::Error` y un alias.
 
 ### Decisiones
 - Hosting por defecto: Cloudflare Workers; Vercel documentado como alternativa.
@@ -56,6 +84,11 @@
 - El gate de Stop sigue bloqueando ante cualquier rojo: no puede saber si es
   intencional. Que bloquee una sola vez por turno (`stop_hook_active`) es lo que
   permite terminar en rojo, y el mensaje lo dice (TDD-1).
+- Errores de dominio sin `std::error::Error` (ERR-1, RS-2). El compilador
+  impide el `?`, y el test de arquitectura impide reintroducir el `impl` "para
+  que compile", que es justo lo que sugiere el E0277. La conversión a `Fault` se
+  escribe a mano y solo para datos persistidos corruptos. Todavía no hay helper
+  en el kernel: no hay ningún caso en la plantilla.
 
 ## 0.5.0 — 2026-11-12
 

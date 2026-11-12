@@ -4,7 +4,7 @@ Workspace mínimo que materializa [`stacks/rust`](../README.md): un contexto
 (`communities`) con un caso de uso (`create_community`) de punta a punta.
 
 ```sh
-cargo test --workspace                                  # 35 tests, incluidos los de arquitectura
+cargo test --workspace                                  # 36 tests, incluidos los de arquitectura
 cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p server                                     # BIND_ADDRESS=127.0.0.1:3000 por defecto
 
