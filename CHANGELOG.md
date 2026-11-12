@@ -1,6 +1,10 @@
 # Changelog
 
-## Sin publicar
+## 0.9.0 — 2026-11-12
+
+Plugins: `craft-backend` 0.7.0 y `craft-web` 0.3.0. Cierra el inventario de
+promesas automatizables sin test y verifica la plantilla Astro de punta a
+punta en el CI del harness.
 
 ### Agregado
 - CI del harness, job `astro-e2e` para `stacks/astro/template`: `npm run build`,
