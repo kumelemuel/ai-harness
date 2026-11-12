@@ -3,14 +3,15 @@
 //! Tests del endpoint (TDD-2) con un caso de uso stub: `api` se prueba sin
 //! dominio ni infraestructura.
 
-use api::{AppState, router};
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header::CONTENT_TYPE};
+use communities_api::CommunitiesApi;
 use communities_application::commands::create_community::{
     CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse,
 };
 use communities_application::errors::Conflict;
 use communities_application::ports::inbound::CreateCommunityUseCase;
+use edge_http::AuthenticatedAccount;
 use kernel::{BoxFuture, Failure, Fault, FaultReporter};
 use std::sync::{Arc, Mutex};
 use tower::ServiceExt;
@@ -40,14 +41,18 @@ async fn post(
     account: Option<&str>,
 ) -> (StatusCode, String, String, Arc<RecordingReporter>) {
     let reporter = Arc::new(RecordingReporter::default());
-    let app = router(AppState {
+    let app = CommunitiesApi {
         create_community: Arc::new(StubUseCase(outcome)),
         faults: reporter.clone(),
-    });
+    }
+    .protected();
 
     let mut request = Request::post("/communities").header(CONTENT_TYPE, "application/json");
     if let Some(account) = account {
-        request = request.header("x-account-id", account);
+        // En producción la inserta el middleware de autenticación del composition root.
+        request = request.extension(AuthenticatedAccount {
+            account_id: account.into(),
+        });
     }
     let body = Body::from(r#"{"slug":"rust-chile","name":"Rust Chile","is_public":true}"#);
 
@@ -101,6 +106,10 @@ async fn conflict_returns_409_problem_details() {
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(content_type, "application/problem+json");
     assert!(body.contains(r#""type":"/problems/conflict""#), "{body}");
+    assert!(
+        body.contains(r#""code":"COMMUNITIES_SLUG_ALREADY_EXISTS""#),
+        "{body}"
+    );
 }
 
 #[tokio::test]

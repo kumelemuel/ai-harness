@@ -67,6 +67,7 @@ Formato de cada principio: ver [README](README.md).
 
 - Códigos HTTP (o de cualquier transporte) existen **solo** en `api`. El núcleo no conoce `HttpStatus`.
 - El adaptador *driving* hace `fold` exhaustivo del error del caso de uso hacia el formato de transporte (para HTTP: RFC 9457 *Problem Details*), con helpers por hoja.
+- Para clientes que ramifican por error, el Problem Details lleva un `code` estable como miembro de extensión (`COMMUNITIES_SLUG_ALREADY_EXISTS`). El código es vocabulario de transporte: lo asigna el adaptador *driving*, no el núcleo.
 - El árbol B termina en un manejador global: respuesta genérica sin detalles internos, y registro a través de un puerto saliente.
 - El núcleo no hace logging. Ningún error, mensaje ni registro lleva datos sensibles ni secretos.
 

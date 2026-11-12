@@ -9,7 +9,10 @@ pub enum Layer {
     Domain,
     Application,
     Infrastructure,
+    /// Adaptadores driving: `contexts/{ctx}/api` (por contexto) o `apps/api` (central).
     Api,
+    /// Borde compartido por los adaptadores driving: `edge/*`.
+    Edge,
     Bootstrap,
 }
 
@@ -70,13 +73,27 @@ fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
 
 /// Clasifica cada crate del workspace por su ubicación.
 ///
-/// `kernel/` → Kernel · `contexts/{ctx}/{domain|application|infrastructure}/` ·
-/// `apps/api/` → Api · `apps/*` → Bootstrap. `tools/` no se clasifica.
+/// - `kernel/` → Kernel
+/// - `edge/*` → Edge
+/// - `contexts/{ctx}/{domain|application|infrastructure|api}/` → capa del contexto
+/// - `apps/api/` → Api central · otros `apps/*` y `app/` → Bootstrap
+///
+/// Un contexto con `Cargo.toml` propio (`contexts/{ctx}/Cargo.toml`) es *legacy*:
+/// aún no está separado por capas y no se clasifica. `tools/` tampoco.
 pub fn crates() -> Vec<Crate> {
     let root = root();
     let mut crates = vec![load(root.join("kernel"), Layer::Kernel, None)];
 
+    for edge_dir in subdirs(&root.join("edge")) {
+        if edge_dir.join("Cargo.toml").exists() {
+            crates.push(load(edge_dir, Layer::Edge, None));
+        }
+    }
+
     for context_dir in subdirs(&root.join("contexts")) {
+        if context_dir.join("Cargo.toml").exists() {
+            continue; // legacy: un solo crate por contexto
+        }
         let context = context_dir
             .file_name()
             .expect("invariante: directorio con nombre")
@@ -90,6 +107,7 @@ pub fn crates() -> Vec<Crate> {
                 Some("domain") => Layer::Domain,
                 Some("application") => Layer::Application,
                 Some("infrastructure") => Layer::Infrastructure,
+                Some("api") => Layer::Api,
                 other => panic!("capa desconocida en contexts/{context}: {other:?}"),
             };
             crates.push(load(layer_dir, layer, Some(context.clone())));
@@ -106,6 +124,10 @@ pub fn crates() -> Vec<Crate> {
             Layer::Bootstrap
         };
         crates.push(load(app_dir, layer, None));
+    }
+
+    if root.join("app/Cargo.toml").exists() {
+        crates.push(load(root.join("app"), Layer::Bootstrap, None));
     }
 
     crates

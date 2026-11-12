@@ -20,7 +20,10 @@ fn may_depend_on(from: &Crate, to: &Crate) -> bool {
         (Domain, _) => false,
         (Application, Domain) => same_context,
         (Infrastructure, Domain | Application) => same_context,
-        (Api, Application) => true,
+        // Un api de contexto solo ve su application; uno central (`apps/api`) ve todos.
+        (Api, Application) => from.context.is_none() || same_context,
+        (Api, Edge) => true,
+        (Edge, _) => false,
         (Bootstrap, _) => true,
         _ => false,
     }
@@ -47,7 +50,7 @@ fn hex_1_dependencies_point_inward() {
         .collect();
 
     assert_no_violations(
-        "HEX-1: las dependencias apuntan hacia adentro; api solo ve application; \
+        "HEX-1: las dependencias apuntan hacia adentro; api solo ve el application de su contexto y edge; \
          api e infrastructure no se ven entre sí; sin dependencias entre contextos",
         violations,
     );
@@ -79,7 +82,7 @@ fn hex_2_core_depends_only_on_std_and_the_kernel() {
 fn hex_2_server_frameworks_only_at_the_edge() {
     let violations = crates()
         .iter()
-        .filter(|c| !matches!(c.layer, Layer::Api | Layer::Bootstrap))
+        .filter(|c| !matches!(c.layer, Layer::Api | Layer::Edge | Layer::Bootstrap))
         .flat_map(|c| {
             c.dependencies()
                 .into_iter()
@@ -89,7 +92,7 @@ fn hex_2_server_frameworks_only_at_the_edge() {
         .collect();
 
     assert_no_violations(
-        "HEX-2: los frameworks de servidor solo viven en api y bootstrap",
+        "HEX-2: los frameworks de servidor solo viven en api, edge y bootstrap",
         violations,
     );
 }

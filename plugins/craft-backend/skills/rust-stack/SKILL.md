@@ -15,9 +15,11 @@ dicen **qué**; esta dice **cómo en Rust**.
 
 ## Decisiones del stack
 
-- **RS-1: un crate por capa**, en `contexts/{ctx}/{domain,application,infrastructure}`.
-  El crate se nombra `{ctx}-{capa}`. `apps/api` solo ve `*-application` + kernel;
-  `apps/server` es el composition root. No hay dependencias entre contextos.
+- **RS-1: un crate por capa**, en `contexts/{ctx}/{domain,application,infrastructure,api}`.
+  El crate se nombra `{ctx}-{capa}`. `{ctx}-api` solo ve su `{ctx}-application`,
+  `edge-http` y el kernel. `edge/http` (Problem Details, `AuthenticatedAccount`,
+  `unexpected`) es lo único compartido del borde. `apps/server` (o `app/`) es el
+  composition root y compone las rutas. No hay dependencias entre contextos.
 - **RS-2: árbol B = `kernel::Fault`**, propagado con `?`. Firmas:
   `Result<T, Failure<{Verb}{Noun}Error>>` en casos de uso, `Result<T, Fault>` en
   puertos sin errores declarados. `panic!`/`expect("invariante: …")` solo para bugs.
@@ -44,9 +46,10 @@ dicen **qué**; esta dice **cómo en Rust**.
    → `Failure::expected(Hoja { … })`, nunca envueltos.
 5. Puertos salientes nuevos en `ports/outbound/` + su fake en `testing.rs`.
 6. Adaptador en `infrastructure` (`{Tecnología}{Concepto}Adapter`) + su test.
-7. `apps/api`: `{Caso}HttpRequest`/`{Caso}HttpResponse`, `match` exhaustivo hacia
-   `problem::*`, test con `oneshot` y un `UseCase` stub.
-8. Wiring en `apps/server/src/main.rs` y campo en `AppState`.
+7. `contexts/{ctx}/api`: `{Caso}HttpRequest`/`{Caso}HttpResponse`, `match`
+   exhaustivo hacia un helper por hoja que devuelve `edge_http::Problem` con su
+   `code` (`src/codes.rs`), y el test con `oneshot` y un `UseCase` stub.
+8. Agrega el campo al `{Ctx}Api` y haz el wiring en el composition root.
 
 ## Antes de terminar
 

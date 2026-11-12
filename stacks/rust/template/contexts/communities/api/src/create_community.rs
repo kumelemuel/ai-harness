@@ -1,11 +1,13 @@
-use crate::{AppState, problem};
-use axum::Json;
+use crate::{CommunitiesApi, codes};
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::{Extension, Json};
 use communities_application::commands::create_community::{
     CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse,
 };
+use communities_application::errors::{Conflict, Validation};
+use edge_http::{AuthenticatedAccount, Problem, unexpected};
 use kernel::Failure;
 use serde::{Deserialize, Serialize};
 
@@ -36,36 +38,49 @@ impl From<CreateCommunityResponse> for CreateCommunityHttpResponse {
     }
 }
 
-/// En un proyecto real la identidad la resuelve un middleware de autenticación.
-const ACCOUNT_HEADER: &str = "x-account-id";
-
-pub async fn create_community(
-    State(state): State<AppState>,
-    headers: HeaderMap,
+pub(crate) async fn handle(
+    State(api): State<CommunitiesApi>,
+    identity: Option<Extension<AuthenticatedAccount>>,
     Json(body): Json<CreateCommunityHttpRequest>,
 ) -> Response {
-    let Some(owner_id) = headers.get(ACCOUNT_HEADER).and_then(|v| v.to_str().ok()) else {
-        return problem::unauthorized();
+    let Some(Extension(identity)) = identity else {
+        return Problem::unauthorized().into_response();
     };
 
     let command = CreateCommunityCommand {
-        owner_id: owner_id.to_string(),
+        owner_id: identity.account_id,
         slug: body.slug,
         name: body.name,
         is_public: body.is_public,
     };
 
     // `fold` exhaustivo del contrato hacia el transporte (ERR-4).
-    match state.create_community.execute(command).await {
+    match api.create_community.execute(command).await {
         Ok(response) => (
             StatusCode::CREATED,
             Json(CreateCommunityHttpResponse::from(response)),
         )
             .into_response(),
         Err(Failure::Expected(error)) => match error {
-            CreateCommunityError::Validation(leaf) => problem::validation(&leaf),
-            CreateCommunityError::Conflict(leaf) => problem::conflict(&leaf),
-        },
-        Err(Failure::Unexpected(fault)) => problem::unexpected(&fault, state.faults.as_ref()),
+            CreateCommunityError::Validation(leaf) => validation(&leaf),
+            CreateCommunityError::Conflict(leaf) => conflict(&leaf),
+        }
+        .into_response(),
+        Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()),
     }
+}
+
+/// Un helper por hoja (ERR-4).
+fn validation(leaf: &Validation) -> Problem {
+    let code = match leaf.field {
+        "slug" => codes::INVALID_COMMUNITY_SLUG,
+        "name" => codes::INVALID_COMMUNITY_NAME,
+        _ => codes::INVALID_REQUEST,
+    };
+    Problem::validation(format!("invalid field: {}", leaf.field)).with_code(code)
+}
+
+fn conflict(leaf: &Conflict) -> Problem {
+    Problem::conflict(format!("{} already exists", leaf.resource))
+        .with_code(codes::SLUG_ALREADY_EXISTS)
 }

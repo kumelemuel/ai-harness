@@ -7,9 +7,10 @@ publish.workspace = true
 # Composition root (HEX-2): ve todo; nadie depende de él.
 [dependencies]
 kernel.workspace = true
+edge-http.workspace = true
 communities-application.workspace = true
 communities-infrastructure.workspace = true
-api.workspace = true
+communities-api.workspace = true
 axum.workspace = true
 tokio.workspace = true
 tower-http.workspace = true

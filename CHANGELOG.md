@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 — 2026-11-12
+
+### Cambiado
+- **RS-1:** los adaptadores driving viven por contexto (`contexts/{ctx}/api`,
+  crate `{ctx}-api`). Lo transversal del borde HTTP (Problem Details,
+  `AuthenticatedAccount`, `unexpected`) pasa al nuevo crate `edge/http`.
+  `apps/api` desaparece de la plantilla; `apps/server` compone las rutas.
+- Tests de arquitectura:
+  - Nueva capa `Edge`. Un `{ctx}-api` solo ve su propio application.
+  - `app/` en la raíz se acepta como composition root.
+  - Los contextos legacy (un solo crate) se ignoran durante una migración.
+  - Verificado inyectando 4 violaciones nuevas.
+- ERR-4: Problem Details lleva un `code` estable como miembro de extensión.
+
+### Agregado
+- Sección "Migración incremental" en `stacks/rust`.
+
 ## 0.4.0 — 2026-11-12
 
 ### Agregado
