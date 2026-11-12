@@ -192,8 +192,10 @@ genéricos en los caminos calientes sin cambiar los principios.
 **Hooks del plugin.** Se activan solos en cualquier workspace con
 `tools/architecture/Cargo.toml`; fuera de eso no hacen nada. Se pueden apagar con
 `CRAFT_BACKEND_HOOKS=0` (ambos) o `CRAFT_BACKEND_STOP_GATE=0` (solo Stop). El gate de
-Stop bloquea una sola vez por turno: si el agente no puede o no debe arreglar el fallo,
-lo reporta y termina.
+Stop bloquea una sola vez por turno. Si el fallo lo causó el cambio del agente, lo
+corrige antes de terminar (VER-1). Si el rojo es intencional (fase roja de TDD) o el
+agente cree que el test está mal, no lo modifica: explica el estado y por qué, y
+termina (TDD-1).
 
 **CI mínimo:**
 

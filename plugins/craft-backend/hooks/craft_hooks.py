@@ -195,7 +195,10 @@ def stop(payload: dict) -> int:
             return feedback(
                 f"Antes de terminar: `{' '.join(command)}` falla ({name}).\n\n"
                 f"{detail}\n\n"
-                "Corrígelo antes de dar el trabajo por terminado (VER-1, TDD-1)."
+                "Si el fallo lo causó tu cambio, corrígelo antes de terminar (VER-1). "
+                "Si el rojo es intencional (fase roja de TDD) o crees que el test está mal, "
+                "no lo modifiques: explica el estado y por qué, y termina. Este control "
+                "bloquea una sola vez por turno (TDD-1)."
             )
     return 0
 

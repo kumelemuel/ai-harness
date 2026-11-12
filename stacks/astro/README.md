@@ -53,6 +53,11 @@ Se activan solos en proyectos con `astro.config.*` y `src/routes.ts`, y usan el 
 | `PostToolUse` | Tras editar en `src/`, `tests/`, `public/` o la config | Prettier del archivo + `vitest run` | ~5 s |
 | `Stop` | Al terminar, si hay cambios sin commit | `eslint`, `astro check`, `vitest run`; bloquea una vez por turno | ~7 s |
 
+El gate de Stop bloquea una sola vez por turno. Si el fallo lo causó el cambio del agente,
+lo corrige antes de terminar (VER-1). Si el rojo es intencional (fase roja de TDD) o el
+agente cree que el test está mal, no lo modifica: explica el estado y por qué, y termina
+(TDD-1).
+
 Los e2e y Lighthouse quedan para CI, porque necesitan un build. Variables:
 `CRAFT_WEB_HOOKS=0`, `CRAFT_WEB_STOP_GATE=0`, `CRAFT_WEB_HOOKS_LOG=/ruta`.
 

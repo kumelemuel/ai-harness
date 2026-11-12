@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+### Cambiado
+- Gate de Stop de `craft-backend` y `craft-web`: el mensaje ya no empuja a
+  "corregir" cualquier rojo. Distingue dos casos: si el fallo lo causó el cambio
+  del agente, lo corrige (VER-1); si el rojo es intencional (fase roja de TDD) o
+  el agente cree que el test está mal, no lo modifica, explica el estado y
+  termina (TDD-1). La skill `tdd` y los README de `stacks/rust` y `stacks/astro`
+  dicen lo mismo con las mismas palabras.
+
 ### Agregado
 - `core/principles/web.md`: principios WEB-1 a WEB-10 para sitios informativos
   (estático, rutas, contenido tipado, a11y, rendimiento, CSP, privacidad,
@@ -29,11 +37,25 @@
 - En una sesión real sin `AGENTS.md` ni skills, el hook bloqueó una ruta
   escrita a mano y el agente la corrigió a `route("contact")`. Con
   `AGENTS.md`, el agente la evitó desde el principio.
+- Gate de Stop vs. TDD-1, simulado con un test roto: con
+  `stop_hook_active: false` bloquea (exit 2) con el mensaje nuevo completo; con
+  `true` pasa (exit 0). En ambos plugins.
+- Gate de Stop vs. TDD-1, sesiones reales en copias de las plantillas pidiendo
+  "escribe solo el test que falla … y detente":
+  - Rust (`CommunityName` colapsa espacios internos): el gate bloqueó una vez.
+    El agente explicó que el rojo era intencional y terminó sin tocar el test
+    ni `CommunityName::new`.
+  - Astro (`contactSubject` recorta el nombre a 60): el `post-edit` y el gate
+    bloquearon una vez cada uno. El agente terminó en rojo sin tocar el test ni
+    `src/lib/contact.ts`.
 
 ### Decisiones
 - Hosting por defecto: Cloudflare Workers; Vercel documentado como alternativa.
 - Estilos: Tailwind 4. Código en inglés; contenido y URLs en el idioma del cliente.
 - Turnstile opcional, documentado pero no incluido en la plantilla.
+- El gate de Stop sigue bloqueando ante cualquier rojo: no puede saber si es
+  intencional. Que bloquee una sola vez por turno (`stop_hook_active`) es lo que
+  permite terminar en rojo, y el mensaje lo dice (TDD-1).
 
 ## 0.5.0 — 2026-11-12
 

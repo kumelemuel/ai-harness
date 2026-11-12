@@ -147,7 +147,10 @@ def stop(payload: dict) -> int:
         if result.returncode != 0:
             return feedback(
                 f"Antes de terminar: {name} falla.\n\n{failures(result.stdout + result.stderr)}\n\n"
-                "Corrígelo antes de dar el trabajo por terminado (VER-1)."
+                "Si el fallo lo causó tu cambio, corrígelo antes de terminar (VER-1). "
+                "Si el rojo es intencional (fase roja de TDD) o crees que el test está mal, "
+                "no lo modifiques: explica el estado y por qué, y termina. Este control "
+                "bloquea una sola vez por turno (TDD-1)."
             )
     return 0
 

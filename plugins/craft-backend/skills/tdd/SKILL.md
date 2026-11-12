@@ -22,6 +22,8 @@ Prohibido:
 - Escribir implementación y test en el mismo paso.
 - **Modificar un test para que pase.** Si crees que el test está mal, detente,
   explica por qué y espera confirmación antes de cambiarlo.
+- Si el gate de Stop te bloquea en rojo intencional o con un test que crees
+  incorrecto, no lo modifiques: explica el estado y termina.
 
 ## Por dónde empezar (TDD-2)
 
