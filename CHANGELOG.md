@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+## 0.6.0 — 2026-11-12
+
+Plugins: `craft-backend` 0.5.1 y `craft-web` 0.1.1.
+
 ### Cambiado
 - Gate de Stop de `craft-backend` y `craft-web`: el mensaje ya no empuja a
   "corregir" cualquier rojo. Distingue dos casos: si el fallo lo causó el cambio
