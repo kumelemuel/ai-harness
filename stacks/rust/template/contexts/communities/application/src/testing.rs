@@ -1,7 +1,11 @@
-//! Fakes en memoria de los puertos salientes (TDD-2): código de primera clase.
+//! Dobles de los puertos salientes y baterías de contrato (TDD-2): código de
+//! primera clase.
 //!
-//! Disponibles para los tests de este crate y, con la feature `testing`, para
-//! los de otras capas.
+//! Los dobles se nombran como adaptadores (HEX-5) con la "tecnología" de
+//! prefijo: `Fake` si tienen estado, `Fixed` o `Stub` si responden fijo. Cada
+//! doble pasa la misma batería de contrato (`contracts`) que los adaptadores
+//! reales. Disponibles para los tests de este crate y, con la feature
+//! `testing`, para los de otras capas.
 
 use crate::ports::outbound::CommunityRepository;
 use communities_domain::Community;
@@ -11,6 +15,8 @@ use std::future::{Future, ready};
 use std::pin::pin;
 use std::sync::Mutex;
 use std::task::{Context, Poll, Waker};
+
+pub mod contracts;
 
 /// Ejecuta un future sin runtime externo.
 ///
@@ -26,12 +32,12 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
     }
 }
 
-pub struct FakeCommunityRepository {
+pub struct FakeCommunityAdapter {
     communities: Mutex<Vec<Community>>,
     failing: bool,
 }
 
-impl FakeCommunityRepository {
+impl FakeCommunityAdapter {
     pub fn empty() -> Self {
         Self {
             communities: Mutex::new(Vec::new()),
@@ -59,7 +65,7 @@ impl FakeCommunityRepository {
     }
 }
 
-impl CommunityRepository for FakeCommunityRepository {
+impl CommunityRepository for FakeCommunityAdapter {
     fn find_by_slug<'a>(
         &'a self,
         slug: &'a CommunitySlug,
@@ -76,20 +82,35 @@ impl CommunityRepository for FakeCommunityRepository {
         let result = if self.failing {
             self.outage()
         } else {
-            self.communities
+            let mut communities = self
+                .communities
                 .lock()
-                .expect("invariante: fake sin envenenar")
-                .push(community.clone());
+                .expect("invariante: fake sin envenenar");
+            // Mismo id: reemplaza, como cualquier repositorio (contrato).
+            match communities.iter_mut().find(|c| c.id() == community.id()) {
+                Some(existing) => *existing = community.clone(),
+                None => communities.push(community.clone()),
+            }
             Ok(())
         };
         Box::pin(ready(result))
     }
 }
 
-pub struct FixedIdGenerator(pub &'static str);
+pub struct FixedIdGeneratorAdapter(pub &'static str);
 
-impl IdGenerator for FixedIdGenerator {
+impl IdGenerator for FixedIdGeneratorAdapter {
     fn next_id(&self) -> String {
         self.0.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    crate::community_repository_contract! {
+        new_adapter: FakeCommunityAdapter::empty(),
+        run: block_on,
     }
 }

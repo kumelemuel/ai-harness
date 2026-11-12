@@ -38,7 +38,14 @@ endpoint ni por la persistencia.
 | Transporte | Test del endpoint |
 | Arquitectura | Reglas de capas y nombres |
 
-- Los puertos salientes se sustituyen con **fakes en memoria** (`InMemory…Adapter`),
-  no con mocks de librería. Los fakes son código de primera clase.
+- Los puertos salientes se sustituyen con **dobles**, no con mocks de librería.
+  Los dobles son código de primera clase:
+  - Viven donde los tests del núcleo pueden verlos, nunca en `infrastructure`.
+  - Se nombran como adaptadores, con prefijo `Fake` (con estado), `Fixed` o
+    `Stub` (respuesta fija): `FakeCommunityAdapter`.
+  - Pasan la **batería de contrato** del puerto, la misma que sus adaptadores
+    reales. Un puerto nuevo nace con su batería. Si el puerto declara errores,
+    la batería incluye un caso por variante.
+- El adaptador en memoria de `infrastructure` es de producción, no un doble.
 - Los tests de dominio y de caso de uso no levantan el framework.
 - Los tests de caso de uso afirman sobre `Result`, no sobre excepciones.

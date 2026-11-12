@@ -483,10 +483,20 @@ fn concept_of(contract: &str) -> &str {
         .unwrap_or(contract)
 }
 
-/// Archivos donde viven adaptadores driven de un contexto: todo `infrastructure`.
+/// Archivos donde viven adaptadores de un contexto: todo `infrastructure` y los
+/// dobles de test de `application` (`src/testing.rs` y `src/testing/`), que se
+/// nombran como adaptadores con `Fake`, `Fixed` o `Stub` de prefijo (TDD-2).
 fn adapter_files(context: &Crate) -> Vec<PathBuf> {
     match context.layer {
         Layer::Infrastructure => rust_files(&context.dir.join("src")),
+        Layer::Application => {
+            let module = context.dir.join("src/testing.rs");
+            let mut files = rust_files(&context.dir.join("src/testing"));
+            if module.exists() {
+                files.insert(0, module);
+            }
+            files
+        }
         _ => Vec::new(),
     }
 }

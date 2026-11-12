@@ -39,14 +39,19 @@ Formato de cada principio: ver [README](README.md).
 | Arquitectura | Test de reglas de capas y nombres (`VER-1`) |
 
 - Un caso de uso nuevo empieza por el test de dominio o del handler.
-- Los fakes en memoria de los puertos salientes son ciudadanos de primera clase: viven junto a los tests y se mantienen como código de producción.
+- Los dobles de los puertos salientes son ciudadanos de primera clase y se mantienen como código de producción:
+  - **Dónde:** viven donde los tests del núcleo pueden verlos, sin que el núcleo dependa de `infrastructure` (`HEX-1`).
+  - **Nombre:** se nombran como adaptadores (`HEX-5`), con la "tecnología" de prefijo: `Fake` si tienen estado, `Fixed` o `Stub` si responden fijo (`FakeCommunityAdapter`, `FixedIdGeneratorAdapter`).
+  - **Contrato:** pasan la misma **batería de contrato** del puerto que los adaptadores reales. Si el doble diverge del adaptador real, la batería falla.
+- Cada puerto saliente tiene una batería de contrato: los comportamientos de los que dependen los handlers, escritos una vez y ejecutados contra el doble y contra cada adaptador.
+- Un adaptador en memoria de `infrastructure`, que sirve para correr sin base de datos, es un adaptador de producción, no un doble de test.
 - Los tests de caso de uso afirman sobre `Result`, no sobre excepciones (`ERR-1`).
 
 **Fundamento.** Cada capa se prueba en su nivel más barato. Un núcleo sin framework (`HEX-2`) es lo que permite probar casos de uso con instancias puras y fakes, sin levantar infraestructura.
 
-**Violaciones típicas.** Levantar el contenedor del framework para probar un handler. Mocks de librería en lugar de fakes en memoria. Probar reglas de negocio a través del endpoint.
+**Violaciones típicas.** Levantar el contenedor del framework para probar un handler. Mocks de librería en lugar de fakes en memoria. Probar reglas de negocio a través del endpoint. Un fake que no pasa la batería del puerto: el handler queda probado contra un comportamiento que ningún adaptador real tiene.
 
-**Verificación.** Test de arquitectura sobre las dependencias de test del núcleo: dominio y aplicación no declaran runtimes ni frameworks, tampoco como dependencias de test. En Rust, `tests/dependencies.rs::hex_2_core_*` lee las `[dev-dependencies]`, y Cargo impide usar en un test lo que no está declarado. La forma de los tests queda asignada al subagente revisor: contenedor del framework, mocks de librería en vez de fakes, reglas de negocio probadas por el endpoint.
+**Verificación.** Test de arquitectura sobre las dependencias de test del núcleo: dominio y aplicación no declaran runtimes ni frameworks, tampoco como dependencias de test. En Rust, `tests/dependencies.rs::hex_2_core_*` lee las `[dev-dependencies]`, y Cargo impide usar en un test lo que no está declarado. Los nombres de los dobles los cubre el test de nombres de adaptadores (`HEX-5`; en Rust, `hex_5_adapters_*` también recorre `testing`). Que doble y adaptadores cumplan lo mismo lo garantiza su batería de contrato. La forma de los tests queda asignada al subagente revisor: contenedor del framework, mocks de librería en vez de fakes, reglas de negocio probadas por el endpoint.
 
 ---
 
@@ -58,3 +63,4 @@ Formato de cada principio: ver [README](README.md).
 | Test escrito después y nunca visto fallar | Rojo primero |
 | Contenedor del framework en tests de núcleo | `new Handler(fakePort)` |
 | Mocks de librería para puertos salientes | Fakes en memoria |
+| Fake sin test de contrato | Batería de contrato compartida |

@@ -3,6 +3,19 @@
 ## Sin publicar
 
 ### Agregado
+- Plantilla Rust, batería de contrato de `CommunityRepository` en
+  `application/src/testing/contracts/community_repository.rs` (TDD-2). Tiene
+  cinco casos `async`, cada uno con la fábrica del adaptador:
+  - encuentra lo guardado por su slug;
+  - un slug desconocido es `None` y no un error;
+  - el slug se compara entero;
+  - con varias comunidades, cada slug encuentra la suya;
+  - guardar con un id existente reemplaza la comunidad.
+
+  La macro `community_repository_contract!` genera un `#[test]` por caso y
+  recibe el `run` de quien la invoca. Corre contra `FakeCommunityAdapter` (en
+  `application`) y contra `InMemoryCommunityAdapter`. Reemplaza los tres tests
+  propios del adaptador en memoria, que ahora son casos de la batería.
 - Plantilla Rust, `tests/kernel.rs::hex_8_*` (HEX-8). Uno falla si el kernel
   declara cualquier dependencia: `[dependencies]`, `[dev-dependencies]`,
   `[build-dependencies]` o las de `[target.…]`. Así las firmas de sus capacidades
@@ -41,6 +54,22 @@
   3.11 y 3.14 reales.
 
 ### Cambiado
+- TDD-2: los dobles de los puertos viven donde los tests del núcleo pueden
+  verlos. Se nombran como adaptadores, con prefijo `Fake`, `Fixed` o `Stub`, y
+  pasan la misma batería de contrato que los adaptadores reales. El adaptador en
+  memoria de infraestructura es de producción, no un doble. Nuevo antipatrón:
+  "Fake sin test de contrato" → "Batería de contrato compartida".
+- ERR-3, **Verificación**: un caso por variante declarada en la batería de
+  contrato del puerto, provocada con un parámetro de la fábrica.
+- Skill `tdd`: los dobles siguen la regla nueva en vez de "`InMemory…Adapter`".
+- Plantilla Rust: `FakeCommunityRepository` → `FakeCommunityAdapter` y
+  `FixedIdGenerator` → `FixedIdGeneratorAdapter`. `hex_5_adapters_*` también
+  recorre `application/src/testing.rs` y `src/testing/`.
+- Plantilla Rust: `FakeCommunityAdapter::save` reemplaza por id. Antes
+  agregaba al final, como un registro de eventos (ver **Verificado**).
+- `stacks/rust/README.md`: la sección de tests explica dónde vive cada batería,
+  cómo se ejecuta en cada capa (también con `tokio` para Postgres) y cómo se
+  agrega un puerto nuevo. La disposición y Enforcement la incluyen.
 - HEX-8 reconoce las **capacidades técnicas transversales**, con criterio y
   lista cerrada: `Clock`, `IdGenerator` y `FaultReporter`. El criterio exige que
   sea técnica, sin vocabulario de negocio, usada por más de un contexto y con
@@ -106,6 +135,20 @@
   `ModerationError.Unavailable`.
 
 ### Verificado
+- La batería de `CommunityRepository` encontró una divergencia que ya existía.
+  El fake hacía `push` en `save`: tras guardar el id `c-1` dos veces,
+  `find_by_slug` seguía encontrando el slug anterior. El adaptador en memoria
+  reemplaza por id. Ningún handler guarda dos veces el mismo id, así que no
+  rompía nada todavía. Falló solo con el fake; se corrigió el fake.
+- Divergencia inyectada en el fake y revertida: con `find_by_slug` por prefijo
+  (`starts_with`), falla `find_by_slug_matches_the_whole_slug` para el fake y
+  pasa todo para el adaptador en memoria. La del encargo (ignorar mayúsculas)
+  también se inyectó y no falla nada. `CommunitySlug::new` normaliza a
+  minúsculas, así que el puerto nunca recibe dos slugs que difieran solo en eso.
+- Con el fake renombrado temporalmente a `FakeCommunityRepository`, falla
+  `hex_5_adapters_*` con `testing.rs:68`. Revertido.
+- `run` como closure (la forma del ejemplo con `tokio`) compila y pasa la
+  batería con el adaptador en memoria.
 - HEX-8, inyectado y revertido: un `pub trait CommunityLookup` en
   `kernel/src/lib.rs` (falla el test de traits, con archivo y línea) y
   `uuid` en `[dependencies]` del kernel (falla el de dependencias).
@@ -133,23 +176,32 @@
 - El test de dependencias del kernel lee también `[dev-dependencies]`,
   `[build-dependencies]` y `[target.…]`. El encargo pedía `[dependencies]`; una
   dependencia de test o de plataforma también rompe "solo `std`".
-- El test de nombres solo recorre `infrastructure`. Los tipos que implementan
-  `FaultReporter` en el composition root (`StderrFaultReporter`), en
-  `edge/http` y en los tests de `api` quedan fuera de su alcance y no se
-  renombraron.
+- La batería es `async` y no elige ejecutor: cada caso es una `async fn`, y la
+  macro recibe el `run`. Una sola `async fn` con todos los casos habría sido
+  más simple, pero cortaría en el primer fallo y mostraría un solo test. La
+  lista de casos se repite entre las `async fn` y la macro, en el mismo archivo.
+- `CommunityRepository` no declara errores, así que su fábrica no tiene
+  parámetros. La forma con escenario (`impl Fn(Scenario) -> R`) queda
+  documentada en la guía de Rust, sin un puerto de la plantilla que la use.
+- Los dobles quedan en `testing.rs`, y las baterías en `testing/contracts/`.
+- El test de nombres solo recorre `infrastructure` y el `testing` de
+  `application`. Quedan fuera de su alcance, y no se renombraron, los tipos que
+  implementan `FaultReporter` en el composition root (`StderrFaultReporter`),
+  en `edge/http` y en los tests de `api`.
 
 ### Inventario de las secciones "Verificación"
 
 Lo que dejan resuelto los cambios sin publicar: HEX-4 (contrato), TDD-1
-(revisor), TDD-2, HEX-5 (adaptadores) y HEX-8. El resto queda para otro encargo:
+(revisor), TDD-2 (incluidos los dobles con batería de contrato), HEX-5
+(adaptadores) y HEX-8. El resto queda para otro encargo:
 
 | Estado | Promesas |
 |--------|----------|
 | Cubiertas | HEX-1, HEX-2, HEX-4, HEX-5 (puertos y adaptadores), HEX-6, HEX-8, TDD-2 (dependencias), ERR-1 en `domain`, ERR-2 (exhaustividad del compilador), WEB-1, WEB-2, WEB-3, WEB-6, WEB-7 (terceros), WEB-8, WEB-9 (metadatos), RS-1, RS-3, RS-4, AS-4, AS-5, AS-6 |
 | Asignadas al revisor | HEX-7, TDD-1, TDD-2 (forma), RS-2 (`panic!` solo para invariantes), ERR-3 (semántica), WEB-4 (`alt`), WEB-7 (aviso), WEB-9 (JSON-LD) |
-| Automatizables sin test | HEX-3 (puertos en `domain`), ERR-1 (errores de `application`), ERR-4 (`println!` y `eprintln!` en el núcleo), WEB-10 (`.gitignore`), VER-1 (el verificador no comprueba que el test citado exista) |
+| Automatizables sin test | HEX-3 (puertos en `domain`), ERR-3 (un caso por variante: la batería de contrato es el lugar, pero nada comprueba que cada variante tenga su caso, y la plantilla no tiene puertos con errores declarados), ERR-1 (errores de `application`), ERR-4 (`println!` y `eprintln!` en el núcleo), WEB-10 (`.gitignore`), VER-1 (el verificador no comprueba que el test citado exista) |
 | Configuradas sin verificar | WEB-4, WEB-5 y WEB-9 con Lighthouse: nunca corrió localmente |
-| No automatizables y sin revisor | ERR-2 y ERR-3 (un test por variante), AS-3 (código en inglés) |
+| No automatizables y sin revisor | ERR-2 (un test por variante), AS-3 (código en inglés) |
 
 ## 0.7.0 — 2026-11-12
 

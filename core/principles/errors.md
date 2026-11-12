@@ -60,7 +60,7 @@ Ejemplo: al crear una comunidad, un `ModerationGateway` evalúa el nombre. Si el
 
 **Violaciones típicas.** Un adaptador que convierte un rechazo de negocio en excepción. Un adaptador que "ayuda" al caso de uso devolviendo un error ya pensado para HTTP.
 
-**Verificación.** Tests de adaptador por cada variante declarada.
+**Verificación.** Un caso por variante declarada en la batería de contrato del puerto (`TDD-2`). La forma de provocar cada variante es un parámetro de la fábrica del adaptador, así que la ejecutan el doble y todos los adaptadores reales.
 
 ---
 

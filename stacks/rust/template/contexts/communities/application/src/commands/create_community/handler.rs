@@ -56,7 +56,7 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{FakeCommunityRepository, FixedIdGenerator, block_on};
+    use crate::testing::{FakeCommunityAdapter, FixedIdGeneratorAdapter, block_on};
 
     fn command(slug: &str, name: &str) -> CreateCommunityCommand {
         CreateCommunityCommand {
@@ -67,13 +67,13 @@ mod tests {
         }
     }
 
-    fn handler(repository: &Arc<FakeCommunityRepository>) -> CreateCommunityHandler {
-        CreateCommunityHandler::new(repository.clone(), Arc::new(FixedIdGenerator("c-1")))
+    fn handler(repository: &Arc<FakeCommunityAdapter>) -> CreateCommunityHandler {
+        CreateCommunityHandler::new(repository.clone(), Arc::new(FixedIdGeneratorAdapter("c-1")))
     }
 
     #[test]
     fn creates_and_saves_the_community() {
-        let repository = Arc::new(FakeCommunityRepository::empty());
+        let repository = Arc::new(FakeCommunityAdapter::empty());
 
         let response = block_on(handler(&repository).execute(command("rust-chile", "Rust Chile")));
 
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn invalid_slug_is_a_validation_error() {
-        let repository = Arc::new(FakeCommunityRepository::empty());
+        let repository = Arc::new(FakeCommunityAdapter::empty());
 
         let result = block_on(handler(&repository).execute(command("no spaces", "Rust Chile")));
 
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn invalid_name_is_a_validation_error() {
-        let repository = Arc::new(FakeCommunityRepository::empty());
+        let repository = Arc::new(FakeCommunityAdapter::empty());
 
         let result = block_on(handler(&repository).execute(command("rust-chile", "ab")));
 
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn existing_slug_is_a_conflict() {
-        let repository = Arc::new(FakeCommunityRepository::empty());
+        let repository = Arc::new(FakeCommunityAdapter::empty());
         block_on(handler(&repository).execute(command("rust-chile", "Rust Chile"))).unwrap();
 
         let result = block_on(handler(&repository).execute(command("rust-chile", "Otra")));
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn repository_failure_is_unexpected_not_a_business_error() {
-        let repository = Arc::new(FakeCommunityRepository::failing());
+        let repository = Arc::new(FakeCommunityAdapter::failing());
 
         let result = block_on(handler(&repository).execute(command("rust-chile", "Rust Chile")));
 

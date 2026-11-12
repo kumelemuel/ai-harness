@@ -38,7 +38,8 @@ contexts/{ctx}/
 │       ├── commands/{caso}/    command.rs · response.rs · error.rs · handler.rs
 │       ├── queries/{caso}/     query.rs · response.rs · error.rs · handler.rs
 │       ├── errors.rs           hojas compartidas (ERR-2)
-│       └── testing.rs          fakes + block_on, feature `testing`
+│       ├── testing.rs          dobles (Fake…Adapter) + block_on, feature `testing`
+│       └── testing/contracts/  {puerto}.rs: batería de contrato + macro {puerto}_contract!
 ├── infrastructure/             → kernel, {ctx}-domain, {ctx}-application (+ uuid, sqlx…)
 └── api/                        → kernel, {ctx}-application, edge-http (+ axum, serde). Nunca domain.
     └── src/                    {Ctx}Api { use cases, faults }.protected()/public() → Router
@@ -166,17 +167,68 @@ genéricos en los caminos calientes sin cambiar los principios.
 | Capa | Cómo | Dónde |
 |------|------|-------|
 | Kernel / dominio | `#[test]` puro | `#[cfg(test)] mod tests` en el mismo archivo |
-| Caso de uso | `CreateCommunityHandler::new(Arc::new(FakeCommunityRepository::empty()), …)` + `block_on` | `handler.rs` |
-| Adaptador | Contra su tecnología (en memoria directo; Postgres con testcontainers o similar) | crate de infraestructura |
+| Caso de uso | `CreateCommunityHandler::new(Arc::new(FakeCommunityAdapter::empty()), …)` + `block_on` | `handler.rs` |
+| Contrato del puerto | `community_repository_contract! { new_adapter: …, run: … }` contra el doble y contra cada adaptador | `application/src/testing.rs` (doble) y el archivo de cada adaptador |
+| Adaptador | La batería de contrato, más lo propio de su tecnología (Postgres con testcontainers o similar) | crate de infraestructura |
 | Transporte | `{Ctx}Api { … }.protected().oneshot(request)` con un `UseCase` stub; la identidad se inyecta con `request.extension(AuthenticatedAccount { … })` | `contexts/{ctx}/api/tests/` |
 | Arquitectura | `cargo test -p architecture` | `tools/architecture/tests/` |
 
-- **Fakes** en `application/src/testing.rs`, compilados con `cfg(any(test, feature = "testing"))`.
+- **Dobles** en `application/src/testing.rs`, compilados con `cfg(any(test, feature = "testing"))`.
   Otras capas los usan con `[dev-dependencies] {ctx}-application = { workspace = true, features = ["testing"] }`.
+  Viven en `application` porque sus tests no ven `infrastructure` (HEX-1). Se nombran como
+  adaptadores: `FakeCommunityAdapter` (con estado), `FixedIdGeneratorAdapter` (respuesta fija).
+  `hex_5_adapters_*` también recorre `testing`.
+- **`InMemoryCommunityAdapter`** es un adaptador de producción (correr sin base de datos), no un
+  doble. Pasa la misma batería que el fake.
 - **`block_on`** del módulo `testing`: ejecutor mínimo con `std` (`Waker::noop`). Solo para
   futures que resuelven de inmediato (fakes); el núcleo no necesita `tokio` ni siquiera en
   tests, y `hex_2_core_*` lo impide (TDD-2).
 - Los tests de caso de uso afirman con `matches!(result, Err(Failure::Expected(…)))`.
+
+### Baterías de contrato
+
+Cada puerto saliente tiene una en `application/src/testing/contracts/{puerto}.rs`. Cada caso
+es una `pub async fn {caso}<R: Puerto>(new_adapter: impl Fn() -> R)`. La macro
+`{puerto}_contract!` (exportada en la raíz del crate) genera un `#[test]` por caso, dentro de
+un módulo `{puerto}_contract`:
+
+```rust
+// application/src/testing.rs: el doble
+crate::community_repository_contract! {
+    new_adapter: FakeCommunityAdapter::empty(),
+    run: block_on,
+}
+
+// infrastructure/src/in_memory_community.rs: el adaptador en memoria
+communities_application::community_repository_contract! {
+    new_adapter: InMemoryCommunityAdapter::default(),
+    run: block_on,
+}
+
+// infrastructure/src/postgres_community.rs: un adaptador con IO real
+communities_application::community_repository_contract! {
+    new_adapter: PostgresCommunityAdapter::new(pool()),
+    run: |future| tokio::runtime::Runtime::new().expect("invariante: runtime").block_on(future),
+}
+```
+
+- **Por qué `async` sin ejecutor.** `block_on` solo sirve para futures que resuelven de
+  inmediato, y un adaptador con IO necesita un runtime real. La batería no elige: cada caller
+  pasa su `run`. `application` sigue sin `tokio` (HEX-2). `infrastructure` puede declararlo
+  como dev-dependency.
+- **Por qué una macro.** Genera un test por caso, así un fallo nombra el caso y el resto sigue
+  corriendo. Además, un caso nuevo corre contra todas las implementaciones sin tocarlas.
+- **Por qué una fábrica.** Cada caso empieza con un adaptador vacío. Si el puerto declara
+  errores (ERR-3), la fábrica recibe el escenario que los provoca
+  (`new_adapter: impl Fn(Scenario) -> R`, con una variante de `Scenario` por error declarado), y
+  la batería tiene un caso por variante.
+
+**Puerto nuevo:**
+
+1. Escribe `testing/contracts/{puerto}.rs`, con un caso por comportamiento del que dependan
+   los handlers y uno por variante de error declarada. Agrega su macro y el `pub mod`.
+2. Invoca la macro en `testing.rs`, contra el doble, y ve los casos en rojo.
+3. Implementa el doble hasta que pasen. Después, cada adaptador invoca la macro en su archivo.
 - En crates de test de integración, `#![allow(clippy::unwrap_used)]` al inicio del archivo.
 
 ---
@@ -192,13 +244,14 @@ genéricos en los caminos calientes sin cambiar los principios.
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
 | HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
 | HEX-5 puertos salientes con sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` | `cargo test` |
-| HEX-5 adaptadores `{Prefijo}{Concepto}Adapter`: en `infrastructure`, todo tipo que implementa un puerto de `ports/outbound` de su contexto o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
+| HEX-5 adaptadores `{Prefijo}{Concepto}Adapter`: en `infrastructure` y en `application/src/testing*` (dobles), todo tipo que implementa un puerto de `ports/outbound` de su contexto o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
 | HEX-8 el kernel no declara dependencias (ni de test ni por `target`), y sus traits públicos son marcadores de modelo o capacidades de la lista cerrada | `tests/kernel.rs::hex_8_*` (`toml` + `syn`) | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
 | ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_*` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
 | HEX-1…6, HEX-8, ERR-1 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
 | Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
+| TDD-2 / ERR-3 el doble y los adaptadores cumplen el mismo contrato del puerto | Batería de contrato (`application::testing::contracts`) | `cargo test` |
 | HEX-7, ERR-1…3, TDD-1 (test antes o junto a la producción en el diff y en el orden de commits) | `architecture-reviewer`. Los hooks garantizan verde, no rojo primero | revisión |
 
 **Hooks del plugin.** Se activan solos en cualquier workspace con
