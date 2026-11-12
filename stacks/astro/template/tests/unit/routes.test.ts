@@ -3,7 +3,8 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { NOINDEX, ON_DEMAND, REDIRECTS, ROUTES, isIndexable, type RouteKey } from "../../src/routes";
 
-const PAGES = join(import.meta.dirname, "../../src/pages");
+const SRC = join(import.meta.dirname, "../../src");
+const PAGES = join(SRC, "pages");
 
 /** Archivo de página que corresponde a una ruta: /a/b/ → a/b.astro o a/b/index.astro. */
 const pageFileFor = (path: string) => {
@@ -25,6 +26,19 @@ describe("WEB-2: una sola fuente de rutas", () => {
 
   it("toda ruta termina en /", () => {
     for (const path of Object.values(ROUTES)) expect(path).toMatch(/\/$/);
+  });
+
+  it("ningún componente escribe una ruta interna a mano (usa route() o articlePath())", () => {
+    // Literales href="/…" sin extensión de archivo: los assets (/favicon.svg) sí se permiten.
+    const hardcoded = allPages(SRC)
+      .filter((file) => file.endsWith(".astro"))
+      .flatMap((file) =>
+        [...readFileSync(file, "utf8").matchAll(/href="(\/[^"]*)"/g)]
+          .map((match) => match[1])
+          .filter((href) => !/\.[a-z0-9]+$/i.test(href))
+          .map((href) => `${relative(SRC, file)}: href="${href}"`),
+      );
+    expect(hardcoded).toEqual([]);
   });
 
   it("cada redirección apunta a una ruta existente", () => {

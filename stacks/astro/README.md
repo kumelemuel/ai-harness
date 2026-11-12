@@ -3,7 +3,7 @@
 > **Estado:** v0.1 (2026-11-12)
 > **Toolchain:** Astro 7, Node 24, Cloudflare Workers, Tailwind 4.
 > **Referencia ejecutable:** [`template/`](template/): build limpio, `astro check` sin errores,
-> 21 tests unitarios y 16 e2e en verde. Los tests detectan cada violación inyectada:
+> 22 tests unitarios y 16 e2e en verde. Los tests detectan cada violación inyectada:
 > `unsafe-inline`, una página on-demand no declarada, un `<h1>` duplicado, una imagen sin
 > `alt` y una fuente de terceros. Lighthouse está configurado pero **aún no se corrió
 > localmente**.
@@ -31,7 +31,7 @@ kumelemuel.dev (barra de calidad) y kidus-akaal.com (Cloudflare, antispam).
 | Principio | En la plantilla | Verificación |
 |-----------|-----------------|--------------|
 | WEB-1 Estático por defecto | `output: "static"`; `prerender = false` solo en las rutas de `ON_DEMAND` | `routes.test.ts`: las páginas on-demand son exactamente `ON_DEMAND` |
-| WEB-2 Una sola fuente de rutas | `src/routes.ts`: `ROUTES`, `route()`, `articlePath()`, `NAV`, `REDIRECTS` (301 en `astro.config.mjs`) | `routes.test.ts`: cada ruta tiene su página y cada redirección un destino; e2e de redirecciones |
+| WEB-2 Una sola fuente de rutas | `src/routes.ts`: `ROUTES`, `route()`, `articlePath()`, `NAV`, `REDIRECTS` (301 en `astro.config.mjs`) | `routes.test.ts`: cada ruta tiene su página, ningún `.astro` escribe `href="/…"` a mano y cada redirección tiene destino; e2e de redirecciones |
 | WEB-3 Contenido tipado | `src/site.ts`; colección `articles` con schema (descripción de 70 a 170); `robots.txt` generado desde `SITE` | El build falla si el schema no se cumple; `astro check` |
 | WEB-4 Accesibilidad | Un único `<h1>` desde el Layout, `lang`, enlace de salto, `:focus-visible`, `prefers-reduced-motion`, enlaces subrayados | e2e: axe WCAG 2.2 AA en cada página después del scroll; un `<h1>`; enlace de salto |
 | WEB-5 Rendimiento | Imágenes en build, fuentes con `fonts` de Astro (servidas desde el propio dominio), JS mínimo | `lighthouserc.cjs` con aserciones `error` |
@@ -42,6 +42,19 @@ kumelemuel.dev (barra de calidad) y kidus-akaal.com (Cloudflare, antispam).
 | WEB-10 Secretos | `env.schema` en `astro.config.mjs`; `.env.example`; `.gitignore` con `.env*` y `.dev.vars` | El build y el runtime fallan si falta una variable |
 
 ---
+
+## Hooks del plugin craft-web
+
+Se activan solos en proyectos con `astro.config.*` y `src/routes.ts`, y usan el Node de
+`.nvmrc` (vía nvm):
+
+| Hook | Cuándo | Qué hace | Costo |
+|------|--------|----------|-------|
+| `PostToolUse` | Tras editar en `src/`, `tests/`, `public/` o la config | Prettier del archivo + `vitest run` | ~5 s |
+| `Stop` | Al terminar, si hay cambios sin commit | `eslint`, `astro check`, `vitest run`; bloquea una vez por turno | ~7 s |
+
+Los e2e y Lighthouse quedan para CI, porque necesitan un build. Variables:
+`CRAFT_WEB_HOOKS=0`, `CRAFT_WEB_STOP_GATE=0`, `CRAFT_WEB_HOOKS_LOG=/ruta`.
 
 ## Detalles que costó descubrir
 

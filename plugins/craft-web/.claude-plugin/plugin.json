@@ -1,0 +1,9 @@
+{
+  "name": "craft-web",
+  "version": "0.1.0",
+  "description": "Sitios web informativos con barra de calidad verificada: principios WEB, plantilla Astro + Cloudflare + Tailwind y proceso comercial con clientes.",
+  "author": {
+    "name": "Kumelemuel"
+  },
+  "license": "MIT"
+}

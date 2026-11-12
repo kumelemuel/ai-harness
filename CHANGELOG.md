@@ -12,6 +12,24 @@
   `wrangler dev` e incluyen axe, CSP y terceros. Las reglas se verificaron
   inyectando una violación de cada tipo.
 
+- Plugin `craft-web` 0.1.0:
+  - Skills: `web-principles` (WEB-1..10), `astro-stack` (cómo en la plantilla)
+    y `client-delivery` (descubrimiento → spec → cotización → entrega).
+  - Subagente `site-auditor`: alt, encabezados, SEO, JSON-LD, coherencia del
+    aviso de privacidad.
+  - Hooks: `PostToolUse` (Prettier + vitest, ~5 s) y `Stop` (eslint, astro
+    check y vitest, ~7 s), solo en proyectos con `src/routes.ts` y con el Node
+    de `.nvmrc`.
+- `templates/web/`: cuestionario de descubrimiento, spec del sitio, base de
+  cotización y checklist de entrega.
+- Plantilla Astro: test WEB-2 que impide escribir `href="/…"` a mano.
+
+### Verificado
+- Las tres skills se activan solas ante preguntas que no las nombran.
+- En una sesión real sin `AGENTS.md` ni skills, el hook bloqueó una ruta
+  escrita a mano y el agente la corrigió a `route("contact")`. Con
+  `AGENTS.md`, el agente la evitó desde el principio.
+
 ### Decisiones
 - Hosting por defecto: Cloudflare Workers; Vercel documentado como alternativa.
 - Estilos: Tailwind 4. Código en inglés; contenido y URLs en el idioma del cliente.

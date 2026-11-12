@@ -1,0 +1,1 @@
+../../../../../templates/web/quote.md

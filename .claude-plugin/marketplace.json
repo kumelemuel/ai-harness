@@ -11,6 +11,11 @@
       "name": "craft-backend",
       "source": "./plugins/craft-backend",
       "description": "Arquitectura hexagonal, DDD táctico y TDD para backends."
+    },
+    {
+      "name": "craft-web",
+      "source": "./plugins/craft-web",
+      "description": "Sitios web informativos: principios WEB, plantilla Astro y proceso comercial."
     }
   ]
 }

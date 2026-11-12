@@ -10,6 +10,7 @@ subagentes y hooks que el agente carga solo cuando los necesita.
 ```
 core/principles/        Fuente de verdad, un archivo por tema (HEX, ERR, TDD, VER, WEB)
 stacks/                 Traducción por stack; rust/template y astro/template son ejecutables
+templates/web/          Proceso comercial: descubrimiento, spec, cotización, entrega
 plugins/craft-backend/  Plugin de Claude Code: hexagonal, errores, TDD
 .claude-plugin/         Este repo funciona como marketplace de plugins
 ```
@@ -22,6 +23,7 @@ que hay una sola copia de cada principio.
 | Plugin | Contenido |
 |--------|-----------|
 | `craft-backend` | Skills `hexagonal-architecture`, `error-handling`, `tdd` y `rust-stack`; subagente `architecture-reviewer`; hooks `PostToolUse` y `Stop` para workspaces Rust |
+| `craft-web` | Skills `web-principles`, `astro-stack` y `client-delivery`; subagente `site-auditor`; hooks `PostToolUse` y `Stop` para sitios Astro con `src/routes.ts` |
 
 ## Hooks
 
@@ -43,6 +45,7 @@ Desde GitHub:
 ```
 /plugin marketplace add kumelemuel/ai-harness
 /plugin install craft-backend@ai-harness
+/plugin install craft-web@ai-harness
 ```
 
 Desde un clon local, para desarrollar el harness:

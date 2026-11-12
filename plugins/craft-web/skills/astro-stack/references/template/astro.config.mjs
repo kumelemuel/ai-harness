@@ -1,0 +1,1 @@
+../../../../../../stacks/astro/template/astro.config.mjs

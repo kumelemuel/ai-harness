@@ -1,0 +1,1 @@
+../../../../../templates/web/site-spec.md
