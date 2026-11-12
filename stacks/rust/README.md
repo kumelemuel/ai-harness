@@ -175,7 +175,15 @@ genéricos en los caminos calientes sin cambiar los principios.
 | HEX-5 sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_*` | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
+| HEX-1…6 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
+| Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy -D warnings` + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
 | HEX-7, ERR-1…3 | `architecture-reviewer` | revisión |
+
+**Hooks del plugin.** Se activan solos en cualquier workspace con
+`tools/architecture/Cargo.toml`; fuera de eso no hacen nada. Se pueden apagar con
+`CRAFT_BACKEND_HOOKS=0` (ambos) o `CRAFT_BACKEND_STOP_GATE=0` (solo Stop). El gate de
+Stop bloquea una sola vez por turno: si el agente no puede o no debe arreglar el fallo,
+lo reporta y termina.
 
 **CI mínimo:**
 

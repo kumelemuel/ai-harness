@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.0 — 2026-11-12
+
+### Agregado
+- Hooks de `craft-backend` (`hooks/hooks.json` + `hooks/craft_hooks.py`):
+  - `PostToolUse` sobre `Edit|Write|MultiEdit`: `rustfmt` del archivo y
+    `cargo test -p architecture`. Las violaciones vuelven al agente con su ID.
+  - `Stop`: si hay cambios Rust sin commit, `clippy -D warnings` y
+    `cargo test --workspace`; bloquea una vez por turno (`stop_hook_active`).
+  - Solo se activan en workspaces con `tools/architecture/Cargo.toml`.
+  - Variables `CRAFT_BACKEND_HOOKS`, `CRAFT_BACKEND_STOP_GATE` y `CRAFT_BACKEND_HOOKS_LOG`.
+
+### Verificado
+- 8 casos simulados (archivo no Rust, fuera de workspace, edición limpia,
+  violación, formateo, Stop sin cambios, Stop con test roto, `stop_hook_active`).
+- Dos sesiones reales de Claude Code:
+  - Se pidió explícitamente un `CommunityCachePort`. El hook lo rechazó por
+    HEX-5 y el agente lo renombró a `CommunityCache`.
+  - Con un bug sembrado en el dominio y una tarea sin relación, el gate de Stop
+    bloqueó el cierre. El agente diagnosticó la causa y la reportó sin salirse
+    del alcance pedido.
+
 ## 0.3.0 — 2026-11-12
 
 ### Agregado
