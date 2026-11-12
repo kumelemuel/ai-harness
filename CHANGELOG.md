@@ -2,6 +2,10 @@
 
 ## Sin publicar
 
+## 0.7.0 — 2026-11-12
+
+Plugins: `craft-backend` 0.5.2 y `craft-web` 0.1.2.
+
 ### Agregado
 - `scripts/check_harness.py`: verificador de consistencia del harness (VER-1
   aplicado al propio repo). Usa Python 3.11+ y solo la biblioteca estándar.
