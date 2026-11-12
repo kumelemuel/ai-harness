@@ -1,0 +1,37 @@
+---
+/**
+ * WEB-7: el aviso describe exactamente lo que el sitio hace. Actualízalo si agregas un
+ * proveedor, un formulario o cambias la analítica.
+ */
+import Layout from "../layouts/Layout.astro";
+import { SITE } from "../site";
+---
+
+<Layout title="Aviso de privacidad" noindex>
+  <div class="prose-content max-w-2xl">
+    <p>
+      {SITE.name} es responsable del tratamiento de los datos que nos envías por el formulario de contacto.
+      Este aviso es una base: revísalo con el cliente y con asesoría legal según su país.
+    </p>
+    <h2>Qué datos recibimos</h2>
+    <p>
+      Tu nombre, tu correo y tu mensaje, solo cuando usas el formulario de contacto. Los usamos únicamente
+      para responderte y no los compartimos con terceros con fines comerciales.
+    </p>
+    <h2>Proveedores</h2>
+    <ul>
+      <li>Cloudflare aloja el sitio y limita el número de envíos por dirección IP para frenar el spam.</li>
+      <li>Resend entrega a nuestro buzón el correo con tu mensaje.</li>
+    </ul>
+    <h2>Cookies y analítica</h2>
+    <p>
+      Este sitio no usa cookies. Si se activa Cloudflare Web Analytics, solo registra visitas de forma
+      agregada, sin cookies ni identificadores personales.
+    </p>
+    <h2>Tus derechos</h2>
+    <p>
+      Puedes pedir el acceso, la corrección o la eliminación de tus datos escribiendo a{" "}
+      <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+    </p>
+  </div>
+</Layout>

@@ -1,0 +1,28 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { articlePath } from "../../routes";
+import { formatDate, publishedArticles } from "../../utils/articles";
+
+const articles = await publishedArticles();
+---
+
+<Layout
+  title="Artículos"
+  description="Artículos y guías publicados en el sitio, del más reciente al más antiguo. Cada uno con su resumen para decidir cuál leer primero."
+>
+  <ul class="grid gap-8">
+    {articles.map((article) => (
+      <li>
+        <h2 class="text-xl font-semibold">
+          <a href={articlePath(article.id)}>{article.data.title}</a>
+        </h2>
+        <p class="text-sm text-muted">
+          <time datetime={article.data.publishedAt.toISOString()}>
+            {formatDate(article.data.publishedAt)}
+          </time>
+        </p>
+        <p class="mt-2">{article.data.description}</p>
+      </li>
+    ))}
+  </ul>
+</Layout>

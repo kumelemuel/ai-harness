@@ -1,0 +1,40 @@
+---
+import { NAV, route, type RouteKey } from "../routes";
+import { SITE } from "../site";
+
+const LABELS: Record<RouteKey, string> = {
+  home: "Inicio",
+  about: "Sobre nosotros",
+  articles: "Artículos",
+  contact: "Contacto",
+  contactSent: "Mensaje enviado",
+  privacy: "Aviso de privacidad",
+};
+
+const current = Astro.url.pathname;
+const isCurrent = (key: RouteKey) =>
+  key === "home" ? current === route("home") : current.startsWith(route(key));
+---
+
+<header class="border-b border-line">
+  <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-5">
+    <a href={route("home")} class="font-display text-xl font-semibold text-ink no-underline">
+      {SITE.name}
+    </a>
+    <nav aria-label="Principal">
+      <ul class="flex flex-wrap gap-x-6 gap-y-2">
+        {NAV.map((key) => (
+          <li>
+            <a
+              href={route(key)}
+              class="text-ink no-underline hover:underline aria-[current=page]:font-semibold aria-[current=page]:text-brand"
+              aria-current={isCurrent(key) ? "page" : undefined}
+            >
+              {LABELS[key]}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>

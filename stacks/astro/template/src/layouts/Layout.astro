@@ -1,0 +1,46 @@
+---
+import "../styles/global.css";
+import { Font } from "astro:assets";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+import SeoMeta, { type ArticleMeta } from "../components/SeoMeta.astro";
+import { SITE } from "../site";
+
+interface Props {
+  /** Título de la página; se renderiza como el único <h1> (WEB-4). */
+  title: string;
+  description?: string;
+  noindex?: boolean;
+  type?: "website" | "article";
+  article?: ArticleMeta;
+  /** Para la portada: el <h1> lo pone la propia página. */
+  hideTitle?: boolean;
+}
+
+const { title, description, noindex, type, article, hideTitle = false } = Astro.props;
+const isHome = Astro.url.pathname === "/";
+---
+
+<!doctype html>
+<html lang={SITE.lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#fbfaf7" />
+    <Font cssVariable="--font-body" preload={[{ weight: "400" }]} />
+    <Font cssVariable="--font-heading" />
+    <SeoMeta title={isHome ? undefined : title} {description} {noindex} {type} {article} />
+  </head>
+  <body class="min-h-screen antialiased">
+    <a class="skip-link" href="#main">
+      Saltar al contenido
+    </a>
+    <Header />
+    <main id="main" tabindex="-1" class="mx-auto max-w-5xl px-6 py-12 focus:outline-none">
+      {!hideTitle && <h1 class="mb-8 text-4xl font-semibold">{title}</h1>}
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

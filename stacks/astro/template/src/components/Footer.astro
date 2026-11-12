@@ -1,0 +1,29 @@
+---
+import { route } from "../routes";
+import { SITE } from "../site";
+
+const year = new Date().getFullYear();
+---
+
+<footer class="mt-24 border-t border-line">
+  <div class="mx-auto flex max-w-5xl flex-wrap justify-between gap-4 px-6 py-8 text-sm text-muted">
+    <p>
+      © {year} {SITE.name}
+    </p>
+    <ul class="flex flex-wrap gap-x-6 gap-y-2">
+      <li>
+        <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
+      </li>
+      {SITE.social.map((profile) => (
+        <li>
+          <a href={profile.url} rel="me noopener">
+            {profile.label}
+          </a>
+        </li>
+      ))}
+      <li>
+        <a href={route("privacy")}>Aviso de privacidad</a>
+      </li>
+    </ul>
+  </div>
+</footer>

@@ -1,0 +1,97 @@
+---
+/**
+ * Formulario de contacto con mejora progresiva (WEB-8). Siempre se envía como HTML a la
+ * página on-demand de confirmación, que ejecuta la acción y vuelve a renderizar este
+ * componente con los errores o muestra el éxito. Funciona igual sin JavaScript; el script
+ * solo estampa el momento en que se mostró el formulario (antispam por tiempo).
+ */
+import { actions } from "astro:actions";
+import type { ContactField } from "../lib/contact";
+import { route } from "../routes";
+
+interface Props {
+  values?: Partial<Record<ContactField, string>>;
+  errors?: Partial<Record<ContactField, string>>;
+  formError?: string;
+}
+
+const { values = {}, errors = {}, formError = "" } = Astro.props;
+const action = `${route("contactSent")}${actions.contact}`;
+
+const inputs = [
+  { name: "name", label: "Tu nombre", type: "text", autocomplete: "name" },
+  { name: "email", label: "Correo electrónico", type: "email", autocomplete: "email" },
+] as const;
+
+const fieldClass =
+  "w-full rounded-md border border-line bg-white px-3 py-2 text-ink aria-[invalid=true]:border-danger";
+---
+
+<form class="grid max-w-xl gap-6" action={action} method="POST" novalidate data-contact-form>
+  {formError && (
+    <p class="rounded-md border border-danger px-4 py-3 text-danger" role="alert">
+      {formError}
+    </p>
+  )}
+
+  <input type="hidden" name="startedAt" value="" data-started-at />
+  <div class="absolute -left-[9999px]" aria-hidden="true">
+    <label>
+      Sitio web <input type="text" name="website" tabindex="-1" autocomplete="off" />
+    </label>
+  </div>
+
+  {inputs.map((field) => (
+    <div class="grid gap-2">
+      <label for={`contact-${field.name}`} class="font-semibold">
+        {field.label}
+      </label>
+      <input
+        id={`contact-${field.name}`}
+        class={fieldClass}
+        type={field.type}
+        name={field.name}
+        autocomplete={field.autocomplete}
+        value={values[field.name] ?? ""}
+        aria-invalid={errors[field.name] ? "true" : undefined}
+        aria-describedby={`contact-${field.name}-error`}
+      />
+      <p id={`contact-${field.name}-error`} class="text-sm text-danger">
+        {errors[field.name]}
+      </p>
+    </div>
+  ))}
+
+  <div class="grid gap-2">
+    <label for="contact-message" class="font-semibold">
+      Tu mensaje
+    </label>
+    <textarea
+      id="contact-message"
+      class={fieldClass}
+      name="message"
+      rows="6"
+      aria-invalid={errors.message ? "true" : undefined}
+      aria-describedby="contact-message-error"
+    >{values.message ?? ""}</textarea>
+    <p id="contact-message-error" class="text-sm text-danger">
+      {errors.message}
+    </p>
+  </div>
+
+  <p class="text-sm text-muted">
+    Usamos tus datos solo para responderte. Consulta el <a href={route("privacy")}>aviso de privacidad</a>.
+  </p>
+  <div>
+    <button type="submit" class="button">
+      Enviar mensaje
+    </button>
+  </div>
+</form>
+
+<script>
+  // Antispam por tiempo: momento real en que la persona ve el formulario.
+  for (const input of document.querySelectorAll<HTMLInputElement>("[data-started-at]")) {
+    input.value = String(Date.now());
+  }
+</script>

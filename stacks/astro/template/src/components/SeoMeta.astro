@@ -1,0 +1,73 @@
+---
+/**
+ * Metadatos de cada página (WEB-9): título, descripción, canonical absoluto, Open Graph
+ * y un único JSON-LD con @graph para que el artículo referencie al sitio por @id.
+ */
+import { SITE } from "../site";
+
+export interface ArticleMeta {
+  publishedAt: Date;
+  updatedAt?: Date;
+}
+
+interface Props {
+  title?: string;
+  description?: string;
+  noindex?: boolean;
+  type?: "website" | "article";
+  article?: ArticleMeta;
+}
+
+const { title, description = SITE.description, noindex = false, type = "website", article } = Astro.props;
+
+const fullTitle = title ? `${title} · ${SITE.name}` : SITE.name;
+const canonical = new URL(Astro.url.pathname, SITE.url).href;
+const image = new URL(SITE.ogImage, SITE.url).href;
+const siteURL = new URL("/", SITE.url).href;
+
+const graph: Record<string, unknown>[] = [
+  { "@type": "WebSite", "@id": `${siteURL}#website`, url: siteURL, name: SITE.name, inLanguage: SITE.lang },
+  {
+    "@type": "Organization",
+    "@id": `${siteURL}#organization`,
+    name: SITE.name,
+    url: siteURL,
+    email: SITE.email,
+    sameAs: SITE.social.map((profile) => profile.url),
+  },
+];
+if (type === "article" && article) {
+  graph.push({
+    "@type": "Article",
+    "@id": `${canonical}#article`,
+    mainEntityOfPage: canonical,
+    headline: title,
+    description,
+    image,
+    inLanguage: SITE.lang,
+    datePublished: article.publishedAt.toISOString(),
+    dateModified: (article.updatedAt ?? article.publishedAt).toISOString(),
+    author: { "@id": `${siteURL}#organization` },
+    publisher: { "@id": `${siteURL}#organization` },
+    isPartOf: { "@id": `${siteURL}#website` },
+  });
+}
+// Escapa "<" para que un título con "</script>" no cierre la etiqueta antes de tiempo.
+const jsonLd = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
+---
+
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+{noindex && <meta name="robots" content="noindex" />}
+
+<meta property="og:type" content={type} />
+<meta property="og:site_name" content={SITE.name} />
+<meta property="og:locale" content={SITE.locale} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:image" content={image} />
+<meta name="twitter:card" content="summary_large_image" />
+
+<script type="application/ld+json" is:inline set:html={jsonLd} />

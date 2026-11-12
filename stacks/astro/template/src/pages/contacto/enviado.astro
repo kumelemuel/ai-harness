@@ -1,0 +1,61 @@
+---
+/**
+ * On-demand (WEB-1): recibe el formulario de contacto, ejecuta la acción y muestra el
+ * resultado. Si hay errores, vuelve a mostrar el formulario con lo que la persona escribió.
+ */
+export const prerender = false;
+
+import { actions, isInputError } from "astro:actions";
+import ContactForm from "../../components/ContactForm.astro";
+import Layout from "../../layouts/Layout.astro";
+import type { ContactField } from "../../lib/contact";
+import { route } from "../../routes";
+
+const result = Astro.getActionResult(actions.contact);
+
+// Visita directa (nada enviado): de vuelta al formulario.
+if (!result) return Astro.redirect(route("contact"), 303);
+
+const errors: Partial<Record<ContactField, string>> = {};
+const values: Partial<Record<ContactField, string>> = {};
+let formError = "";
+
+if (result.error) {
+  if (isInputError(result.error)) {
+    for (const issue of result.error.issues) {
+      const field = issue.path[0];
+      if ((field === "name" || field === "email" || field === "message") && !errors[field]) {
+        errors[field] = issue.message;
+      }
+    }
+  } else {
+    formError = result.error.message;
+  }
+  try {
+    const form = await Astro.request.formData();
+    for (const field of ["name", "email", "message"] as const) {
+      const value = form.get(field);
+      if (typeof value === "string") values[field] = value;
+    }
+  } catch {
+    // Sin cuerpo disponible: el formulario se muestra vacío, con los errores igual.
+  }
+}
+---
+
+<Layout title={result.error ? "Revisa tu mensaje" : "Mensaje enviado"} noindex>
+  {result.error ? (
+    <ContactForm {values} {errors} {formError} />
+  ) : (
+    <div class="grid gap-6">
+      <p role="status" class="text-lg text-success">
+        {result.data.message}
+      </p>
+      <div>
+        <a class="button" href={route("home")}>
+          Volver al inicio
+        </a>
+      </div>
+    </div>
+  )}
+</Layout>

@@ -1,0 +1,25 @@
+# build output
+dist/
+.wrangler/
+
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# environment variables (WEB-10): solo .env.example se versiona
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# test output
+test-results/
+playwright-report/
+.lighthouseci/
+
+# editors
+.idea/
+.DS_Store

@@ -1,0 +1,26 @@
+---
+import { render } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import { formatDate, publishedArticles } from "../../utils/articles";
+
+export async function getStaticPaths() {
+  return (await publishedArticles()).map((article) => ({ params: { slug: article.id }, props: { article } }));
+}
+
+const { article } = Astro.props;
+const { Content } = await render(article);
+---
+
+<Layout
+  title={article.data.title}
+  description={article.data.description}
+  type="article"
+  article={{ publishedAt: article.data.publishedAt, updatedAt: article.data.updatedAt }}
+>
+  <p class="-mt-4 mb-8 text-sm text-muted">
+    <time datetime={article.data.publishedAt.toISOString()}>{formatDate(article.data.publishedAt)}</time>
+  </p>
+  <article class="prose-content max-w-2xl">
+    <Content />
+  </article>
+</Layout>

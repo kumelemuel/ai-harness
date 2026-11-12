@@ -1,0 +1,11 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { route } from "../routes";
+---
+
+<Layout title="Página no encontrada" noindex>
+  <p class="mb-6 text-lg">La página que buscas no existe o cambió de dirección.</p>
+  <a class="button" href={route("home")}>
+    Volver al inicio
+  </a>
+</Layout>

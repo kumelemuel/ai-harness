@@ -8,8 +8,8 @@ subagentes y hooks que el agente carga solo cuando los necesita.
 ## Estructura
 
 ```
-core/principles/        Fuente de verdad, un archivo por tema (HEX, ERR, TDD, VER)
-stacks/                 Traducción por lenguaje; stacks/rust/template es un workspace ejecutable
+core/principles/        Fuente de verdad, un archivo por tema (HEX, ERR, TDD, VER, WEB)
+stacks/                 Traducción por stack; rust/template y astro/template son ejecutables
 plugins/craft-backend/  Plugin de Claude Code: hexagonal, errores, TDD
 .claude-plugin/         Este repo funciona como marketplace de plugins
 ```

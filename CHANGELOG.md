@@ -1,5 +1,22 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- `core/principles/web.md`: principios WEB-1 a WEB-10 para sitios informativos
+  (estático, rutas, contenido tipado, a11y, rendimiento, CSP, privacidad,
+  formularios, SEO, secretos). Destilados de kumelemuel.dev y kidus-akaal.com.
+- `stacks/astro/`: guía con las decisiones AS-1 a AS-6 y plantilla ejecutable
+  (Astro 7 + Cloudflare Workers + Tailwind 4). Build y `astro check` limpios,
+  21 tests unitarios y 16 e2e. Los e2e corren contra el build real en
+  `wrangler dev` e incluyen axe, CSP y terceros. Las reglas se verificaron
+  inyectando una violación de cada tipo.
+
+### Decisiones
+- Hosting por defecto: Cloudflare Workers; Vercel documentado como alternativa.
+- Estilos: Tailwind 4. Código en inglés; contenido y URLs en el idioma del cliente.
+- Turnstile opcional, documentado pero no incluido en la plantilla.
+
 ## 0.5.0 — 2026-11-12
 
 ### Cambiado

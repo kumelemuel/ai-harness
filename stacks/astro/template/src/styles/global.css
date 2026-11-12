@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de marca. Reemplázalos por proyecto y valida el contraste de cada color que se use
+ * como texto (WEB-4): estos pasan AA sobre `paper`.
+ */
+@theme {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-heading), ui-serif, Georgia, serif;
+
+  --color-paper: #fbfaf7;
+  --color-ink: #1c1c1a;
+  --color-muted: #55554f;
+  --color-line: #dedbd2;
+  --color-brand: #1f5f4a;
+  --color-brand-strong: #164536;
+  --color-danger: #a1261d;
+  --color-success: #1f5f4a;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  /* Subrayados por defecto: dentro de un texto, un enlace no puede distinguirse solo por color (WEB-4). */
+  a {
+    color: var(--color-brand);
+    text-decoration-line: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-brand);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -3rem;
+    z-index: 50;
+    padding: 0.5rem 1rem;
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .skip-link:focus {
+    top: 1rem;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.375rem;
+    background-color: var(--color-brand);
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .button:hover {
+    background-color: var(--color-brand-strong);
+  }
+
+  .prose-content :where(p, ul, ol) {
+    margin-block: 1em;
+    line-height: 1.7;
+  }
+
+  .prose-content :where(h2) {
+    margin-top: 2em;
+    font-size: 1.5rem;
+  }
+}

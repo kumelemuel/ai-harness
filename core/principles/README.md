@@ -10,6 +10,7 @@ copian.
 | [errors.md](errors.md) | `ERR` | Árboles de errores, contratos de error, semántica de adaptadores, traducción al transporte |
 | [tdd.md](tdd.md) | `TDD` | Ciclo rojo → verde → refactor y estrategia de tests por capa |
 | [verification.md](verification.md) | `VER` | Enforcement automático de las reglas |
+| [web.md](web.md) | `WEB` | Sitios web informativos: estático, rutas, contenido, a11y, rendimiento, CSP, privacidad, formularios, SEO, secretos |
 
 La traducción de cada concepto a un lenguaje concreto vive en
 [`stacks/`](../../stacks/README.md), no aquí.

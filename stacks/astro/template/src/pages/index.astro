@@ -1,0 +1,42 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { articlePath, route } from "../routes";
+import { SITE } from "../site";
+import { formatDate, publishedArticles } from "../utils/articles";
+
+const latest = (await publishedArticles()).slice(0, 3);
+---
+
+<Layout title={SITE.name} hideTitle>
+  <section class="grid gap-6 py-12">
+    <h1 class="max-w-3xl text-5xl font-semibold">{SITE.name}</h1>
+    <p class="max-w-2xl text-lg text-muted">{SITE.description}</p>
+    <div>
+      <a class="button" href={route("contact")}>
+        Escríbenos
+      </a>
+    </div>
+  </section>
+
+  {latest.length > 0 && (
+    <section class="mt-12" aria-labelledby="latest-title">
+      <h2 id="latest-title" class="mb-6 text-2xl font-semibold">
+        Artículos recientes
+      </h2>
+      <ul class="grid gap-6">
+        {latest.map((article) => (
+          <li>
+            <a href={articlePath(article.id)} class="text-lg font-semibold">
+              {article.data.title}
+            </a>
+            <p class="text-sm text-muted">
+              <time datetime={article.data.publishedAt.toISOString()}>
+                {formatDate(article.data.publishedAt)}
+              </time>
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+</Layout>
