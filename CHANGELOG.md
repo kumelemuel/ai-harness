@@ -48,6 +48,36 @@
     sin material.
   - Rojo: con la variable, `hex_6_outbound_dtos_*` pasaba con `dtos/` borrado.
     Ahora falla con `0 tipos de ports/outbound/dtos`, y sin la variable pasa.
+- Plantilla Rust, `hex_5_adapters_are_named_by_technology_and_concept` en todo
+  el workspace (HEX-5, TDD-2): `src/` y `tests/` de todos los crates, incluidos
+  los módulos `#[cfg(test)]`, `testing` y las funciones `#[test]`. Revisa todo
+  tipo que implementa un puerto saliente o una capacidad del kernel. En código
+  de test, el prefijo es `Fake`, `Fixed`, `Stub` o `Spy`. En producción, el
+  prefijo no está vacío, su primera palabra no es de esa lista, y el adaptador
+  vive en infraestructura. Informa por separado adaptadores de producción y
+  dobles.
+  - Rojo con los tres nombres que quedaban fuera: `StderrFaultReporter`
+    (`apps/server`), `Recorder` (`edge/http`) y `RecordingReporter` (tests de
+    `api`). Ahora se llaman `StderrFaultReporterAdapter` y
+    `SpyFaultReporterAdapter`. Rojo también con cada inyección: un doble local
+    `Recorder` en un test de `api`, un `FakeClockAdapter` en infraestructura y
+    un `SystemClockAdapter` en `apps/server`.
+- Plantilla Rust, infraestructura compartida `infrastructure/*` (HEX-1, HEX-8):
+  el anillo driven fuera de los contextos, para los adaptadores de las
+  capacidades del kernel. `infrastructure/stderr` (`infrastructure-stderr`)
+  tiene `StderrFaultReporterAdapter`, con un test de su línea de registro, y lo
+  cablea `apps/server`. Los tests de arquitectura lo clasifican como
+  `Infrastructure` sin contexto, así que HEX-1 solo le deja ver el kernel. El
+  gate de clippy del hook `Stop` lo incluye (`architected_packages`).
+
+### Cambiado
+- TDD-2: la lista **cerrada** de prefijos de dobles (`Fake`, `Fixed`, `Stub`,
+  `Spy`), que aplica a todos los dobles, también a los locales a un solo
+  archivo de test. HEX-5: esos prefijos están prohibidos en producción, y los
+  adaptadores de producción viven en infraestructura, también los de las
+  capacidades. El ejemplo de `ModerationGateway` pasa de
+  `StubModerationAdapter` a `NoOpModerationAdapter`, porque `Stub` es de
+  dobles. Lo mismo en la skill `tdd` y en `stacks/rust/README.md`.
 - Ejemplos de HEX-6 y ERR-3, en core y en las skills `hexagonal-architecture`
   y `error-handling`: los nombres coinciden con el código
   (`ReviewContentRequest`, `ModerationVerdict` con `Rejected`,

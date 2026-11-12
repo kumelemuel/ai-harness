@@ -83,6 +83,8 @@ fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
 ///
 /// - `kernel/` → Kernel
 /// - `edge/*` → Edge
+/// - `infrastructure/*` → Infrastructure compartida, sin contexto: adaptadores de
+///   las capacidades del kernel (HEX-8). Por HEX-1 solo ve el kernel.
 /// - `contexts/{ctx}/{domain|application|infrastructure|api}/` → capa del contexto
 /// - `apps/api/` → Api central · otros `apps/*` y `app/` → Bootstrap
 ///
@@ -95,6 +97,12 @@ pub fn crates() -> Vec<Crate> {
     for edge_dir in subdirs(&root.join("edge")) {
         if edge_dir.join("Cargo.toml").exists() {
             crates.push(load(edge_dir, Layer::Edge, None));
+        }
+    }
+
+    for shared_dir in subdirs(&root.join("infrastructure")) {
+        if shared_dir.join("Cargo.toml").exists() {
+            crates.push(load(shared_dir, Layer::Infrastructure, None));
         }
     }
 

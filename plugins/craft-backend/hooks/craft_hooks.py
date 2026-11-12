@@ -99,7 +99,7 @@ def architected_packages(root: Path) -> list[str]:
     `tools/architecture`. Los contextos legacy (`contexts/{ctx}/Cargo.toml`) y los
     crates fuera de la convención quedan fuera del gate de clippy."""
     dirs: list[Path] = [root / "kernel", root / "app"]
-    for group in ("edge", "apps", "tools"):
+    for group in ("edge", "infrastructure", "apps", "tools"):
         base = root / group
         if base.is_dir():
             dirs.extend(sorted(p for p in base.iterdir() if p.is_dir()))

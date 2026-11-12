@@ -109,20 +109,23 @@ nombres de capa y la dirección de dependencias no.
 | `Synchronizer` | Publicar o sincronizar estado hacia otro sistema |
 | `Service` | Utilidad que no encaja en lo anterior (último recurso) |
 
-Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es el sustantivo del puerto sin el sufijo de rol** (`Postgres…`, `InMemory…`, `Http…`, `Stub…`, `NoOp…`):
+Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es el sustantivo del puerto sin el sufijo de rol** (`Postgres…`, `InMemory…`, `Http…`, `NoOp…`):
 
 | Puerto | Adaptador |
 |--------|-----------|
 | `CommunityRepository` | `PostgresCommunityAdapter`, `InMemoryCommunityAdapter` |
-| `ModerationGateway` | `HttpModerationAdapter`, `StubModerationAdapter` |
+| `ModerationGateway` | `HttpModerationAdapter`, `NoOpModerationAdapter` |
 
-Única excepción: las capacidades técnicas transversales del kernel (HEX-8) no llevan sufijo de rol. Sus adaptadores sí siguen esta regla, con el nombre completo de la capacidad como Concepto: `UuidIdGeneratorAdapter`, `SystemClockAdapter`.
+Única excepción: las capacidades técnicas transversales del kernel (HEX-8) no llevan sufijo de rol. Sus adaptadores sí siguen esta regla, con el nombre completo de la capacidad como Concepto: `UuidIdGeneratorAdapter`, `SystemClockAdapter`, `StderrFaultReporterAdapter`.
+
+- **Prefijos reservados.** `Fake`, `Fixed`, `Stub` y `Spy` son de los dobles de test (`TDD-2`). Ningún adaptador de producción los usa: un `FakeClockAdapter` en producción es un doble que se coló, o un adaptador mal nombrado.
+- **Ubicación.** Los adaptadores de producción viven en el anillo de infraestructura, también los de las capacidades del kernel. Uno que no pertenece a ningún contexto va en una infraestructura compartida que solo ve el kernel, nunca en el composition root, que cablea pero no implementa.
 
 **Fundamento.** Al leer la firma de un handler se sabe qué toca: una base de datos, un tercero, un servicio propio. `Port` es uniforme pero opaco. En el adaptador, el rol ya está implícito en la tecnología (`Postgres` es persistencia, `Http` es remoto); repetirlo solo alarga el nombre.
 
 **Violaciones típicas.** `Service` usado como cajón de sastre. Un `Gateway` para un servicio propio. `PostgresCommunityRepositoryAdapter` (repite el rol).
 
-**Verificación.** Tests de arquitectura, uno por mitad de la regla. Los puertos de `ports/outbound` llevan un sufijo de rol y nunca `Port`. En `infrastructure`, todo tipo que implementa un puerto de su contexto o una capacidad del kernel se llama `{Prefijo}{Concepto}Adapter`, con prefijo no vacío. Así falla `PostgresCommunityRepositoryAdapter`, que repite el rol. En Rust: `tests/naming.rs::hex_5_*`.
+**Verificación.** Tests de arquitectura, uno por mitad de la regla. Los puertos de `ports/outbound` llevan un sufijo de rol y nunca `Port`. En todo el código, de producción y de test, todo tipo que implementa un puerto saliente o una capacidad del kernel se llama `{Prefijo}{Concepto}Adapter`. Así falla `PostgresCommunityRepositoryAdapter`, que repite el rol. En código de test, el prefijo es uno de los dobles (`TDD-2`). En producción, el prefijo no está vacío, no es de un doble, y el adaptador vive en infraestructura. En Rust: `tests/naming.rs::hex_5_*`.
 
 ---
 

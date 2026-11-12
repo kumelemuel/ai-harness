@@ -41,8 +41,12 @@ endpoint ni por la persistencia.
 - Los puertos salientes se sustituyen con **dobles**, no con mocks de librería.
   Los dobles son código de primera clase:
   - Viven donde los tests del núcleo pueden verlos, nunca en `infrastructure`.
-  - Se nombran como adaptadores, con prefijo `Fake` (con estado), `Fixed` o
-    `Stub` (respuesta fija): `FakeCommunityAdapter`.
+  - Se nombran como adaptadores, `{Prefijo}{Concepto}Adapter`, con un prefijo
+    de la lista cerrada: `Fake` (con estado), `Fixed` o `Stub` (respuesta
+    fija), `Spy` (registra llamadas). `FakeCommunityAdapter`,
+    `SpyFaultReporterAdapter`. **Todos** los dobles, también los locales a un
+    solo archivo de test.
+  - Ningún adaptador de producción usa esos prefijos.
   - Pasan la **batería de contrato** del puerto, la misma que sus adaptadores
     reales. Un puerto nuevo nace con su batería. Si el puerto declara errores,
     la batería incluye un caso por variante.

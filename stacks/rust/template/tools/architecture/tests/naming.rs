@@ -506,86 +506,218 @@ fn concept_of(contract: &str) -> &str {
         .unwrap_or(contract)
 }
 
-/// Archivos donde viven adaptadores de un contexto: todo `infrastructure` y los
-/// dobles de test de `application` (`src/testing.rs` y `src/testing/`), que se
-/// nombran como adaptadores con `Fake`, `Fixed` o `Stub` de prefijo (TDD-2).
-fn adapter_files(context: &Crate) -> Vec<PathBuf> {
-    match context.layer {
-        Layer::Infrastructure => rust_files(&context.dir.join("src")),
-        Layer::Application => {
-            let module = context.dir.join("src/testing.rs");
-            let mut files = rust_files(&context.dir.join("src/testing"));
-            if module.exists() {
-                files.insert(0, module);
-            }
-            files
+/// Prefijos de los dobles de test (TDD-2): lista cerrada. `Fake` tiene estado,
+/// `Fixed` y `Stub` responden fijo, `Spy` registra llamadas. Ningún adaptador
+/// de producción los usa (HEX-5).
+const DOUBLE_PREFIXES: &[&str] = &["Fake", "Fixed", "Stub", "Spy"];
+
+/// ¿Un `cfg` exige o habilita `test`? `cfg(test)`, `cfg(all(test, …))` y
+/// `cfg(any(test, feature = "testing"))` sí: es código de test o de soporte a
+/// tests (los dobles de `testing`). `cfg(not(test))` no.
+fn mentions_test(attrs: &[syn::Attribute]) -> bool {
+    fn predicate(meta: &syn::Meta) -> bool {
+        match meta {
+            syn::Meta::Path(p) => p.is_ident("test"),
+            syn::Meta::List(l) if l.path.is_ident("all") || l.path.is_ident("any") => l
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+                )
+                .is_ok_and(|args| args.iter().any(predicate)),
+            _ => false,
         }
-        _ => Vec::new(),
     }
+    attrs.iter().any(|attr| {
+        attr.path().is_ident("cfg")
+            && attr
+                .parse_args::<syn::Meta>()
+                .is_ok_and(|meta| predicate(&meta))
+    })
+}
+
+/// `#[test]`, `#[tokio::test]`: un `impl` dentro de la función es de test.
+fn is_test_fn(attrs: &[syn::Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|a| a.path().segments.last().is_some_and(|s| s.ident == "test"))
+}
+
+/// Implementaciones de trait de un archivo, marcadas si están en código de test.
+struct TraitImpls {
+    in_test: bool,
+    found: Vec<(syn::ItemImpl, bool)>,
+    /// `#[cfg(test)] mod x;`: archivos externos que son de test.
+    test_modules: Vec<String>,
+}
+
+impl TraitImpls {
+    fn within(&mut self, test: bool, visit: impl FnOnce(&mut Self)) {
+        let outer = self.in_test;
+        self.in_test |= test;
+        visit(self);
+        self.in_test = outer;
+    }
+}
+
+impl<'ast> Visit<'ast> for TraitImpls {
+    fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
+        let test = mentions_test(&node.attrs);
+        if node.content.is_none() && (test || self.in_test) {
+            self.test_modules.push(node.ident.to_string());
+        }
+        self.within(test, |v| syn::visit::visit_item_mod(v, node));
+    }
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        let test = mentions_test(&node.attrs) || is_test_fn(&node.attrs);
+        self.within(test, |v| syn::visit::visit_item_fn(v, node));
+    }
+    fn visit_item_impl(&mut self, node: &'ast syn::ItemImpl) {
+        let test = self.in_test || mentions_test(&node.attrs);
+        if node.trait_.is_some() {
+            self.found.push((node.clone(), test));
+        }
+        self.within(test, |v| syn::visit::visit_item_impl(v, node));
+    }
+}
+
+/// Directorio donde viven los submódulos de un archivo.
+fn module_dir(file: &Path) -> PathBuf {
+    let dir = file.parent().expect("invariante: archivo en un directorio");
+    match file.file_stem().and_then(|s| s.to_str()) {
+        Some("lib" | "main" | "mod") | None => dir.to_path_buf(),
+        Some(stem) => dir.join(stem),
+    }
+}
+
+/// Implementaciones de trait de un crate, en `src/` y `tests/`: `(archivo, impl, ¿test?)`.
+///
+/// Es de test todo `tests/`, lo que está bajo un `cfg` que menciona `test`
+/// (también los archivos de un `#[cfg(test)] mod x;` y de
+/// `#[cfg(any(test, feature = "testing"))] mod testing;`) y lo que está dentro
+/// de una función `#[test]`.
+fn trait_impls(krate: &Crate) -> Vec<(PathBuf, syn::ItemImpl, bool)> {
+    let tests_dir = krate.dir.join("tests");
+    let files = [rust_files(&krate.dir.join("src")), rust_files(&tests_dir)].concat();
+    let mut parsed = Vec::new();
+    let mut test_paths: Vec<PathBuf> = Vec::new();
+    for file in files {
+        let syntax = parse(&file);
+        let mut impls = TraitImpls {
+            in_test: mentions_test(&syntax.attrs), // `#![cfg(test)]`
+            found: Vec::new(),
+            test_modules: Vec::new(),
+        };
+        impls.visit_file(&syntax);
+        let dir = module_dir(&file);
+        for name in &impls.test_modules {
+            test_paths.push(dir.join(format!("{name}.rs")));
+            test_paths.push(dir.join(name)); // `x/mod.rs` y los submódulos de `x.rs`
+        }
+        parsed.push((file, impls.found));
+    }
+    parsed
+        .into_iter()
+        .flat_map(|(file, found)| {
+            let file_is_test =
+                file.starts_with(&tests_dir) || test_paths.iter().any(|t| file.starts_with(t));
+            found
+                .into_iter()
+                .map(move |(imp, test)| (file.clone(), imp, test || file_is_test))
+        })
+        .collect::<Vec<_>>()
+}
+
+/// Primera palabra de un identificador en CamelCase: `NoOp` → `No`, `Fake` → `Fake`.
+fn first_word(name: &str) -> &str {
+    let end = name
+        .char_indices()
+        .skip(1)
+        .find(|(_, c)| c.is_uppercase())
+        .map_or(name.len(), |(i, _)| i);
+    &name[..end]
 }
 
 #[test]
 fn hex_5_adapters_are_named_by_technology_and_concept() {
     let all = crates();
+    let ports: Vec<String> = all
+        .iter()
+        .filter(|c| c.layer == Layer::Application)
+        .flat_map(|app| scan(&[app.dir.join("src/ports/outbound")], Some("dtos")))
+        .flat_map(|(_, items)| items.traits.into_iter().map(|t| t.ident.to_string()))
+        .collect();
     let mut violations = Vec::new();
-    let mut adapters = 0;
+    let (mut production, mut doubles) = (0, 0);
 
     for krate in &all {
-        let files = adapter_files(krate);
-        if files.is_empty() {
-            continue;
-        }
-        let ports: Vec<String> = all
-            .iter()
-            .filter(|c| c.layer == Layer::Application && c.context == krate.context)
-            .flat_map(|app| scan(&[app.dir.join("src/ports/outbound")], Some("dtos")))
-            .flat_map(|(_, items)| items.traits.into_iter().map(|t| t.ident.to_string()))
-            .collect();
+        for (path, imp, test) in trait_impls(krate) {
+            let Some((_, trait_path, _)) = &imp.trait_ else {
+                continue;
+            };
+            let contract = last_segment(trait_path);
+            if !ports.contains(&contract) && !CAPABILITIES.contains(&contract.as_str()) {
+                continue;
+            }
+            let syn::Type::Path(self_ty) = &*imp.self_ty else {
+                continue;
+            };
+            let name = last_segment(&self_ty.path);
+            let concept = concept_of(&contract);
+            let line = self_ty
+                .path
+                .segments
+                .last()
+                .map_or(0, |s| s.ident.span().start().line);
+            let at = format!("{}:{line}", relative(&path));
+            let prefix = name
+                .strip_suffix("Adapter")
+                .and_then(|stem| stem.strip_suffix(concept))
+                .filter(|prefix| !prefix.is_empty());
 
-        for path in files {
-            let mut items = Items::default();
-            items.visit_file(&parse(&path));
-            for imp in &items.impls {
-                let Some((_, trait_path, _)) = &imp.trait_ else {
-                    continue;
-                };
-                let contract = last_segment(trait_path);
-                if !ports.contains(&contract) && !CAPABILITIES.contains(&contract.as_str()) {
-                    continue;
-                }
-                adapters += 1;
-                let syn::Type::Path(self_ty) = &*imp.self_ty else {
-                    continue;
-                };
-                let name = last_segment(&self_ty.path);
-                let concept = concept_of(&contract);
-                let named = name
-                    .strip_suffix("Adapter")
-                    .and_then(|stem| stem.strip_suffix(concept))
-                    .is_some_and(|prefix| !prefix.is_empty());
-                if !named {
-                    let line = self_ty
-                        .path
-                        .segments
-                        .last()
-                        .map_or(0, |s| s.ident.span().start().line);
+            if test {
+                doubles += 1;
+                if !prefix.is_some_and(|p| DOUBLE_PREFIXES.contains(&p)) {
                     violations.push(format!(
-                        "{}:{line}: `{name}` implementa `{contract}` y debe llamarse \
-                         {{Prefijo}}{concept}Adapter",
-                        relative(&path)
+                        "{at}: `{name}` es un doble de `{contract}` y debe llamarse \
+                         {{{}}}{concept}Adapter (TDD-2)",
+                        DOUBLE_PREFIXES.join("|")
                     ));
                 }
+                continue;
+            }
+
+            production += 1;
+            match prefix {
+                None => violations.push(format!(
+                    "{at}: `{name}` implementa `{contract}` y debe llamarse \
+                     {{Tecnología}}{concept}Adapter"
+                )),
+                Some(p) if DOUBLE_PREFIXES.contains(&first_word(p)) => {
+                    violations.push(format!(
+                        "{at}: `{name}` es de producción y usa el prefijo de doble `{}` \
+                         (reservados a los tests: {DOUBLE_PREFIXES:?})",
+                        first_word(p)
+                    ));
+                }
+                Some(_) => {}
+            }
+            if krate.layer != Layer::Infrastructure {
+                violations.push(format!(
+                    "{at}: `{name}` es un adaptador de producción en `{}` ({:?}); los \
+                     adaptadores viven en el anillo de infraestructura",
+                    krate.name, krate.layer
+                ));
             }
         }
     }
 
     assert_no_violations(
-        "HEX-5: un adaptador se llama {Tecnología}{Concepto}Adapter; Concepto es el puerto \
-         sin su sufijo de rol o, si es una capacidad del kernel (HEX-8), su nombre completo",
-        &[(
-            "implementaciones de un puerto saliente o una capacidad",
-            adapters,
-        )],
+        "HEX-5 / TDD-2: un adaptador se llama {Tecnología}{Concepto}Adapter y vive en \
+         infraestructura; un doble, {Fake|Fixed|Stub|Spy}{Concepto}Adapter. Concepto es el \
+         puerto sin su sufijo de rol o, si es una capacidad del kernel (HEX-8), su nombre completo",
+        &[
+            ("adaptadores de producción", production),
+            ("dobles de test", doubles),
+        ],
         violations,
     );
 }

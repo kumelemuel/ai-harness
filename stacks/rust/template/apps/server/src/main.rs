@@ -11,18 +11,10 @@ use communities_infrastructure::{
     InMemoryCommunityAdapter, NoOpModerationAdapter, UuidIdGeneratorAdapter,
 };
 use edge_http::AuthenticatedAccount;
-use kernel::{Fault, FaultReporter};
+use infrastructure_stderr::StderrFaultReporterAdapter;
+use kernel::FaultReporter;
 use std::sync::Arc;
 use tower_http::catch_panic::CatchPanicLayer;
-
-/// Registro del árbol B. En producción: tracing, Sentry, etc.
-struct StderrFaultReporter;
-
-impl FaultReporter for StderrFaultReporter {
-    fn report(&self, fault: &Fault) {
-        eprintln!("unexpected failure: {:?}", fault.detail());
-    }
-}
 
 /// Autenticación de ejemplo: en producción, verificar un token y derivar la cuenta.
 async fn authenticate(mut request: Request, next: Next) -> Response {
@@ -53,7 +45,7 @@ fn communities(faults: Arc<dyn FaultReporter>) -> CommunitiesApi {
 
 #[tokio::main]
 async fn main() {
-    let faults: Arc<dyn FaultReporter> = Arc::new(StderrFaultReporter);
+    let faults: Arc<dyn FaultReporter> = Arc::new(StderrFaultReporterAdapter);
 
     let protected = Router::new()
         .merge(communities(faults.clone()).protected())

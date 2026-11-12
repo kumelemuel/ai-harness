@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["kernel", "edge/*", "contexts/*/*", "apps/*", "tools/*"]
+members = ["kernel", "edge/*", "infrastructure/*", "contexts/*/*", "apps/*", "tools/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -15,6 +15,7 @@ communities-application = { path = "contexts/communities/application" }
 communities-infrastructure = { path = "contexts/communities/infrastructure" }
 communities-api = { path = "contexts/communities/api" }
 edge-http = { path = "edge/http" }
+infrastructure-stderr = { path = "infrastructure/stderr" }
 
 # Externos (solo los usan los anillos exteriores; ver tools/architecture)
 axum = "0.8"

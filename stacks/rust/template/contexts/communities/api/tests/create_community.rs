@@ -28,9 +28,9 @@ impl CreateCommunityUseCase for StubUseCase {
 }
 
 #[derive(Default)]
-struct RecordingReporter(Mutex<Vec<String>>);
+struct SpyFaultReporterAdapter(Mutex<Vec<String>>);
 
-impl FaultReporter for RecordingReporter {
+impl FaultReporter for SpyFaultReporterAdapter {
     fn report(&self, fault: &Fault) {
         self.0.lock().unwrap().push(fault.detail().to_string());
     }
@@ -39,8 +39,8 @@ impl FaultReporter for RecordingReporter {
 async fn post(
     outcome: fn() -> Outcome,
     account: Option<&str>,
-) -> (StatusCode, String, String, Arc<RecordingReporter>) {
-    let reporter = Arc::new(RecordingReporter::default());
+) -> (StatusCode, String, String, Arc<SpyFaultReporterAdapter>) {
+    let reporter = Arc::new(SpyFaultReporterAdapter::default());
     let app = CommunitiesApi {
         create_community: Arc::new(StubUseCase(outcome)),
         faults: reporter.clone(),

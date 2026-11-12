@@ -25,9 +25,11 @@ principios no cambian; aquí se decide **cómo se expresan**.
 ## Disposición (RS-1)
 
 ```
-Cargo.toml                      workspace: members = ["kernel", "edge/*", "contexts/*/*", "apps/*", "tools/*"]
+Cargo.toml                      workspace: members = ["kernel", "edge/*", "infrastructure/*", "contexts/*/*", "apps/*", "tools/*"]
 kernel/                         Result nativo, Fault, Failure, BoxFuture, marcadores. Solo std.
 edge/http/                      Borde compartido: Problem Details, AuthenticatedAccount, unexpected(). → kernel
+infrastructure/{tecnología}/    Infraestructura compartida: adaptadores de las capacidades del kernel
+                                (infrastructure/stderr: StderrFaultReporterAdapter). → kernel
 contexts/{ctx}/
 ├── domain/                     → kernel
 ├── application/                → kernel, {ctx}-domain
@@ -56,6 +58,15 @@ transversal al transporte y solo ve el kernel; nunca tipos de un contexto. Un
 `{ctx}-api` puede depender de `edge-http` y de **su propio** `{ctx}-application`,
 nada más. (Un `apps/api` central, que ve todos los `application`, sigue siendo
 válido si se prefiere un solo crate HTTP.)
+
+**`infrastructure/*` es la pieza compartida del anillo driven.** Los adaptadores de
+producción viven en infraestructura, también los de las capacidades del kernel (HEX-8). Uno
+que no pertenece a ningún contexto, como `StderrFaultReporterAdapter`, va en un crate
+`infrastructure-{tecnología}` que solo ve el kernel. No va en el composition root, que cablea
+pero no implementa, ni en el `infrastructure` de un contexto, que lo ataría a ese contexto. Tampoco
+en `edge/http`: registrar una falla no es transporte, y un borde gRPC usaría el mismo
+adaptador. Los tests de arquitectura lo clasifican como `Infrastructure` sin contexto, así que
+HEX-1 no le deja ver el `application` de ningún contexto.
 
 **Herencia del workspace.** Cada `Cargo.toml` de capa queda en ~10 líneas:
 
@@ -98,7 +109,7 @@ Las versiones de crates externos se declaran una sola vez en
 | Agregado inmutable (HEX-7) | Campos privados, getters, comportamiento `fn rename(&self, …) -> Result<Self, NotCommunityOwner>` |
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
 | Composition root (HEX-2) | `apps/server/src/main.rs`: construye adaptadores y handlers, arma cada `{Ctx}Api { … }` y compone sus `Router` |
-| Capacidades del kernel (HEX-8) | `kernel::IdGenerator` y `kernel::FaultReporter` (traits; `Clock` es la tercera de la lista, aún sin uso en la plantilla). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en infraestructura. `uuid` nunca en el núcleo. |
+| Capacidades del kernel (HEX-8) | `kernel::IdGenerator` y `kernel::FaultReporter` (traits; `Clock` es la tercera de la lista, aún sin uso en la plantilla). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en `communities-infrastructure`, `StderrFaultReporterAdapter` en `infrastructure-stderr`. `uuid` nunca en el núcleo. |
 
 ---
 
@@ -177,9 +188,14 @@ genéricos en los caminos calientes sin cambiar los principios.
 
 - **Dobles** en `application/src/testing.rs`, compilados con `cfg(any(test, feature = "testing"))`.
   Otras capas los usan con `[dev-dependencies] {ctx}-application = { workspace = true, features = ["testing"] }`.
-  Viven en `application` porque sus tests no ven `infrastructure` (HEX-1). Se nombran como
-  adaptadores: `FakeCommunityAdapter` (con estado), `FixedIdGeneratorAdapter` (respuesta fija).
-  `hex_5_adapters_*` también recorre `testing`.
+  Viven en `application` porque sus tests no ven `infrastructure` (HEX-1).
+- **Todos los dobles** se nombran `{Prefijo}{Concepto}Adapter`, con un prefijo de la lista
+  cerrada de TDD-2: `Fake` (con estado), `Fixed` o `Stub` (respuesta fija) y `Spy` (registra
+  llamadas). Vale también para los locales a un archivo de test: `FakeCommunityAdapter`,
+  `FixedIdGeneratorAdapter` y `SpyFaultReporterAdapter` (en `edge/http` y en los tests de `api`).
+  `hex_5_adapters_*` recorre `src/` y `tests/` de todos los crates. Es de test todo `tests/`,
+  lo que está bajo un `cfg` que menciona `test` (incluido `testing`) y lo que está dentro de
+  una función `#[test]`.
 - **`InMemoryCommunityAdapter`** es un adaptador de producción (correr sin base de datos), no un
   doble. Pasa la misma batería que el fake.
 - **`block_on`** del módulo `testing`: ejecutor mínimo con `std` (`Waker::noop`). Solo para
@@ -280,7 +296,7 @@ communities_application::moderation_gateway_contract! {
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
 | HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
 | HEX-5 puertos salientes con sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` | `cargo test` |
-| HEX-5 adaptadores `{Prefijo}{Concepto}Adapter`: en `infrastructure` y en `application/src/testing*` (dobles), todo tipo que implementa un puerto de `ports/outbound` de su contexto o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
+| HEX-5 / TDD-2 adaptadores `{Prefijo}{Concepto}Adapter`, en todo el workspace (`src/` y `tests/`, también `#[cfg(test)]`): todo tipo que implementa un puerto de `ports/outbound` o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa. En código de test, el prefijo es `Fake`, `Fixed`, `Stub` o `Spy`. En producción, el prefijo no está vacío, no empieza con uno de esos, y el adaptador vive en infraestructura (`contexts/{ctx}/infrastructure` o `infrastructure/*`) | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
 | HEX-8 el kernel no declara dependencias (ni de test ni por `target`), y sus traits públicos son marcadores de modelo o capacidades de la lista cerrada | `tests/kernel.rs::hex_8_*` (`toml` + `syn`) | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
 | ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |

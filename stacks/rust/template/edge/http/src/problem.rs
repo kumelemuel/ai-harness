@@ -138,9 +138,9 @@ mod tests {
     }
 
     #[derive(Default)]
-    struct Recorder(Mutex<Vec<String>>);
+    struct SpyFaultReporterAdapter(Mutex<Vec<String>>);
 
-    impl FaultReporter for Recorder {
+    impl FaultReporter for SpyFaultReporterAdapter {
         fn report(&self, fault: &Fault) {
             self.0.lock().unwrap().push(fault.detail().to_string());
         }
@@ -148,14 +148,14 @@ mod tests {
 
     #[tokio::test]
     async fn unexpected_reports_the_fault_and_hides_the_detail() {
-        let recorder = Recorder::default();
+        let reporter = SpyFaultReporterAdapter::default();
 
-        let response = unexpected(&Fault::new("db.internal:5432 refused"), &recorder);
+        let response = unexpected(&Fault::new("db.internal:5432 refused"), &reporter);
 
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         assert!(!body(response).await.contains("db.internal"));
         assert_eq!(
-            *recorder.0.lock().unwrap(),
+            *reporter.0.lock().unwrap(),
             vec!["db.internal:5432 refused"]
         );
     }

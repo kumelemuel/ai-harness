@@ -1,0 +1,14 @@
+[package]
+name = "infrastructure-stderr"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+# Infraestructura compartida (anillo driven, fuera de los contextos): adaptadores
+# de las capacidades del kernel. Solo ve el kernel (HEX-1); la cablea el
+# composition root.
+[dependencies]
+kernel.workspace = true
+
+[lints]
+workspace = true

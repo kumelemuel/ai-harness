@@ -8,6 +8,7 @@ publish.workspace = true
 [dependencies]
 kernel.workspace = true
 edge-http.workspace = true
+infrastructure-stderr.workspace = true
 communities-application.workspace = true
 communities-infrastructure.workspace = true
 communities-api.workspace = true

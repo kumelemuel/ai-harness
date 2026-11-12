@@ -1,11 +1,11 @@
 //! Dobles de los puertos salientes y baterías de contrato (TDD-2): código de
 //! primera clase.
 //!
-//! Los dobles se nombran como adaptadores (HEX-5) con la "tecnología" de
-//! prefijo: `Fake` si tienen estado, `Fixed` o `Stub` si responden fijo. Cada
-//! doble pasa la misma batería de contrato (`contracts`) que los adaptadores
-//! reales. Disponibles para los tests de este crate y, con la feature
-//! `testing`, para los de otras capas.
+//! Los dobles se nombran como adaptadores (HEX-5) con un prefijo de la lista
+//! cerrada de TDD-2: `Fake` si tienen estado, `Fixed` o `Stub` si responden
+//! fijo, `Spy` si registran llamadas. Cada doble pasa la misma batería de
+//! contrato (`contracts`) que los adaptadores reales. Disponibles para los
+//! tests de este crate y, con la feature `testing`, para los de otras capas.
 
 use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
 use crate::ports::outbound::{CommunityRepository, ModerationGateway};
