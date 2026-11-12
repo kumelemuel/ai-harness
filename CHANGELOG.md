@@ -1,6 +1,13 @@
 # Changelog
 
-## Sin publicar
+## 0.10.0 — 2026-11-12
+
+Plugins: `craft-backend` 0.8.0; `craft-web` sigue en 0.3.0. La cobertura de la
+plantilla Rust es real: un puerto con payloads y error declarado da material a
+HEX-6, a ERR-1 en los puertos y a la batería con escenario de ERR-3; los tests
+de arquitectura informan su material y, en el CI del harness, no pasan en
+vacío; y todos los adaptadores y dobles siguen HEX-5. Regla nueva en TDD-2 y
+HEX-5: lista cerrada de prefijos de dobles, prohibida en producción.
 
 ### Agregado
 - Plantilla Rust, puerto `ModerationGateway` (ERR-3, HEX-6): el primero con
