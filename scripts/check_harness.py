@@ -19,10 +19,6 @@ Comprobaciones:
   STACK-PATH     una ruta entre comillas invertidas en la descripción de una skill
                  de stack (la que tiene `references/template`) no existe en la
                  plantilla. Cuenta como ruta todo lo que lleve `/` o `.`; admite `*`.
-  EXEMPLAR-PATH  una ruta entre comillas invertidas en una tabla del índice de
-                 ejemplos (`references/exemplars.md` de una skill de stack) no
-                 existe en la plantilla. Cuenta como ruta todo lo que lleve `/`;
-                 admite `*`.
   CLAUDE-MD-SIZE el `CLAUDE.md` de la raíz supera CLAUDE_MD_MAX_WORDS palabras
   STACK-STATUS   la versión de un stack en `stacks/README.md` no coincide con el
                  `**Estado:**` de su guía
@@ -353,39 +349,6 @@ def check_stack_descriptions(root: Path, files: list[Path]) -> list[Problem]:
                     rel(root, path), positions.get("description", 1), "STACK-PATH",
                     f"`{token}` no existe en la plantilla ({rel(root, template)})",
                 ))
-    return problems
-
-
-def check_exemplars(root: Path, files: list[Path]) -> list[Problem]:
-    """Cada ruta del índice de ejemplos de una skill de stack existe en su plantilla.
-
-    El índice (`references/exemplars.md`) reemplaza la exploración de la
-    plantilla: una ruta muerta manda al agente a buscar a ciegas. El índice son
-    las filas de sus tablas; cuenta como ruta lo que va entre comillas
-    invertidas y lleva `/` (admite `*`). La prosa no se comprueba.
-    """
-    problems: list[Problem] = []
-    for path, _ in documents_with_frontmatter(root, files):
-        index = path.parent / "references" / "exemplars.md"
-        template = path.parent / "references" / "template"
-        if path.name != "SKILL.md" or not template.is_dir() or not index.is_file():
-            continue
-        for number, line in enumerate(read_lines(index), start=1):
-            if not line.lstrip().startswith("|"):
-                continue
-            for token in re.findall(r"`([^`]+)`", line):
-                if "/" not in token or " " in token:
-                    continue
-                candidate = token.split("::")[0].rstrip("/")
-                exists = (
-                    any(template.glob(candidate)) if "*" in candidate
-                    else (template / candidate).exists()
-                )
-                if not exists:
-                    problems.append(Problem(
-                        rel(root, index), number, "EXEMPLAR-PATH",
-                        f"`{token}` no existe en la plantilla ({rel(root, template)})",
-                    ))
     return problems
 
 
@@ -857,7 +820,6 @@ def check(root: Path) -> list[Problem]:
         *check_markdown_links(root, files),
         *check_frontmatter(root, files),
         *check_stack_descriptions(root, files),
-        *check_exemplars(root, files),
         *check_claude_md(root),
         *check_stack_status(root),
         *check_volatile_counts(root, files),

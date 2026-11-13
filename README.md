@@ -68,7 +68,6 @@ python3 -m unittest discover -s scripts/tests          # tests del verificador
 | `MD-LINK` | Un enlace relativo de Markdown que no resuelve |
 | `FRONTMATTER` | Un `SKILL.md` o subagente sin `name` o `description`, o con un `name` que no coincide con su carpeta o archivo |
 | `STACK-PATH` | Una ruta entre comillas invertidas en la descripción de una skill de stack que no existe en la plantilla |
-| `EXEMPLAR-PATH` | Una ruta entre comillas invertidas en una tabla del índice de ejemplos (`references/exemplars.md`) de una skill de stack que no existe en la plantilla |
 | `CLAUDE-MD-SIZE` | El `CLAUDE.md` de la raíz supera 800 palabras: es el procedimiento de trabajo, no un manual |
 | `STACK-STATUS` | Una versión de stack distinta en `stacks/README.md` y en su guía |
 | `VOLATILE-COUNT` | Un conteo de tests en la documentación (fuera del CHANGELOG) |

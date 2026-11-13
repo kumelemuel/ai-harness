@@ -1,37 +1,30 @@
 # Changelog
 
-## 0.12.0 — 2026-11-12
+## 0.12.0 — 2026-11-13
 
-Plugins: `craft-backend` 0.10.0 y `craft-web` 0.5.0, por el índice de ejemplos de
-sus skills de stack. Primera versión con el formato breve (ver `CLAUDE.md`).
+Plugins sin cambios: `craft-backend` 0.9.0 y `craft-web` 0.4.0. Esta versión publica
+solo herramientas del harness. Es la primera con el formato breve (ver `CLAUDE.md`).
 
 ### Agregado
 - **Katas con medición de consumo** (`evals/`, `scripts/run_evals.py`; VER-1):
-  corrección y consumo con sesiones reales, aceptación oculta, 3 corridas por
+  corrección y consumo con sesiones reales, aceptación oculta y 3 corridas por
   configuración. No corren en CI.
 - **Kata de revisión** (`review-planted`; HEX-7, ERR-2, RS-2, TDD-1): un diff en
   verde con cuatro violaciones que solo un revisor ve, para medir el modelo de
   `architecture-reviewer`.
-- **Índice de ejemplos** (`references/exemplars.md` en `rust-stack` y
-  `astro-stack`): los archivos canónicos de un cambio completo. Las skills lo
-  leen en lugar de explorar `template/`.
-- **`EXEMPLAR-PATH`**: cada ruta del índice existe en la plantilla.
-- **`CLAUDE.md`** del harness: el procedimiento de un cambio y este formato de
-  CHANGELOG. **`CLAUDE-MD-SIZE`** lo limita a 800 palabras.
-
-### Cambiado
-- **Sin `model:` en los subagentes.** Con Sonnet, el revisor detectó todo en
-  2/3 corridas (Opus, en 5/6). No se cumple la condición para fijarlo.
-  `site-auditor` no tiene kata y queda sin cambios.
+- **`CLAUDE.md`** del harness: el procedimiento de un cambio, la metodología de
+  las katas y este formato de CHANGELOG. **`CLAUDE-MD-SIZE`** lo limita a 800
+  palabras.
 
 ### Katas
-Opus 5.5, mediana de 3 corridas, línea base → final:
-- `rust-rename-community`: 3/3 → 3/3, $1.36 → $1.50, 77 → 81 turnos.
-- `rust-community-by-slug`: 3/3 → 3/3, $1.17 → $1.16, 64 → 64 turnos.
-- `astro-services-page`: 3/3 → 3/3, $0.42 → $0.42, 22 → 23 turnos.
-- `review-planted`: 3/3 → 2/3, $0.28 → $0.27, 13 → 12 turnos.
-- Con Sonnet 5.5 en la sesión principal: renombre 3/3 a $0.58 y Astro 3/3 a
-  $0.15. Detalle en `evals/README.md`.
+Línea base con Opus 5.5 y Claude Code 2.1.316: 12/12 en aceptación.
+`rust-rename-community` $1.36, `rust-community-by-slug` $1.17,
+`astro-services-page` $0.42 y `review-planted` $0.28 (medianas).
+- Sonnet 5.5 en la sesión principal: renombre 3/3 a $0.58 y Astro 3/3 a $0.15.
+- Sonnet como revisor: 2/3; Opus: 5/6. No se fija `model:` en ningún subagente.
+- El índice de ejemplos se midió y se revirtió: coincidió con +10 % de costo en
+  `rust-rename-community`, con rangos que no se solapan, y se está investigando.
+  Detalle en `evals/README.md`.
 
 ## 0.11.0 — 2026-11-12
 

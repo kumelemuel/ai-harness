@@ -38,6 +38,12 @@ dice cómo se hace un cambio. La estructura y la publicación están en el
 subagentes o principios, y anota el resultado en el CHANGELOG. No corren en CI.
 
 - Fija siempre el modelo (`--model`).
+- **Una variable por configuración.** Si cambian dos cosas (un archivo y el
+  texto de una skill, o el harness y el modelo), el efecto no se puede atribuir.
+- Con 3 corridas, un efecto solo se da por establecido si los rangos de las dos
+  configuraciones no se solapan.
+- Si la versión de Claude Code cambió desde la línea base, vuelve a correr la
+  línea base antes de comparar.
 - Los plugins cargan en su lugar, desde el clon: **no edites `plugins/` ni lo
   que enlazan mientras corre una kata**, o la medición mezcla dos versiones.
 - Una corrida cortada por la API queda inválida; vuelve a correr con la misma

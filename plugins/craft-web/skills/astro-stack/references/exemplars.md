@@ -1,1 +1,0 @@
-../../../../../stacks/astro/exemplars.md

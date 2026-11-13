@@ -1,1 +1,0 @@
-../../../../../stacks/rust/exemplars.md
