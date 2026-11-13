@@ -164,3 +164,32 @@ Con Opus, contra la línea base:
   diferencia no viene de él.
 - Medir el ahorro real pide una kata sobre un proyecto que ya se apartó de la
   plantilla.
+
+## Configuración final contra la línea base (0.12.0)
+
+0.12.0 publica el índice de ejemplos (C) y no fija modelos (B). `CLAUDE.md`
+(D) no llega a los plugins. Así, la configuración final es la de
+`0.11.0-indice`: los mismos plugins, sin el cambio de versión, que no altera
+el comportamiento. Opus, 3 corridas por kata:
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Entrada | Salida | Caché leída | Caché escrita | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| astro-services-page | 0.11.0-base | claude-opus-5-5 | 3/3 | $0.42 ($0.35–$0.42) | 22 (20–23) | 20 (18–24) | 6k (4k–6k) | 291k (249k–341k) | 29k (27k–31k) | 3 (2–4) | 0 | 6 |
+| astro-services-page | 0.11.0-indice | claude-opus-5-5 | 3/3 | $0.42 ($0.36–$0.48) | 23 (19–25) | 24 (20–28) | 6k (5k–6k) | 347k (266k–443k) | 30k (26k–33k) | 4 (1–4) | 1 | 6 (3–6) |
+| review-planted | 0.11.0-base | claude-opus-5-5 | 3/3 | $0.28 ($0.21–$0.33) | 13 (10–14) | 16 (14–16) | 5k (4k–5k) | 101k (84k–103k) | 20k (14k–27k) | 3 (0–4) | 0 | 0 |
+| review-planted | 0.11.0-indice | claude-opus-5-5 | 2/3 | $0.27 ($0.25–$0.36) | 12 (12–16) | 16 (14–16) | 5k (5k–5k) | 103k (82k–105k) | 18k (17k–30k) | 3 (3–6) | 0 | 0 |
+| rust-community-by-slug | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.17 ($1.06–$1.22) | 64 (64–65) | 38 (36–38) | 18k (18k–18k) | 953k (904k–1071k) | 77k (64k–81k) | 20 (20–21) | 0 | 0 |
+| rust-community-by-slug | 0.11.0-indice | claude-opus-5-5 | 3/3 | $1.16 ($1.03–$1.21) | 64 (63–69) | 40 (38–44) | 19k (18k–19k) | 987k (838k–1219k) | 73k (63k–75k) | 22 (21–23) | 1 | 0 |
+| rust-rename-community | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.36 ($1.35–$1.37) | 77 (72–80) | 42 (40–50) | 24k (24k–24k) | 1146k (1135k–1449k) | 79k (76k–81k) | 26 (23–29) | 0 | 0 |
+| rust-rename-community | 0.11.0-indice | claude-opus-5-5 | 3/3 | $1.50 ($1.49–$1.51) | 81 (80–87) | 62 (50–64) | 26k (26k–28k) | 1851k (1458k–1893k) | 77k (77k–80k) | 23 (23–25) | 0 | 0 (0–1) |
+
+- Aceptación: 12/12 en la línea base y 11/12 en la final. La diferencia es la
+  revisión de formato descrita en "Modelos".
+- Costo y turnos: iguales dentro del rango, salvo `rust-rename-community`
+  (+10 %, sin relación con el índice).
+- Archivos leídos: la final lee además el índice (1 archivo del harness) en
+  Astro y en la consulta por slug.
+
+Las palancas de bajo riesgo no mueven el consumo de estas katas. El dato que
+sí lo mueve es el modelo de la sesión principal: con Sonnet, las katas 1 y 3
+cuestan menos de la mitad con la misma aceptación (ver "Modelos").
