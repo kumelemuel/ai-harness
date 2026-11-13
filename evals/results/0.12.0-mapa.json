@@ -1,0 +1,770 @@
+{
+  "katas": {
+    "rust-rename-community": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 271,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 1.6783735000000002,
+          "turns": 75,
+          "tokens": {
+            "input": 54,
+            "output": 26384,
+            "cache_read": 1728298,
+            "cache_write": 85309
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 54,
+              "outputTokens": 26384,
+              "cacheReadInputTokens": 1728298,
+              "cacheCreationInputTokens": 85309,
+              "costUSD": 1.5560276000000004
+            },
+            "claude-sonnet-5-5": {
+              "inputTokens": 12,
+              "outputTokens": 3130,
+              "cacheReadInputTokens": 115694,
+              "cacheCreationInputTokens": 31781,
+              "costUSD": 0.12234590000000001
+            }
+          },
+          "skills": [
+            "craft-backend:rust-stack",
+            "craft-backend:hexagonal-architecture",
+            "craft-backend:error-handling",
+            "craft-backend:tdd"
+          ],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "apps/server/src/main.rs",
+            "contexts/communities/api/src/codes.rs",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/create_community/command.rs",
+            "contexts/communities/application/src/commands/create_community/error.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/create_community/mod.rs",
+            "contexts/communities/application/src/commands/create_community/response.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/ports/inbound/create_community.rs",
+            "contexts/communities/application/src/ports/inbound/mod.rs",
+            "contexts/communities/application/src/ports/outbound/community_repository.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/application/src/testing/contracts/community_repository.rs",
+            "contexts/communities/domain/src/value_objects/community_id.rs",
+            "contexts/communities/domain/src/value_objects/owner_id.rs",
+            "contexts/communities/infrastructure/src/in_memory_community.rs",
+            "edge/http/src/problem.rs",
+            "tools/architecture/tests/errors.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Skill": 5,
+            "Bash": 12,
+            "Read": 26,
+            "Edit": 22,
+            "Write": 12,
+            "Agent": 1,
+            "Grep": 2
+          },
+          "permission_denials": 2,
+          "api_error_status": null,
+          "requests": 32,
+          "tool_result_chars": {
+            "Skill": 322,
+            "Bash": 33118,
+            "Read": 82469,
+            "Edit": 5109,
+            "Write": 3004,
+            "Grep": 2547,
+            "Agent": 3828
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "server_builds": true,
+              "owner_renames": true,
+              "non_owner_is_forbidden": true,
+              "architecture_tests": true
+            }
+          },
+          "findings": [],
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-mapa/rust-rename-community-1-20261113-140434"
+        },
+        {
+          "index": 2,
+          "duration_s": 329,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 2.088584,
+          "turns": 89,
+          "tokens": {
+            "input": 80,
+            "output": 32660,
+            "cache_read": 2873789,
+            "cache_write": 97075
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 80,
+              "outputTokens": 32660,
+              "cacheReadInputTokens": 2873789,
+              "cacheCreationInputTokens": 97075,
+              "costUSD": 2.0048778
+            },
+            "claude-sonnet-5-5": {
+              "inputTokens": 6,
+              "outputTokens": 1949,
+              "cacheReadInputTokens": 46792,
+              "cacheCreationInputTokens": 23810,
+              "costUSD": 0.08370620000000001
+            }
+          },
+          "skills": [
+            "craft-backend:rust-stack",
+            "craft-backend:hexagonal-architecture",
+            "craft-backend:error-handling",
+            "craft-backend:tdd"
+          ],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            ".claude/settings.json",
+            "apps/server/src/main.rs",
+            "contexts/communities/api/src/codes.rs",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/application/src/commands/create_community/command.rs",
+            "contexts/communities/application/src/commands/create_community/error.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/create_community/mod.rs",
+            "contexts/communities/application/src/commands/create_community/response.rs",
+            "contexts/communities/application/src/commands/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/ports/inbound/create_community.rs",
+            "contexts/communities/application/src/ports/inbound/mod.rs",
+            "contexts/communities/application/src/ports/outbound/community_repository.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/application/src/testing/contracts/community_repository.rs",
+            "contexts/communities/domain/src/value_objects/community_id.rs",
+            "contexts/communities/infrastructure/src/in_memory_community.rs",
+            "edge/http/src/problem.rs",
+            "tools/architecture/tests/errors.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Skill": 4,
+            "Bash": 17,
+            "Read": 25,
+            "Grep": 3,
+            "Edit": 24,
+            "Write": 12,
+            "Agent": 1
+          },
+          "permission_denials": 2,
+          "api_error_status": null,
+          "requests": 42,
+          "tool_result_chars": {
+            "Skill": 173,
+            "Bash": 58532,
+            "Read": 66812,
+            "Grep": 1668,
+            "Edit": 5838,
+            "Write": 3004,
+            "Agent": 2955
+          },
+          "hook_blocks": {
+            "post-edit": 1
+          },
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "server_builds": true,
+              "owner_renames": true,
+              "non_owner_is_forbidden": true,
+              "architecture_tests": true
+            }
+          },
+          "findings": [],
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-mapa/rust-rename-community-2-20261113-140434"
+        },
+        {
+          "index": 3,
+          "duration_s": 348,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 2.0289243,
+          "turns": 91,
+          "tokens": {
+            "input": 64,
+            "output": 33476,
+            "cache_read": 2329594,
+            "cache_write": 96694
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 64,
+              "outputTokens": 33476,
+              "cacheReadInputTokens": 2329594,
+              "cacheCreationInputTokens": 96694,
+              "costUSD": 1.9092467999999998
+            },
+            "claude-sonnet-5-5": {
+              "inputTokens": 10,
+              "outputTokens": 4223,
+              "cacheReadInputTokens": 99750,
+              "cacheCreationInputTokens": 26981,
+              "costUSD": 0.1196775
+            }
+          },
+          "skills": [
+            "craft-backend:rust-stack",
+            "craft-backend:hexagonal-architecture",
+            "craft-backend:error-handling",
+            "craft-backend:tdd"
+          ],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "apps/server/src/main.rs",
+            "contexts/communities/api/Cargo.toml",
+            "contexts/communities/api/src/codes.rs",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/create_community/command.rs",
+            "contexts/communities/application/src/commands/create_community/error.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/create_community/mod.rs",
+            "contexts/communities/application/src/commands/create_community/response.rs",
+            "contexts/communities/application/src/commands/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/ports/inbound/create_community.rs",
+            "contexts/communities/application/src/ports/inbound/mod.rs",
+            "contexts/communities/application/src/ports/outbound/community_repository.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/application/src/testing/contracts/community_repository.rs",
+            "contexts/communities/domain/src/community.rs",
+            "contexts/communities/domain/src/value_objects/community_id.rs",
+            "contexts/communities/infrastructure/src/in_memory_community.rs",
+            "edge/http/src/problem.rs",
+            "tools/architecture/tests/errors.rs",
+            "tools/architecture/tests/ports.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Skill": 4,
+            "Bash": 18,
+            "Read": 30,
+            "Edit": 29,
+            "Write": 12,
+            "Agent": 1,
+            "Glob": 1,
+            "Grep": 1
+          },
+          "permission_denials": 4,
+          "api_error_status": null,
+          "requests": 36,
+          "tool_result_chars": {
+            "Skill": 173,
+            "Bash": 31758,
+            "Read": 91884,
+            "Edit": 6646,
+            "Write": 3004,
+            "Glob": 364,
+            "Grep": 1868,
+            "Agent": 5650
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "server_builds": true,
+              "owner_renames": true,
+              "non_owner_is_forbidden": true,
+              "architecture_tests": true
+            }
+          },
+          "findings": [],
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-mapa/rust-rename-community-3-20261113-140434"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 2.0289243,
+          "min": 1.6783735000000002,
+          "max": 2.088584
+        },
+        "turns": {
+          "median": 89,
+          "min": 75,
+          "max": 91
+        },
+        "requests": {
+          "median": 36,
+          "min": 32,
+          "max": 42
+        },
+        "tool_result_chars": {
+          "median": 138982,
+          "min": 130397,
+          "max": 141347
+        },
+        "tool_result_chars_by_tool": {
+          "Agent": {
+            "median": 3828,
+            "min": 2955,
+            "max": 5650
+          },
+          "Bash": {
+            "median": 33118,
+            "min": 31758,
+            "max": 58532
+          },
+          "Edit": {
+            "median": 5838,
+            "min": 5109,
+            "max": 6646
+          },
+          "Glob": {
+            "median": 0,
+            "min": 0,
+            "max": 364
+          },
+          "Grep": {
+            "median": 1868,
+            "min": 1668,
+            "max": 2547
+          },
+          "Read": {
+            "median": 82469,
+            "min": 66812,
+            "max": 91884
+          },
+          "Skill": {
+            "median": 173,
+            "min": 173,
+            "max": 322
+          },
+          "Write": {
+            "median": 3004,
+            "min": 3004,
+            "max": 3004
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 64,
+            "min": 54,
+            "max": 80
+          },
+          "output": {
+            "median": 32660,
+            "min": 26384,
+            "max": 33476
+          },
+          "cache_read": {
+            "median": 2329594,
+            "min": 1728298,
+            "max": 2873789
+          },
+          "cache_write": {
+            "median": 96694,
+            "min": 85309,
+            "max": 97075
+          }
+        },
+        "files_read": {
+          "median": 25,
+          "min": 24,
+          "max": 29
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 1
+        },
+        "acceptance": "3/3",
+        "checks": {
+          "server_builds": "3/3",
+          "owner_renames": "3/3",
+          "non_owner_is_forbidden": "3/3",
+          "architecture_tests": "3/3"
+        }
+      }
+    },
+    "rust-community-by-slug": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 181,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 1.194622,
+          "turns": 49,
+          "tokens": {
+            "input": 44,
+            "output": 19348,
+            "cache_read": 1289870,
+            "cache_write": 68689
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 44,
+              "outputTokens": 19348,
+              "cacheReadInputTokens": 1289870,
+              "cacheCreationInputTokens": 68689,
+              "costUSD": 1.194622
+            }
+          },
+          "skills": [
+            "craft-backend:rust-stack",
+            "craft-backend:hexagonal-architecture",
+            "craft-backend:error-handling",
+            "craft-backend:tdd"
+          ],
+          "subagents": [],
+          "files_read": [
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/lib.rs",
+            "contexts/communities/application/src/ports/inbound/mod.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Skill": 4,
+            "Bash": 10,
+            "Read": 4,
+            "Edit": 15,
+            "Write": 10,
+            "Grep": 1
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 22,
+          "tool_result_chars": {
+            "Skill": 173,
+            "Bash": 68248,
+            "Read": 2267,
+            "Edit": 3211,
+            "Write": 2495,
+            "Grep": 262
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "server_builds": true,
+              "finds_by_slug": true,
+              "unknown_slug_is_not_found": true,
+              "architecture_tests": true
+            }
+          },
+          "findings": [],
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-mapa/rust-community-by-slug-1-20261113-140918"
+        },
+        {
+          "index": 2,
+          "duration_s": 162,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 1.122284,
+          "turns": 56,
+          "tokens": {
+            "input": 32,
+            "output": 17660,
+            "cache_read": 820180,
+            "cache_write": 75615
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 32,
+              "outputTokens": 17660,
+              "cacheReadInputTokens": 820180,
+              "cacheCreationInputTokens": 75615,
+              "costUSD": 1.122284
+            }
+          },
+          "skills": [
+            "craft-backend:rust-stack",
+            "craft-backend:hexagonal-architecture",
+            "craft-backend:error-handling",
+            "craft-backend:tdd"
+          ],
+          "subagents": [],
+          "files_read": [
+            "apps/server/src/main.rs",
+            "contexts/communities/api/src/codes.rs",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/application/src/commands/create_community/command.rs",
+            "contexts/communities/application/src/commands/create_community/error.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/create_community/mod.rs",
+            "contexts/communities/application/src/commands/create_community/response.rs",
+            "contexts/communities/application/src/commands/mod.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/lib.rs",
+            "contexts/communities/application/src/ports/inbound/create_community.rs",
+            "contexts/communities/application/src/ports/inbound/mod.rs",
+            "contexts/communities/application/src/ports/outbound/community_repository.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/domain/src/community.rs",
+            "contexts/communities/domain/src/value_objects/community_id.rs",
+            "edge/http/src/problem.rs",
+            "kernel/src/failure.rs",
+            "tools/architecture/tests/errors.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Skill": 4,
+            "Bash": 1,
+            "Glob": 1,
+            "Read": 23,
+            "Edit": 10,
+            "Write": 11,
+            "Grep": 1
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 16,
+          "tool_result_chars": {
+            "Skill": 173,
+            "Bash": 727,
+            "Glob": 2890,
+            "Read": 89070,
+            "Edit": 2456,
+            "Write": 2792,
+            "Grep": 181
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "server_builds": true,
+              "finds_by_slug": true,
+              "unknown_slug_is_not_found": true,
+              "architecture_tests": true
+            }
+          },
+          "findings": [],
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-mapa/rust-community-by-slug-2-20261113-141015"
+        },
+        {
+          "index": 3,
+          "duration_s": 177,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 1.1954398000000002,
+          "turns": 50,
+          "tokens": {
+            "input": 48,
+            "output": 18470,
+            "cache_read": 1319119,
+            "cache_write": 70253
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 48,
+              "outputTokens": 18470,
+              "cacheReadInputTokens": 1319119,
+              "cacheCreationInputTokens": 70253,
+              "costUSD": 1.1954398000000002
+            }
+          },
+          "skills": [
+            "craft-backend:rust-stack",
+            "craft-backend:hexagonal-architecture",
+            "craft-backend:error-handling",
+            "craft-backend:tdd"
+          ],
+          "subagents": [],
+          "files_read": [
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/lib.rs",
+            "contexts/communities/application/src/ports/inbound/mod.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Skill": 4,
+            "Bash": 8,
+            "Read": 6,
+            "Edit": 13,
+            "Write": 12,
+            "Grep": 2
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 24,
+          "tool_result_chars": {
+            "Skill": 173,
+            "Bash": 60794,
+            "Read": 13669,
+            "Edit": 2781,
+            "Write": 3043,
+            "Grep": 615
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "server_builds": true,
+              "finds_by_slug": true,
+              "unknown_slug_is_not_found": true,
+              "architecture_tests": true
+            }
+          },
+          "findings": [],
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-mapa/rust-community-by-slug-3-20261113-141035"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 1.194622,
+          "min": 1.122284,
+          "max": 1.1954398000000002
+        },
+        "turns": {
+          "median": 50,
+          "min": 49,
+          "max": 56
+        },
+        "requests": {
+          "median": 22,
+          "min": 16,
+          "max": 24
+        },
+        "tool_result_chars": {
+          "median": 81075,
+          "min": 76656,
+          "max": 98289
+        },
+        "tool_result_chars_by_tool": {
+          "Bash": {
+            "median": 60794,
+            "min": 727,
+            "max": 68248
+          },
+          "Edit": {
+            "median": 2781,
+            "min": 2456,
+            "max": 3211
+          },
+          "Glob": {
+            "median": 0,
+            "min": 0,
+            "max": 2890
+          },
+          "Grep": {
+            "median": 262,
+            "min": 181,
+            "max": 615
+          },
+          "Read": {
+            "median": 13669,
+            "min": 2267,
+            "max": 89070
+          },
+          "Skill": {
+            "median": 173,
+            "min": 173,
+            "max": 173
+          },
+          "Write": {
+            "median": 2792,
+            "min": 2495,
+            "max": 3043
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 44,
+            "min": 32,
+            "max": 48
+          },
+          "output": {
+            "median": 18470,
+            "min": 17660,
+            "max": 19348
+          },
+          "cache_read": {
+            "median": 1289870,
+            "min": 820180,
+            "max": 1319119
+          },
+          "cache_write": {
+            "median": 70253,
+            "min": 68689,
+            "max": 75615
+          }
+        },
+        "files_read": {
+          "median": 6,
+          "min": 4,
+          "max": 23
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "acceptance": "3/3",
+        "checks": {
+          "server_builds": "3/3",
+          "finds_by_slug": "3/3",
+          "unknown_slug_is_not_found": "3/3",
+          "architecture_tests": "3/3"
+        }
+      }
+    }
+  },
+  "version": "0.12.0",
+  "label": "mapa",
+  "model": "claude-opus-5-5",
+  "plugins": {
+    "craft-backend": "0.9.0",
+    "craft-web": "0.4.0"
+  },
+  "claude": "2.1.316 (Claude Code)",
+  "date": "2026-11-13"
+}

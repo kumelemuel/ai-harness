@@ -321,3 +321,33 @@ Para separarlas hay que correr las dos configuraciones intercaladas, en la
 misma ventana de tiempo. La métrica nueva (peticiones y caracteres de
 resultados por herramienta, en la tabla y en `tool_result_chars` del JSON)
 hace visible esta clase de diferencia en adelante.
+
+### Mapa del proyecto en la plantilla Rust (revertido)
+
+`stacks/rust/template/CLAUDE.md`, de 267 palabras: capas, el recorrido de
+`create_community` con sus rutas y los comandos. Opus, contra la [línea
+base](#línea-base) y contra `0.12.0-diffs-opus` (el mismo harness sin el
+mapa, corrido el mismo día):
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-community-by-slug | 0.12.0-mapa | claude-opus-5-5 | 3/3 | $1.19 ($1.12–$1.20) | 50 (49–56) | 22 (16–24) | 44 (32–48) | 18k (18k–19k) | 1290k (820k–1319k) | 70k (69k–76k) | 81k (77k–98k) | 6 (4–23) | 0 | 0 |
+| rust-rename-community | 0.12.0-mapa | claude-opus-5-5 | 3/3 | $2.03 ($1.68–$2.09) | 89 (75–91) | 36 (32–42) | 64 (54–80) | 33k (26k–33k) | 2330k (1728k–2874k) | 97k (85k–97k) | 139k (130k–141k) | 25 (24–29) | 0 | 0 (0–1) |
+
+- **Aceptación:** se mantiene, 6/6.
+- **`rust-community-by-slug`:** los archivos leídos bajan a una mediana de
+  6, pero con un rango de 4 a 23 que se solapa con el de la base (20–21). El
+  costo no cambia ($1.12–1.20 contra $1.06–1.22).
+- **`rust-rename-community`:** el costo **sube** a $1.68–2.09, contra
+  $1.35–1.37 en la base y $1.33–1.63 en el control. Los rangos no se
+  solapan.
+- **Por qué sube:** con el mapa, la sesión principal invocó a
+  `architecture-reviewer` en las 3 corridas (Sonnet, $0.08–0.12) y siguió
+  trabajando sobre sus hallazgos. Hubo más `Bash` (12–18 contra 8–10), más
+  `Edit` (22–29 contra 18–20) y más peticiones (32–42 contra 20–27). En el
+  control, ninguna corrida lo invocó. El mapa no menciona al revisor.
+- **Decisión:** no baja ni los archivos ni el costo con rangos separados, así
+  que se revierte (regla de D).
+- **Hallazgo que queda:** un `CLAUDE.md` en el proyecto cambió cuándo el
+  agente pide una revisión. Eso puede valer como palanca de calidad, no de
+  costo.

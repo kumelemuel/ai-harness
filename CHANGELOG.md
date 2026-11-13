@@ -19,6 +19,10 @@
 - Revisión cruzada de `rust-rename-community` (revisor Opus, sin skills por
   `--agent`): hallazgos válidos por corrida, Opus 0/0/0 y Sonnet 1/0/0. "Sonnet
   implementa, Opus revisa" cuesta $1.09, contra $1.49 de "Opus implementa".
+- Mapa del proyecto en la plantilla Rust (medido y revertido): aceptación 6/6;
+  `rust-rename-community` sube a $2.03 ($1.68–2.09), porque la sesión invoca al
+  revisor y sigue trabajando sobre sus hallazgos. La consulta por slug lee
+  menos archivos, pero con rangos que se solapan.
 - `review-planted`, formato nuevo: Opus 3/3 ($0.34, 15 turnos); Sonnet 3/3
   ($0.08, 4 turnos).
 

@@ -113,19 +113,6 @@ class ClaudeMd(unittest.TestCase):
         self.assertNotIn("CLAUDE-MD-SIZE", {p.code for p in problems("valid")})
 
 
-class TemplateMap(unittest.TestCase):
-    def test_paths_in_the_template_map_exist(self) -> None:
-        found = problems("template_map")
-        self.assertEqual({("TEMPLATE-MAP-PATH", "stacks/demo/template/CLAUDE.md")}, summary("template_map"))
-        self.assertEqual(["contexts/demo/domain/"], [p.message.split("`")[1] for p in found])
-        self.assertEqual(6, found[0].line)
-
-    def test_template_map_over_the_word_limit_fails(self) -> None:
-        found = problems("template_map_too_long")
-        self.assertEqual({("TEMPLATE-MAP-SIZE", "stacks/demo/template/CLAUDE.md")}, summary("template_map_too_long"))
-        self.assertIn(str(check_harness.TEMPLATE_MAP_MAX_WORDS), found[0].message)
-
-
 class Stacks(unittest.TestCase):
     def test_paths_in_stack_skill_description_exist_in_template(self) -> None:
         found = problems("stack_description_path")

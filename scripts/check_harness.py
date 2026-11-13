@@ -20,9 +20,6 @@ Comprobaciones:
                  de stack (la que tiene `references/template`) no existe en la
                  plantilla. Cuenta como ruta todo lo que lleve `/` o `.`; admite `*`.
   CLAUDE-MD-SIZE el `CLAUDE.md` de la raíz supera CLAUDE_MD_MAX_WORDS palabras
-  TEMPLATE-MAP-PATH una ruta entre comillas invertidas del mapa de una plantilla
-                 (`stacks/*/template/CLAUDE.md`) no existe en ella
-  TEMPLATE-MAP-SIZE el mapa de una plantilla supera TEMPLATE_MAP_MAX_WORDS palabras
   STACK-STATUS   la versión de un stack en `stacks/README.md` no coincide con el
                  `**Estado:**` de su guía
   VOLATILE-COUNT un conteo de tests ("36 tests", "16 e2e") en la documentación.
@@ -371,51 +368,6 @@ def check_claude_md(root: Path) -> list[Problem]:
         "CLAUDE.md", 1, "CLAUDE-MD-SIZE",
         f"{words} palabras, el límite es {CLAUDE_MD_MAX_WORDS}: enlaza en vez de copiar",
     )]
-
-
-# El mapa de una plantilla (`stacks/*/template/CLAUDE.md`) se carga en cada
-# sesión del proyecto: orienta, no enseña. Los principios viven en las skills.
-TEMPLATE_MAP_MAX_WORDS = 600
-
-
-def check_template_maps(root: Path) -> list[Problem]:
-    """Cada ruta del mapa existe en su plantilla y el mapa no crece sin control.
-
-    Cuenta como ruta lo que va entre comillas invertidas fuera de un bloque de
-    código, con `/` y sin espacios; admite `*`. Se saltan las que llevan un
-    marcador (`{ctx}`, `<caso>`), que describen una forma y no un archivo.
-    """
-    problems: list[Problem] = []
-    for path in sorted(root.glob("stacks/*/template/CLAUDE.md")):
-        template = path.parent
-        where = rel(root, path)
-        in_code = False
-        for number, line in enumerate(read_lines(path), start=1):
-            if line.lstrip().startswith("```"):
-                in_code = not in_code
-                continue
-            if in_code:
-                continue
-            for token in re.findall(r"`([^`]+)`", line):
-                if "/" not in token or " " in token or any(c in token for c in "{}<>"):
-                    continue
-                candidate = token.split("::")[0].rstrip("/")
-                exists = (
-                    any(template.glob(candidate)) if "*" in candidate
-                    else (template / candidate).exists()
-                )
-                if not exists:
-                    problems.append(Problem(
-                        where, number, "TEMPLATE-MAP-PATH",
-                        f"`{token}` no existe en la plantilla ({rel(root, template)})",
-                    ))
-        words = len(re.findall(r"\w+", path.read_text(encoding="utf-8")))
-        if words > TEMPLATE_MAP_MAX_WORDS:
-            problems.append(Problem(
-                where, 1, "TEMPLATE-MAP-SIZE",
-                f"{words} palabras, el límite es {TEMPLATE_MAP_MAX_WORDS}: es un mapa, no una guía",
-            ))
-    return problems
 
 
 def check_stack_status(root: Path) -> list[Problem]:
@@ -869,7 +821,6 @@ def check(root: Path) -> list[Problem]:
         *check_frontmatter(root, files),
         *check_stack_descriptions(root, files),
         *check_claude_md(root),
-        *check_template_maps(root),
         *check_stack_status(root),
         *check_volatile_counts(root, files),
         *check_cited_tests(root, files),
