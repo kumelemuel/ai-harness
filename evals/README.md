@@ -167,7 +167,10 @@ hallazgo) y solo adapta el parseo. La única variable respecto de
 - **Decisión:** se cumple la regla. `architecture-reviewer` fija
   `model: claude-sonnet-5-5`. Verificado con una sesión real: la sesión
   principal en Opus invoca al subagente, y `modelUsage` muestra al subagente
-  en Sonnet. `site-auditor` cambia de formato pero no de modelo, porque no
+  en Sonnet.
+- **Salvedad:** este revisor corrió con `--agent`, sin sus skills (ver
+  "Limitación: `--agent` no precarga skills"). En uso real, como subagente,
+  sí las tiene. La decisión debe validarse en ese modo. `site-auditor` cambia de formato pero no de modelo, porque no
   tiene una kata equivalente.
 
 #### Revisión cruzada: Sonnet implementa, Opus revisa
