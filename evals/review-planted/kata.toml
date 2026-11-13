@@ -1,0 +1,12 @@
+description = "Revisión: diff con violaciones plantadas que solo un revisor detecta"
+template = "stacks/rust/template"
+plugins = ["craft-backend"]
+# La sesión es el revisor: mide su modelo, no el de una sesión principal.
+agent = "craft-backend:architecture-reviewer"
+# El diff queda sin commit, como lo vería el revisor antes de un push.
+setup = ["git apply {kata}/planted.diff", "cargo build --workspace --tests"]
+acceptance = "python3 acceptance/check.py"
+timeout_minutes = 20
+
+[env]
+CARGO_TARGET_DIR = "{cache}/target"

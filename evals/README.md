@@ -75,17 +75,64 @@ Mediana y, entre paréntesis, el rango de las 3 ejecuciones. Costo en USD según
 | Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Entrada | Salida | Caché leída | Caché escrita | Archivos leídos | Del harness | Bloqueos de hooks |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | astro-services-page | 0.11.0-base | claude-opus-5-5 | 3/3 | $0.42 ($0.35–$0.42) | 22 (20–23) | 20 (18–24) | 6k (4k–6k) | 291k (249k–341k) | 29k (27k–31k) | 3 (2–4) | 0 | 6 |
-| rust-community-by-slug | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.20 ($1.09–$1.35) | 65 (59–71) | 34 (32–48) | 18k (18k–20k) | 985k (710k–1463k) | 79k (74k–83k) | 22 (20–24) | 0 | 0 (0–10) |
-| rust-rename-community | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.60 ($1.44–$1.67) | 85 (78–91) | 60 (46–74) | 28k (26k–29k) | 1715k (1315k–2320k) | 82k (81k–85k) | 25 (25–26) | 0 | 0 (0–3) |
+| review-planted | 0.11.0-base | claude-opus-5-5 | 3/3 | $0.28 ($0.21–$0.33) | 13 (10–14) | 16 (14–16) | 5k (4k–5k) | 101k (84k–103k) | 20k (14k–27k) | 3 (0–4) | 0 | 0 |
+| rust-community-by-slug | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.17 ($1.06–$1.22) | 64 (64–65) | 38 (36–38) | 18k (18k–18k) | 953k (904k–1071k) | 77k (64k–81k) | 20 (20–21) | 0 | 0 |
+| rust-rename-community | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.36 ($1.35–$1.37) | 77 (72–80) | 42 (40–50) | 24k (24k–24k) | 1146k (1135k–1449k) | 79k (76k–81k) | 26 (23–29) | 0 | 0 |
 
-- Las 9 corridas pasan la aceptación.
-- El costo total de las 9 corridas fue de $9.54.
-- Ninguna corrida leyó archivos del harness: en una kata, el proyecto *es* la
-  plantilla, así que el agente lee su propio directorio de trabajo.
-- Los 6 bloqueos de Astro se repiten igual en las tres corridas: `post-edit`
-  al editar `src/routes.ts` antes de que exista la página.
-  `routes.test.ts` queda en rojo un momento.
+- Las 12 corridas pasan la aceptación. Costo total: $9.55.
+- Ninguna leyó archivos del harness: en una kata, el proyecto *es* la
+  plantilla, y el agente encuentra los ejemplos en su propio directorio.
+- Los 6 bloqueos de Astro se repiten igual en las tres corridas. Son de
+  `post-edit` al editar `src/routes.ts` antes de que exista la página: la
+  ruta sin página deja `routes.test.ts` en rojo un momento.
+- Las katas de Rust se repitieron después de corregir el runner. El runner
+  copiaba la plantilla conservando los mtimes, y como cada número de corrida
+  reutiliza su `CARGO_TARGET_DIR`, cargo no recompilaba `tools/architecture`.
+  El test seguía con `env!("CARGO_MANIFEST_DIR")` de otra corrida. Los tests
+  de arquitectura, en los hooks y en la aceptación, revisaban otro árbol, o
+  entraban en pánico si ese árbol ya no existía. Ahora la copia usa mtimes
+  nuevos (test en `test_run_evals.py`).
 
-Una ejecución cortada por la API (`api_error_status`, por ejemplo un 429 por
-límite de uso) se marca inválida, queda fuera de la mediana y se repite al
-volver a correr con la misma etiqueta (`--fresh` repite también las válidas).
+## Modelos
+
+`review-planted` aplica un diff que compila y pasa clippy y todos los tests,
+con cuatro violaciones que solo un revisor ve:
+
+- HEX-7: una regla de negocio en el handler (el prefijo `official-`).
+- ERR-2: la variante `Reserved` sin test del handler ni del endpoint.
+- RS-2: un `expect` sobre un dato del usuario.
+- TDD-1: el slug acepta `_` sin un test que lo exija.
+
+La sesión corre como `architecture-reviewer` (`agent` en `kata.toml`), así que
+se mide el modelo del revisor. Una violación cuenta como detectada si una
+línea del reporte tiene su ID y, en ese hallazgo, el archivo y una pista que la
+identifican.
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Entrada | Salida | Caché leída | Caché escrita | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| astro-services-page | 0.11.0-base | claude-opus-5-5 | 3/3 | $0.42 ($0.35–$0.42) | 22 (20–23) | 20 (18–24) | 6k (4k–6k) | 291k (249k–341k) | 29k (27k–31k) | 3 (2–4) | 0 | 6 |
+| review-planted | 0.11.0-base | claude-opus-5-5 | 3/3 | $0.28 ($0.21–$0.33) | 13 (10–14) | 16 (14–16) | 5k (4k–5k) | 101k (84k–103k) | 20k (14k–27k) | 3 (0–4) | 0 | 0 |
+| rust-rename-community | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.36 ($1.35–$1.37) | 77 (72–80) | 42 (40–50) | 24k (24k–24k) | 1146k (1135k–1449k) | 79k (76k–81k) | 26 (23–29) | 0 | 0 |
+| astro-services-page | 0.11.0-sonnet | claude-sonnet-5-5 | 3/3 | $0.15 ($0.13–$0.18) | 17 (14–19) | 14 (12–24) | 4k (3k–5k) | 160k (127k–331k) | 22k (20k–24k) | 3 (1–4) | 0 | 4 (3–4) |
+| review-planted | 0.11.0-sonnet | claude-sonnet-5-5 | 2/3 | $0.10 ($0.09–$0.11) | 5 (5–6) | 8 (6–8) | 3k (2k–3k) | 28k (20k–34k) | 16k (16k–19k) | 1 (1–2) | 0 | 0 |
+| rust-rename-community | 0.11.0-sonnet | claude-sonnet-5-5 | 3/3 | $0.58 ($0.57–$0.59) | 61 (56–76) | 32 (30–32) | 22k (21k–22k) | 785k (710k–809k) | 72k (70k–72k) | 11 (5–29) | 0 | 0 |
+
+**Revisor.** Opus detectó las 4 violaciones en las 3 corridas. Sonnet, en 2 de
+3. En la tercera describió ERR-2 y TDD-1 en un hallazgo agrupado
+(`[TDD-1 / ERR-2]`) sin ruta, contra el formato del reporte, y etiquetó como
+HEX-7 el cambio de `_`. Sonnet cuesta un tercio ($0.10 contra $0.28), usa
+menos de la mitad de los turnos y nunca corrió los tests de arquitectura (Opus
+los corrió en 1 de 3). No se cumple la condición de fijar el modelo (todas las
+violaciones en las 3 corridas): `architecture-reviewer` sigue sin `model:`.
+`site-auditor` no tiene una kata equivalente y queda sin cambios.
+
+**Sesión principal.** Con Sonnet, las katas 1 y 3 pasan 3/3, igual que con
+Opus. Cuestan menos de la mitad: $0.58 contra $1.36 en Rust y $0.15 contra
+$0.42 en Astro, con menos turnos. Los gates deterministas atrapan lo que la
+aceptación mide.
+
+**Recomendación.** Para implementar un encargo bien especificado, Sonnet
+rinde igual en estas katas por menos de la mitad del costo. Para revisar,
+Opus: la revisión es barata en cualquier modelo, y lo que cuenta es no dejar
+pasar una violación. El harness no fija el modelo de la sesión principal; se
+elige con `/model` o `--model`.

@@ -116,6 +116,25 @@ class Kata(unittest.TestCase):
             kata.expanded_env(Path("/cache/kata_valid")),
         )
 
+    def test_agent_is_optional(self) -> None:
+        self.assertIsNone(run_evals.load_kata(FIXTURES / "kata_valid").agent)
+        kata = run_evals.load_kata(FIXTURES / "kata_agent")
+        self.assertEqual("craft-backend:architecture-reviewer", kata.agent)
+
+    def test_setup_can_reference_the_kata_directory(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_agent")
+        self.assertEqual(
+            [f"git apply {FIXTURES / 'kata_agent'}/planted.diff"],
+            kata.expanded_setup(),
+        )
+
+    def test_agent_goes_to_the_command_line(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_agent")
+        command = run_evals.claude_command(kata, "claude-sonnet-5-5", budget=2.0)
+        self.assertEqual("craft-backend:architecture-reviewer", command[command.index("--agent") + 1])
+        self.assertEqual("claude-sonnet-5-5", command[command.index("--model") + 1])
+        self.assertNotIn("--agent", run_evals.claude_command(run_evals.load_kata(FIXTURES / "kata_valid"), "m", 1.0))
+
     def test_missing_acceptance_is_rejected(self) -> None:
         with self.assertRaisesRegex(run_evals.KataError, "acceptance"):
             run_evals.load_kata(FIXTURES / "kata_missing_acceptance")
@@ -123,6 +142,21 @@ class Kata(unittest.TestCase):
     def test_missing_prompt_is_rejected(self) -> None:
         with self.assertRaisesRegex(run_evals.KataError, "prompt.md"):
             run_evals.load_kata(FIXTURES)
+
+
+class Copy(unittest.TestCase):
+    def test_copied_template_has_fresh_mtimes(self) -> None:
+        """Con los mtimes de la plantilla, cargo reutiliza un binario compilado en
+        otro directorio de trabajo y `env!("CARGO_MANIFEST_DIR")` apunta al viejo."""
+        import tempfile
+        import time
+
+        with tempfile.TemporaryDirectory() as target:
+            before = time.time() - 1
+            run_evals.copy_template("stacks/rust/template/tools/architecture", Path(target))
+            copied = Path(target) / "Cargo.toml"
+            self.assertTrue(copied.is_file())
+            self.assertGreater(copied.stat().st_mtime, before)
 
 
 class HookLog(unittest.TestCase):

@@ -13,9 +13,12 @@ ocultos que se copian después de que el agente termina) y `kata.toml`:
                   versionados, sin `target/` ni `node_modules/`)
   plugins         plugins del marketplace `ai-harness` que se habilitan
   acceptance      comando de aceptación; imprime `PASS nombre` / `FAIL nombre: …`
-  setup           comandos previos al agente (no cuentan en el consumo)
+  setup           comandos previos al agente (no cuentan en el consumo);
+                  `{kata}` es el directorio de la kata
   timeout_minutes límite de la sesión del agente (por defecto 45)
   allowed_tools   herramientas extra, además de las de `ALLOWED_TOOLS`
+  agent           corre la sesión como ese subagente (`--agent`), p. ej. para
+                  medir un revisor con un modelo dado
   [env]           variables para el setup, el agente, sus hooks y la aceptación;
                   `{cache}` es un directorio persistente por kata y ejecución
 
@@ -89,6 +92,10 @@ class Kata:
     env: dict[str, str] = field(default_factory=dict)
     timeout_minutes: int = 45
     allowed_tools: list[str] = field(default_factory=list)
+    agent: str | None = None
+
+    def expanded_setup(self) -> list[str]:
+        return [command.replace("{kata}", str(self.path)) for command in self.setup]
 
     def expanded_env(self, cache: Path) -> dict[str, str]:
         return {key: value.replace("{cache}", str(cache)) for key, value in self.env.items()}
@@ -116,6 +123,7 @@ def load_kata(path: Path) -> Kata:
         env={k: str(v) for k, v in config.get("env", {}).items()},
         timeout_minutes=int(config.get("timeout_minutes", 45)),
         allowed_tools=list(config.get("allowed_tools", [])),
+        agent=config.get("agent"),
     )
 
 
@@ -347,7 +355,8 @@ def copy_template(template: str, target: Path) -> None:
         source = REPO / entry
         destination = target / Path(entry).relative_to(prefix)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination, follow_symlinks=False)
+        # Sin copy2: mtimes nuevos para que cargo recompile en este directorio.
+        shutil.copy(source, destination, follow_symlinks=False)
 
 
 def project_settings(plugins: list[str]) -> dict:
@@ -370,6 +379,21 @@ def git(workdir: Path, *args: str) -> None:
         ["git", "-c", "user.email=evals@ai-harness", "-c", "user.name=evals", *args],
         cwd=workdir, check=True, capture_output=True,
     )
+
+
+def claude_command(kata: Kata, model: str, budget: float) -> list[str]:
+    command = [
+        "claude", "-p", kata.prompt,
+        "--output-format", "stream-json", "--verbose",
+        "--model", model,
+        "--permission-mode", "dontAsk",
+        "--allowedTools", " ".join(ALLOWED_TOOLS + kata.allowed_tools),
+        "--no-session-persistence",
+        "--max-budget-usd", str(budget),
+    ]
+    if kata.agent:
+        command += ["--agent", kata.agent]
+    return command
 
 
 def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep: bool) -> dict:
@@ -396,21 +420,13 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
     for var in HOOK_LOG_VARS:
         env[var] = str(hook_log)
 
-    for command in kata.setup:
+    for command in kata.expanded_setup():
         log(kata, index, f"setup: {command}")
         subprocess.run(command, shell=True, cwd=workdir, env=env, check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     hook_log.write_text("", encoding="utf-8")
 
-    command = [
-        "claude", "-p", kata.prompt,
-        "--output-format", "stream-json", "--verbose",
-        "--model", model,
-        "--permission-mode", "dontAsk",
-        "--allowedTools", " ".join(ALLOWED_TOOLS + kata.allowed_tools),
-        "--no-session-persistence",
-        "--max-budget-usd", str(budget),
-    ]
+    command = claude_command(kata, model, budget)
     log(kata, index, f"agente ({model})")
     started = dt.datetime.now()
     stream_file = run_dir / "stream.jsonl"
