@@ -117,12 +117,17 @@ identifican.
 | review-planted | 0.11.0-sonnet | claude-sonnet-5-5 | 2/3 | $0.10 ($0.09–$0.11) | 5 (5–6) | 8 (6–8) | 3k (2k–3k) | 28k (20k–34k) | 16k (16k–19k) | 1 (1–2) | 0 | 0 |
 | rust-rename-community | 0.11.0-sonnet | claude-sonnet-5-5 | 3/3 | $0.58 ($0.57–$0.59) | 61 (56–76) | 32 (30–32) | 22k (21k–22k) | 785k (710k–809k) | 72k (70k–72k) | 11 (5–29) | 0 | 0 |
 
-**Revisor.** Opus detectó las 4 violaciones en las 3 corridas. Sonnet, en 2 de
+**Revisor.** Opus detectó las 4 violaciones en las 3 corridas de la línea
+base y en 2 de las 3 de `0.11.0-indice`, que no cambia nada que el revisor lea:
+5 de 6 en total. Sonnet, en 2 de
 3. En la tercera describió ERR-2 y TDD-1 en un hallazgo agrupado
 (`[TDD-1 / ERR-2]`) sin ruta, contra el formato del reporte, y etiquetó como
 HEX-7 el cambio de `_`. Sonnet cuesta un tercio ($0.10 contra $0.28), usa
 menos de la mitad de los turnos y nunca corrió los tests de arquitectura (Opus
-los corrió en 1 de 3). No se cumple la condición de fijar el modelo (todas las
+los corrió en 1 de 3). Las dos omisiones son de formato, no de contenido. Los dos modelos
+describieron la variante `Reserved` sin tests, pero el encabezado del hallazgo
+no llevaba ruta, y el criterio, fijado antes de medir, exige ID y archivo en el
+mismo hallazgo. No se cumple la condición de fijar el modelo (todas las
 violaciones en las 3 corridas): `architecture-reviewer` sigue sin `model:`.
 `site-auditor` no tiene una kata equivalente y queda sin cambios.
 
@@ -136,3 +141,26 @@ rinde igual en estas katas por menos de la mitad del costo. Para revisar,
 Opus: la revisión es barata en cualquier modelo, y lo que cuenta es no dejar
 pasar una violación. El harness no fija el modelo de la sesión principal; se
 elige con `/model` o `--model`.
+
+## Índice de ejemplos (`references/exemplars.md`)
+
+Con Opus, contra la línea base:
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Entrada | Salida | Caché leída | Caché escrita | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| astro-services-page | 0.11.0-base | claude-opus-5-5 | 3/3 | $0.42 ($0.35–$0.42) | 22 (20–23) | 20 (18–24) | 6k (4k–6k) | 291k (249k–341k) | 29k (27k–31k) | 3 (2–4) | 0 | 6 |
+| rust-rename-community | 0.11.0-base | claude-opus-5-5 | 3/3 | $1.36 ($1.35–$1.37) | 77 (72–80) | 42 (40–50) | 24k (24k–24k) | 1146k (1135k–1449k) | 79k (76k–81k) | 26 (23–29) | 0 | 0 |
+| astro-services-page | 0.11.0-indice | claude-opus-5-5 | 3/3 | $0.42 ($0.36–$0.48) | 23 (19–25) | 24 (20–28) | 6k (5k–6k) | 347k (266k–443k) | 30k (26k–33k) | 4 (1–4) | 1 | 6 (3–6) |
+| rust-rename-community | 0.11.0-indice | claude-opus-5-5 | 3/3 | $1.50 ($1.49–$1.51) | 81 (80–87) | 62 (50–64) | 26k (26k–28k) | 1851k (1458k–1893k) | 77k (77k–80k) | 23 (23–25) | 0 | 0 (0–1) |
+
+- La aceptación no cambia: 3/3 en las dos katas, y también en
+  `rust-community-by-slug` (ver `0.11.0-indice.json`).
+- El agente leyó el índice en todas las corridas de Astro y de la consulta por
+  slug, y en ninguna del renombre.
+- No hay ahorro medible. Era lo esperado: en una kata, el proyecto es la
+  plantilla, y la línea base ya leía 0 archivos del harness. El renombre
+  costó un 10 % más ($1.50 contra $1.36), con rangos estrechos en las dos
+  configuraciones. Pero ninguna de esas corridas leyó el índice, así que la
+  diferencia no viene de él.
+- Medir el ahorro real pide una kata sobre un proyecto que ya se apartó de la
+  plantilla.

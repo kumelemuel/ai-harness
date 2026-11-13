@@ -66,6 +66,7 @@ python3 -m unittest discover -s scripts/tests          # tests del verificador
 | `MD-LINK` | Un enlace relativo de Markdown que no resuelve |
 | `FRONTMATTER` | Un `SKILL.md` o subagente sin `name` o `description`, o con un `name` que no coincide con su carpeta o archivo |
 | `STACK-PATH` | Una ruta entre comillas invertidas en la descripción de una skill de stack que no existe en la plantilla |
+| `EXEMPLAR-PATH` | Una ruta entre comillas invertidas en una tabla del índice de ejemplos (`references/exemplars.md`) de una skill de stack que no existe en la plantilla |
 | `STACK-STATUS` | Una versión de stack distinta en `stacks/README.md` y en su guía |
 | `VOLATILE-COUNT` | Un conteo de tests en la documentación (fuera del CHANGELOG) |
 | `MISSING-TEST` | Un test citado entre comillas invertidas en una sección "Verificación", en una tabla de Enforcement o en una fila `test` del inventario que no existe en la plantilla (o una fila `test` que no cita ninguno): una función con prefijo de principio (`hex_4_…`, admite `*`), con o sin archivo (`tests/naming.rs::hex_4_*`), o un archivo de test (`routes.test.ts`) |

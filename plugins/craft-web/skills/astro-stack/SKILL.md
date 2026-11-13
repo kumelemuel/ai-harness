@@ -11,8 +11,11 @@ cargada): esta skill no repite sus reglas.
 
 - `references/astro.md`: guía completa (decisiones AS-1 a AS-6, tabla WEB → mecanismo,
   detalles que costó descubrir, Turnstile, alternativa Vercel).
-- `references/template/`: el código de la plantilla, que pasa todos los tests. **Antes de
-  crear algo, copia la forma del archivo equivalente.**
+- `references/exemplars.md`: índice de los archivos canónicos de una página y un
+  formulario, con qué ilustra cada uno. **Antes de crear algo, lee el ejemplo
+  equivalente del índice y copia su forma.**
+- `references/template/`: el código de la plantilla, que pasa todos los tests. No lo
+  explores: ábrelo solo si el índice no cubre lo que necesitas.
 
 ## Dónde va cada cosa
 

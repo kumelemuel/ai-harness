@@ -10,9 +10,11 @@ dicen **qué**; esta dice **cómo en Rust**. **Cárgalas también antes de crear
 modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
 
 - `references/rust.md`: guía completa (decisiones RS-1 a RS-4, tablas de traducción).
-- `references/template/`: workspace de referencia que compila y pasa todos los tests.
-  **Antes de crear algo nuevo, copia la forma del archivo equivalente en
-  `contexts/communities/`.**
+- `references/exemplars.md`: índice de los archivos canónicos de un cambio de
+  punta a punta, con qué ilustra cada uno. **Antes de crear algo nuevo, lee el
+  ejemplo equivalente del índice y copia su forma.**
+- `references/template/`: workspace de referencia que compila y pasa todos los
+  tests. No lo explores: ábrelo solo si el índice no cubre lo que necesitas.
 
 ## Decisiones del stack
 

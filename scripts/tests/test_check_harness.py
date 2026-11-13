@@ -114,6 +114,18 @@ class Stacks(unittest.TestCase):
             sorted(p.message.split("`")[1] for p in found),
         )
 
+    def test_paths_in_exemplars_index_exist_in_template(self) -> None:
+        found = problems("exemplar_path")
+        self.assertEqual(
+            {("EXEMPLAR-PATH", "plugins/demo/skills/rust-stack/references/exemplars.md")},
+            summary("exemplar_path"),
+        )
+        self.assertEqual(
+            ["contexts/*/api/src/*.rs", "contexts/demo/missing.rs"],
+            sorted(p.message.split("`")[1] for p in found),
+        )
+        self.assertEqual([7, 8], sorted(p.line for p in found))
+
     def test_stack_status_matches_its_guide(self) -> None:
         found = problems("stack_status_mismatch")
         self.assertEqual({("STACK-STATUS", "stacks/README.md")}, summary("stack_status_mismatch"))
