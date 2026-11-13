@@ -164,8 +164,9 @@ hallazgo) y solo adapta el parseo. La única variable respecto de
   como HEX-1, HEX-3 y HEX-8, que tratan de dependencias, puertos y kernel.
   Opus no tuvo hallazgos fuera de las reglas plantadas.
 - **Costo:** Sonnet $0.08 contra $0.34 de Opus.
-- **Decisión:** se cumple la regla. `architecture-reviewer` fija
-  `model: claude-sonnet-5-5`. Verificado con una sesión real: la sesión
+- **Decisión (revertida):** se cumplía la regla y `architecture-reviewer` fijó
+  `model: claude-sonnet-5-5`. Se revirtió porque esta medición corrió sin las
+  skills del revisor; se repite en modo subagente. Verificado con una sesión real: la sesión
   principal en Opus invoca al subagente, y `modelUsage` muestra al subagente
   en Sonnet.
 - **Salvedad:** este revisor corrió con `--agent`, sin sus skills (ver

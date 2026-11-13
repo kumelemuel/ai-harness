@@ -2,7 +2,6 @@
 name: architecture-reviewer
 description: Revisa cambios de un backend hexagonal contra los principios HEX, ERR, TDD y VER, con foco en lo que los tests de arquitectura no pueden verificar (lógica de negocio en handlers, semántica de errores y de adaptadores). Usar después de cambios no triviales en domain o application, o cuando se pida una revisión de arquitectura.
 tools: Read, Grep, Glob, Bash
-model: claude-sonnet-5-5
 skills:
   - hexagonal-architecture
   - error-handling
