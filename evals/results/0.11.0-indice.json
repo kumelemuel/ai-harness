@@ -55,7 +55,15 @@
               "unit_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/astro-services-page-1-20261112-213933"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/astro-services-page-1-20261112-213933",
+          "requests": 10,
+          "tool_result_chars": {
+            "Skill": 79,
+            "Read": 1705,
+            "Bash": 15139,
+            "Write": 424,
+            "Edit": 750
+          }
         },
         {
           "index": 2,
@@ -114,7 +122,16 @@
               "unit_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/astro-services-page-2-20261112-213933"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/astro-services-page-2-20261112-213933",
+          "requests": 12,
+          "tool_result_chars": {
+            "Skill": 79,
+            "Read": 4176,
+            "Bash": 15236,
+            "Edit": 1014,
+            "Write": 424,
+            "Grep": 1235
+          }
         },
         {
           "index": 3,
@@ -172,7 +189,15 @@
               "unit_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/astro-services-page-3-20261112-213933"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/astro-services-page-3-20261112-213933",
+          "requests": 14,
+          "tool_result_chars": {
+            "Skill": 79,
+            "Read": 5167,
+            "Bash": 22130,
+            "Edit": 1080,
+            "Write": 424
+          }
         }
       ],
       "summary": {
@@ -187,6 +212,48 @@
           "median": 23,
           "min": 19,
           "max": 25
+        },
+        "requests": {
+          "median": 12,
+          "min": 10,
+          "max": 14
+        },
+        "tool_result_chars": {
+          "median": 22164,
+          "min": 18097,
+          "max": 28880
+        },
+        "tool_result_chars_by_tool": {
+          "Bash": {
+            "median": 15236,
+            "min": 15139,
+            "max": 22130
+          },
+          "Edit": {
+            "median": 1014,
+            "min": 750,
+            "max": 1080
+          },
+          "Grep": {
+            "median": 0,
+            "min": 0,
+            "max": 1235
+          },
+          "Read": {
+            "median": 4176,
+            "min": 1705,
+            "max": 5167
+          },
+          "Skill": {
+            "median": 79,
+            "min": 79,
+            "max": 79
+          },
+          "Write": {
+            "median": 424,
+            "min": 424,
+            "max": 424
+          }
         },
         "tokens": {
           "input": {
@@ -288,7 +355,14 @@
               "TDD-1": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/review-planted-1-20261112-214148"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/review-planted-1-20261112-214148",
+          "requests": 8,
+          "tool_result_chars": {
+            "Bash": 8490,
+            "Read": 32944,
+            "Glob": 2909,
+            "Grep": 3609
+          }
         },
         {
           "index": 2,
@@ -338,7 +412,14 @@
               "TDD-1": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/review-planted-2-20261112-214154"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/review-planted-2-20261112-214154",
+          "requests": 7,
+          "tool_result_chars": {
+            "Bash": 9177,
+            "Read": 19819,
+            "Glob": 380,
+            "Grep": 2299
+          }
         },
         {
           "index": 3,
@@ -387,7 +468,13 @@
               "TDD-1": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/review-planted-3-20261112-214201"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/review-planted-3-20261112-214201",
+          "requests": 8,
+          "tool_result_chars": {
+            "Bash": 11462,
+            "Read": 19819,
+            "Glob": 2431
+          }
         }
       ],
       "summary": {
@@ -402,6 +489,38 @@
           "median": 12,
           "min": 12,
           "max": 16
+        },
+        "requests": {
+          "median": 8,
+          "min": 7,
+          "max": 8
+        },
+        "tool_result_chars": {
+          "median": 33712,
+          "min": 31675,
+          "max": 47952
+        },
+        "tool_result_chars_by_tool": {
+          "Bash": {
+            "median": 9177,
+            "min": 8490,
+            "max": 11462
+          },
+          "Glob": {
+            "median": 2431,
+            "min": 380,
+            "max": 2909
+          },
+          "Grep": {
+            "median": 2299,
+            "min": 0,
+            "max": 3609
+          },
+          "Read": {
+            "median": 19819,
+            "min": 19819,
+            "max": 32944
+          }
         },
         "tokens": {
           "input": {
@@ -526,7 +645,16 @@
               "architecture_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-community-by-slug-1-20261112-214300"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-community-by-slug-1-20261112-214300",
+          "requests": 22,
+          "tool_result_chars": {
+            "Bash": 7126,
+            "Skill": 173,
+            "Read": 78542,
+            "Edit": 2753,
+            "Write": 3067,
+            "Grep": 131
+          }
         },
         {
           "index": 2,
@@ -602,7 +730,17 @@
               "architecture_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-community-by-slug-2-20261112-214311"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-community-by-slug-2-20261112-214311",
+          "requests": 19,
+          "tool_result_chars": {
+            "Bash": 13260,
+            "Skill": 173,
+            "Read": 45214,
+            "Glob": 14,
+            "Grep": 1157,
+            "Edit": 3243,
+            "Write": 2995
+          }
         },
         {
           "index": 3,
@@ -678,7 +816,16 @@
               "architecture_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-community-by-slug-3-20261112-214317"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-community-by-slug-3-20261112-214317",
+          "requests": 20,
+          "tool_result_chars": {
+            "Bash": 24188,
+            "Skill": 173,
+            "Read": 52356,
+            "Grep": 1839,
+            "Edit": 3243,
+            "Write": 2995
+          }
         }
       ],
       "summary": {
@@ -693,6 +840,53 @@
           "median": 64,
           "min": 63,
           "max": 69
+        },
+        "requests": {
+          "median": 20,
+          "min": 19,
+          "max": 22
+        },
+        "tool_result_chars": {
+          "median": 84794,
+          "min": 66056,
+          "max": 91792
+        },
+        "tool_result_chars_by_tool": {
+          "Bash": {
+            "median": 13260,
+            "min": 7126,
+            "max": 24188
+          },
+          "Edit": {
+            "median": 3243,
+            "min": 2753,
+            "max": 3243
+          },
+          "Glob": {
+            "median": 0,
+            "min": 0,
+            "max": 14
+          },
+          "Grep": {
+            "median": 1157,
+            "min": 131,
+            "max": 1839
+          },
+          "Read": {
+            "median": 52356,
+            "min": 45214,
+            "max": 78542
+          },
+          "Skill": {
+            "median": 173,
+            "min": 173,
+            "max": 173
+          },
+          "Write": {
+            "median": 2995,
+            "min": 2995,
+            "max": 3067
+          }
         },
         "tokens": {
           "input": {
@@ -819,7 +1013,16 @@
               "architecture_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-rename-community-1-20261112-214603"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-rename-community-1-20261112-214603",
+          "requests": 32,
+          "tool_result_chars": {
+            "Bash": 15529,
+            "Skill": 173,
+            "Read": 53363,
+            "Edit": 5715,
+            "Write": 2547,
+            "Grep": 15
+          }
         },
         {
           "index": 2,
@@ -898,7 +1101,16 @@
               "architecture_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-rename-community-2-20261112-214613"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-rename-community-2-20261112-214613",
+          "requests": 25,
+          "tool_result_chars": {
+            "Bash": 14833,
+            "Skill": 173,
+            "Read": 54830,
+            "Edit": 5601,
+            "Write": 3028,
+            "Grep": 293
+          }
         },
         {
           "index": 3,
@@ -975,7 +1187,16 @@
               "architecture_tests": true
             }
           },
-          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-rename-community-3-20261112-214631"
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.11.0-indice/rust-rename-community-3-20261112-214631",
+          "requests": 31,
+          "tool_result_chars": {
+            "Bash": 15028,
+            "Skill": 173,
+            "Read": 54506,
+            "Grep": 131,
+            "Edit": 5987,
+            "Write": 2781
+          }
         }
       ],
       "summary": {
@@ -990,6 +1211,48 @@
           "median": 81,
           "min": 80,
           "max": 87
+        },
+        "requests": {
+          "median": 31,
+          "min": 25,
+          "max": 32
+        },
+        "tool_result_chars": {
+          "median": 78606,
+          "min": 77342,
+          "max": 78758
+        },
+        "tool_result_chars_by_tool": {
+          "Bash": {
+            "median": 15028,
+            "min": 14833,
+            "max": 15529
+          },
+          "Edit": {
+            "median": 5715,
+            "min": 5601,
+            "max": 5987
+          },
+          "Grep": {
+            "median": 131,
+            "min": 15,
+            "max": 293
+          },
+          "Read": {
+            "median": 54506,
+            "min": 53363,
+            "max": 54830
+          },
+          "Skill": {
+            "median": 173,
+            "min": 173,
+            "max": 173
+          },
+          "Write": {
+            "median": 2781,
+            "min": 2547,
+            "max": 3028
+          }
         },
         "tokens": {
           "input": {

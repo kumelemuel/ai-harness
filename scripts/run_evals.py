@@ -149,6 +149,8 @@ class SessionMetrics:
     permission_denials: int
     result_text: str
     api_error_status: int | None
+    requests: int = 0
+    tool_result_chars: dict[str, int] = field(default_factory=dict)
 
 
 def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetrics:
@@ -161,6 +163,9 @@ def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetri
     """
     result: dict | None = None
     tools: dict[str, int] = {}
+    tool_names: dict[str, str] = {}
+    result_chars: dict[str, int] = {}
+    responses: set[str] = set()
     skills: list[str] = []
     subagents: list[str] = []
     files: set[str] = set()
@@ -171,12 +176,19 @@ def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetri
             continue
         if event.get("type") == "result":
             result = event
+        if event.get("type") == "user":
+            _add_result_chars(event, tool_names, result_chars)
         if event.get("type") != "assistant":
             continue
+        message_id = event.get("message", {}).get("id")
+        if message_id:
+            responses.add(message_id)
         for block in event.get("message", {}).get("content", []):
             if block.get("type") != "tool_use":
                 continue
             name = block.get("name", "")
+            if block.get("id"):
+                tool_names[block["id"]] = name
             tool_input = block.get("input") or {}
             tools[name] = tools.get(name, 0) + 1
             if name == "Skill" and tool_input.get("skill"):
@@ -206,7 +218,26 @@ def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetri
         permission_denials=len((result or {}).get("permission_denials", [])),
         result_text=(result or {}).get("result", ""),
         api_error_status=(result or {}).get("api_error_status"),
+        requests=len(responses),
+        tool_result_chars=result_chars,
     )
+
+
+def _add_result_chars(event: dict, tool_names: dict[str, str], totals: dict[str, int]) -> None:
+    """Caracteres que cada herramienta devolvió al contexto: lo que se escribe en caché."""
+    content = event.get("message", {}).get("content")
+    if not isinstance(content, list):
+        return
+    for block in content:
+        if not isinstance(block, dict) or block.get("type") != "tool_result":
+            continue
+        body = block.get("content")
+        if isinstance(body, list):
+            size = sum(len(part.get("text", "")) for part in body if isinstance(part, dict))
+        else:
+            size = len(body or "")
+        name = tool_names.get(block.get("tool_use_id", ""), "?")
+        totals[name] = totals.get(name, 0) + size
 
 
 def _relative(file_path: str, workdir: Path, harness: Path) -> str:
@@ -278,6 +309,12 @@ def summarize(all_runs: list[dict]) -> dict:
         "invalid": len(all_runs) - total,
         "cost_usd": spread([r["cost_usd"] for r in runs]),
         "turns": spread([r["turns"] for r in runs]),
+        "requests": spread([r["requests"] for r in runs if "requests" in r]),
+        "tool_result_chars": spread([sum(r["tool_result_chars"].values()) for r in runs if "tool_result_chars" in r]),
+        "tool_result_chars_by_tool": {
+            tool: spread([r["tool_result_chars"].get(tool, 0) for r in runs if "tool_result_chars" in r])
+            for tool in sorted({t for r in runs for t in r.get("tool_result_chars", {})})
+        },
         "tokens": {k: spread([r["tokens"][k] for r in runs]) for k in ("input", "output", "cache_read", "cache_write")},
         "files_read": spread([len(r["files_read"]) for r in runs]),
         "harness_files_read": spread([r["harness_files_read"] for r in runs]),
@@ -306,9 +343,10 @@ def _fmt(value: dict | None, money: bool = False, thousands: bool = False) -> st
 def render_table(results: list[dict]) -> str:
     """Tabla Markdown: mediana y, entre paréntesis, el rango."""
     header = (
-        "| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Entrada | Salida "
-        "| Caché leída | Caché escrita | Archivos leídos | Del harness | Bloqueos de hooks |\n"
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|"
+        "| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida "
+        "| Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness "
+        "| Bloqueos de hooks |\n"
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
     )
     rows = [header]
     for result in results:
@@ -319,9 +357,10 @@ def render_table(results: list[dict]) -> str:
             invalid = f" (+{s['invalid']} inválida)" if s.get("invalid") else ""
             rows.append(
                 f"| {kata} | {config} | {result['model']} | {s['acceptance']}{invalid} | {_fmt(s['cost_usd'], money=True)} "
-                f"| {_fmt(s['turns'])} | {_fmt(tokens['input'])} | {_fmt(tokens['output'], thousands=True)} "
+                f"| {_fmt(s['turns'])} | {_fmt(s.get('requests'))} | {_fmt(tokens['input'])} "
+                f"| {_fmt(tokens['output'], thousands=True)} "
                 f"| {_fmt(tokens['cache_read'], thousands=True)} | {_fmt(tokens['cache_write'], thousands=True)} "
-                f"| {_fmt(s['files_read'])} | {_fmt(s['harness_files_read'])} | {_fmt(s['hook_blocks'])} |"
+                f"| {_fmt(s.get('tool_result_chars'), thousands=True)} | {_fmt(s['files_read'])} | {_fmt(s['harness_files_read'])} | {_fmt(s['hook_blocks'])} |"
             )
     return "\n".join(rows)
 
@@ -472,6 +511,8 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
         "tools": metrics.tools,
         "permission_denials": metrics.permission_denials,
         "api_error_status": metrics.api_error_status,
+        "requests": metrics.requests,
+        "tool_result_chars": metrics.tool_result_chars,
         "hook_blocks": parse_hook_log(hook_log.read_text(encoding="utf-8")),
         "acceptance": {"passed": verdict.passed, "checks": verdict.checks},
         "raw": str(run_dir),

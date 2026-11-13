@@ -85,6 +85,28 @@ class Stream(unittest.TestCase):
         self.assertTrue(metrics.is_error)
         self.assertEqual(0, metrics.turns)
 
+    def test_requests_are_distinct_api_responses(self) -> None:
+        """`num_turns` no cuenta peticiones: Skill y Read en paralelo son una sola."""
+        metrics = recorded_stream()
+        self.assertEqual(2, metrics.requests)
+        self.assertEqual(4, metrics.turns)
+
+    def test_tool_result_size_is_summed_per_tool(self) -> None:
+        self.assertEqual({"Skill": 34, "Read": 9}, recorded_stream().tool_result_chars)
+
+    def test_tool_result_size_accepts_block_lists_and_unknown_ids(self) -> None:
+        lines = [
+            json.dumps({"type": "assistant", "message": {"id": "m1", "content": [
+                {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "ls"}}]}}),
+            json.dumps({"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "t1",
+                 "content": [{"type": "text", "text": "abc"}, {"type": "text", "text": "de"}]},
+                {"type": "tool_result", "tool_use_id": "t9", "content": "xyz"}]}}),
+        ]
+        metrics = run_evals.parse_stream(lines, RECORDED_WORKDIR, RECORDED_HARNESS)
+        self.assertEqual({"Bash": 5, "?": 3}, metrics.tool_result_chars)
+        self.assertEqual(1, metrics.requests)
+
     def test_api_error_status_is_kept(self) -> None:
         lines = [json.dumps({"type": "result", "num_turns": 1, "is_error": True, "api_error_status": 429})]
         metrics = run_evals.parse_stream(lines, RECORDED_WORKDIR, RECORDED_HARNESS)
@@ -229,6 +251,20 @@ class Summary(unittest.TestCase):
         self.assertEqual([2, 3], run_evals.pending_indices(existing, runs=3))
         self.assertEqual([1, 2, 3], run_evals.pending_indices([], runs=3))
 
+    def test_summary_includes_requests_and_tool_result_size(self) -> None:
+        runs = [_run(1.0, 10, 100, 3, True), _run(3.0, 30, 300, 5, True)]
+        runs[0].update(requests=4, tool_result_chars={"Read": 1000, "Bash": 500})
+        runs[1].update(requests=8, tool_result_chars={"Read": 3000})
+        summary = run_evals.summarize(runs)
+        self.assertEqual({"median": 6.0, "min": 4, "max": 8}, summary["requests"])
+        self.assertEqual({"median": 2250.0, "min": 1500, "max": 3000}, summary["tool_result_chars"])
+        self.assertEqual({"median": 2000.0, "min": 1000, "max": 3000}, summary["tool_result_chars_by_tool"]["Read"])
+
+    def test_old_runs_without_the_new_metrics_still_summarize(self) -> None:
+        summary = run_evals.summarize([_run(1.0, 10, 100, 3, True)])
+        self.assertIsNone(summary["requests"])
+        self.assertIsNone(summary["tool_result_chars"])
+
     def test_table_has_one_row_per_kata(self) -> None:
         results = {
             "version": "0.11.0",
@@ -240,6 +276,8 @@ class Summary(unittest.TestCase):
         self.assertIn("| rust-rename | 0.11.0-base | claude-opus-5-5 |", table)
         self.assertIn("1/1", table)
         self.assertIn("$1.50", table)
+        self.assertIn("Peticiones", table)
+        self.assertIn("Resultados de herramientas", table)
 
 
 def _assistant_tool(name: str, tool_input: dict, parent: str | None = None) -> str:
