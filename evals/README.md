@@ -170,6 +170,77 @@ hallazgo) y solo adapta el parseo. La única variable respecto de
   en Sonnet. `site-auditor` cambia de formato pero no de modelo, porque no
   tiene una kata equivalente.
 
+#### Revisión cruzada: Sonnet implementa, Opus revisa
+
+`run_evals.py review` reconstruye el diff final de cada corrida (la plantilla
+más el `diff.patch` que guarda el runner, contra su commit inicial) y lo revisa
+con `architecture-reviewer` en Opus, con el formato estricto. Se corrió sobre
+`rust-rename-community`: 3 corridas de Opus como control y 3 de Sonnet.
+
+Implementaciones:
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-rename-community | 0.12.0-diffs-opus | claude-opus-5-5 | 3/3 | $1.49 ($1.33–$1.63) | 77 (74–78) | 21 (20–27) | 42 (40–54) | 25k (24k–26k) | 1335k (1126k–1859k) | 91k (78k–93k) | 115k (85k–117k) | 28 (25–30) | 0 | 0 |
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-rename-community | 0.12.0-diffs-sonnet | claude-sonnet-5-5 | 3/3 | $0.64 ($0.52–$0.67) | 64 (64–75) | 19 (12–22) | 38 (24–44) | 23k (19k–25k) | 1118k (544k–1193k) | 73k (69k–77k) | 76k (73k–79k) | 24 (13–26) | 0 | 0 |
+
+Revisiones (Opus) de esos diffs:
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-rename-community-revision | 0.12.0-revision-de-opus | claude-opus-5-5 | 3/3 | $0.47 ($0.41–$0.52) | 24 (23–26) | 14 (13–15) | 28 (26–30) | 7k (6k–8k) | 320k (290k–340k) | 33k (29k–36k) | 58k (52k–63k) | 10 (9–12) | 0 | 0 |
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-rename-community-revision | 0.12.0-revision-de-sonnet | claude-opus-5-5 | 3/3 | $0.45 ($0.43–$0.47) | 24 (22–24) | 13 (12–14) | 26 (24–28) | 7k (6k–7k) | 273k (234k–300k) | 30k (30k–37k) | 55k (51k–56k) | 11 | 0 | 0 |
+
+Hallazgos, clasificados a mano (pendientes de revisión):
+
+| Diff de | Corrida | Hallazgo | Clasificación | Justificación |
+|---|---|---|---|---|
+| Opus | 1 | HEX-7 `api/src/rename_community.rs:85` | falso positivo | El endpoint traduce una hoja `Forbidden` a su mensaje y código; es traducción de transporte, no una decisión de negocio |
+| Opus | 1 | TDD-1 `apps/server/src/main.rs:47` | falso positivo | Cablear sin test es la convención de la plantilla (`server` no tiene tests), y el revisor lo admite |
+| Opus | 2, 3 | ninguno | — | — |
+| Sonnet | 1 | TDD-1 `rename_community/handler.rs:46` | válido | Ningún test cubre que un fallo de `save` se propague como `Unexpected`: el doble falla ya en `find_by_id` |
+| Sonnet | 2 | ninguno | — | — |
+| Sonnet | 3 | TDD-1 `apps/server/src/main.rs:47` | falso positivo | El mismo caso que en el diff de Opus, corrida 1 |
+
+**Hallazgos válidos por corrida:** Opus 0, 0, 0; Sonnet 1, 0, 0.
+
+**Costo combinado** (medianas):
+
+| Flujo | Costo |
+|---|---|
+| Opus implementa | $1.49 |
+| Sonnet implementa ($0.64) + Opus revisa ($0.45) | $1.09 |
+
+**Recomendación:** en esta kata los hallazgos válidos son comparables, así que
+conviene "Sonnet implementa, Opus revisa", que cuesta un 27 % menos que Opus
+solo.
+
+**Salvedad:** el revisor corrió sin sus skills (ver "Limitación: `--agent`
+no precarga skills"). Hay que repetirlo en modo subagente antes de adoptar el
+flujo.
+
+#### Limitación: `--agent` no precarga skills
+
+Una sesión con `--agent craft-backend:architecture-reviewer` **no carga** las
+`skills:` de su frontmatter. Invocado como subagente desde una sesión
+principal, sí las carga. Verificado con Haiku y sin herramientas, pidiendo
+copiar una línea de `hexagonal-architecture`:
+
+- con `--agent`, la sesión responde `NO-CARGADA`;
+- como subagente, la copia literalmente.
+
+Todas las mediciones del revisor (`review-planted` y estas revisiones)
+midieron un revisor sin skills, que nunca llamó a `Skill` y que en 7
+reportes dice no encontrarlas. `CLAUDE_CODE_SUBAGENT_MODEL` no se impone a
+`model:`: medir el subagente con otro modelo requiere cambiar su `model:`
+por configuración.
+
 ### Índice de ejemplos (revertido)
 
 `references/exemplars.md` en `rust-stack` y `astro-stack`, con los `SKILL.md`

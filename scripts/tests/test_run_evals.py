@@ -181,6 +181,61 @@ class Copy(unittest.TestCase):
             self.assertGreater(copied.stat().st_mtime, before)
 
 
+class Diff(unittest.TestCase):
+    def test_saves_changes_and_new_files_against_the_initial_commit(self) -> None:
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work, out = Path(tmp) / "w", Path(tmp) / "diff.patch"
+            work.mkdir()
+            (work / "a.rs").write_text("uno\n")
+            run_evals.git(work, "init", "-q")
+            run_evals.git(work, "add", "-A")
+            run_evals.git(work, "commit", "-qm", "plantilla")
+            (work / "a.rs").write_text("dos\n")
+            (work / "b.rs").write_text("nuevo\n")
+
+            run_evals.save_diff(work, out)
+
+            patch = out.read_text()
+            self.assertIn("+dos", patch)
+            self.assertIn("b.rs", patch)
+            # El árbol queda como estaba: nada en el índice.
+            staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=work,
+                                    capture_output=True, text=True).stdout
+            self.assertEqual("", staged)
+
+
+class Findings(unittest.TestCase):
+    REPORT = """# Revisión
+
+HEX-7 | contexts/x/handler.rs:12 | regla de negocio en el handler
+  Por qué importa: se duplica.
+- `TDD-1` | contexts/x/handler.rs:12 | sin test
+Texto suelto con ERR-2 | que no es hallazgo
+RS-2 | a.rs:3 | `expect` sobre input | con barra
+"""
+
+    def test_one_finding_per_line_with_its_indented_detail(self) -> None:
+        found = run_evals.parse_findings(self.REPORT)
+        self.assertEqual(
+            [("HEX-7", "contexts/x/handler.rs:12"), ("TDD-1", "contexts/x/handler.rs:12"), ("RS-2", "a.rs:3")],
+            [(f["id"], f["path"]) for f in found],
+        )
+        self.assertIn("se duplica", found[0]["text"])
+        self.assertIn("con barra", found[2]["text"])
+
+    def test_review_kata_applies_the_patch_over_the_template(self) -> None:
+        source = run_evals.load_kata(FIXTURES / "kata_valid")
+        review = run_evals.review_kata(source, Path("/runs/x/diff.patch"))
+        self.assertEqual("craft-backend:architecture-reviewer", review.agent)
+        self.assertEqual(source.template, review.template)
+        self.assertEqual(["git apply /runs/x/diff.patch", *source.setup], review.expanded_setup())
+        self.assertEqual(source.env, review.env)
+        self.assertEqual("kata_valid-revision", review.name)
+
+
 class HookLog(unittest.TestCase):
     def test_counts_blocks_by_mode(self) -> None:
         text = (FIXTURES / "hooks.log").read_text(encoding="utf-8")

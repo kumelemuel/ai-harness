@@ -11,7 +11,14 @@
   corridas, por $0.08 contra $0.34 de Opus. Reporta 3 hallazgos extra con el ID
   equivocado.
 
+### Agregado
+- **`run_evals.py review`** y `diff.patch` por corrida: revisa con
+  `architecture-reviewer` el diff final de cada corrida de una configuración.
+
 ### Katas
+- Revisión cruzada de `rust-rename-community` (revisor Opus, sin skills por
+  `--agent`): hallazgos válidos por corrida, Opus 0/0/0 y Sonnet 1/0/0. "Sonnet
+  implementa, Opus revisa" cuesta $1.09, contra $1.49 de "Opus implementa".
 - `review-planted`, formato nuevo: Opus 3/3 ($0.34, 15 turnos); Sonnet 3/3
   ($0.08, 4 turnos).
 

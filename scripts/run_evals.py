@@ -368,6 +368,47 @@ def render_table(results: list[dict]) -> str:
 # --- Ejecución (sesiones reales) --------------------------------------------
 
 
+FINDING = re.compile(r"^[-*\s]*`?([A-Z]+-\d+)`?\s*\|\s*([^|]+?)\s*\|\s*(.*)$")
+
+
+def parse_findings(report: str) -> list[dict]:
+    """Hallazgos del formato de los revisores: `ID | ruta:línea | descripción`,
+    con las líneas indentadas que lo siguen como detalle."""
+    found: list[dict] = []
+    current: dict | None = None
+    for line in report.splitlines():
+        match = FINDING.match(line)
+        if match:
+            current = {"id": match.group(1), "path": match.group(2), "text": match.group(3)}
+            found.append(current)
+        elif current is not None and line.startswith((" ", "\t")) and line.strip():
+            current["text"] += "\n" + line.strip()
+        elif line.strip():
+            current = None
+    return found
+
+
+REVIEW_AGENT = "craft-backend:architecture-reviewer"
+REVIEW_PROMPT = "Revisa el diff actual (cambios sin commit) antes de que lo suba.\n"
+
+
+def review_kata(source: Kata, patch: Path) -> Kata:
+    """La revisión del diff de una corrida: la plantilla de la kata con el parche
+    aplicado sin commit, y la sesión como `architecture-reviewer`."""
+    return Kata(
+        name=f"{source.name}-revision",
+        path=source.path,
+        prompt=REVIEW_PROMPT,
+        template=source.template,
+        plugins=["craft-backend"],
+        acceptance="python3 -c \"print('PASS reporte')\"",
+        setup=[f"git apply {patch}", *source.setup],
+        env=dict(source.env),
+        timeout_minutes=20,
+        agent=REVIEW_AGENT,
+    )
+
+
 def harness_version() -> str:
     for line in (REPO / "CHANGELOG.md").read_text(encoding="utf-8").splitlines():
         match = re.match(r"^## (\d+\.\d+\.\d+)", line)
@@ -411,6 +452,15 @@ def project_settings(plugins: list[str]) -> dict:
     for plugin in plugins:
         enabled[f"{plugin}@{MARKETPLACE}"] = True
     return {"enabledPlugins": enabled}
+
+
+def save_diff(workdir: Path, target: Path) -> None:
+    """El cambio de la corrida contra su commit inicial, archivos nuevos incluidos."""
+    git(workdir, "add", "-A")
+    patch = subprocess.run(["git", "diff", "--cached", "--binary"], cwd=workdir,
+                           capture_output=True, check=True).stdout
+    target.write_bytes(patch)
+    git(workdir, "reset", "-q")
 
 
 def git(workdir: Path, *args: str) -> None:
@@ -481,6 +531,7 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
 
     diff = subprocess.run(["git", "status", "--porcelain"], cwd=workdir, capture_output=True, text=True).stdout
     (run_dir / "changes.txt").write_text(diff, encoding="utf-8")
+    save_diff(workdir, run_dir / "diff.patch")
 
     shutil.copytree(kata.path / "acceptance", workdir / "acceptance", dirs_exist_ok=True)
     log(kata, index, "aceptación")
@@ -515,6 +566,7 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
         "tool_result_chars": metrics.tool_result_chars,
         "hook_blocks": parse_hook_log(hook_log.read_text(encoding="utf-8")),
         "acceptance": {"passed": verdict.passed, "checks": verdict.checks},
+        "findings": parse_findings(metrics.result_text),
         "raw": str(run_dir),
     }
     log(kata, index, f"listo: aceptación={'sí' if verdict.passed else 'no'} costo=${metrics.cost_usd:.2f} "
@@ -550,12 +602,20 @@ def command_run(args: argparse.Namespace) -> int:
         indices = pending_indices(existing, args.runs)
         runs[kata.name] = [r for r in existing if r["index"] not in indices]
         jobs += [(kata, i) for i in indices]
+    execute(jobs, runs, args)
+    save_results(output, data, runs, args)
+    return 0
+
+
+def execute(jobs: list[tuple[Kata, int]], runs: dict[str, list[dict]], args: argparse.Namespace) -> None:
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as pool:
         futures = {pool.submit(run_once, k, i, args.model, args.label, args.budget, args.keep): k
                    for k, i in jobs}
         for future in concurrent.futures.as_completed(futures):
             runs[futures[future].name].append(future.result())
 
+
+def save_results(output: Path, data: dict, runs: dict[str, list[dict]], args: argparse.Namespace) -> None:
     data.update({
         "version": harness_version(),
         "label": args.label,
@@ -570,6 +630,34 @@ def command_run(args: argparse.Namespace) -> int:
     output.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(render_table([data]))
     print(f"\n{output.relative_to(REPO)}")
+
+
+def command_review(args: argparse.Namespace) -> int:
+    """Revisa con `architecture-reviewer` el diff final de cada corrida de un resultado."""
+    source = json.loads(Path(args.results).read_text(encoding="utf-8"))
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    output = RESULTS / f"{harness_version()}-{args.label}.json"
+    data = json.loads(output.read_text(encoding="utf-8")) if output.is_file() else {"katas": {}}
+    runs: dict[str, list[dict]] = {}
+    jobs: list[tuple[Kata, int]] = []
+    for kata_name in args.kata:
+        kata = load_kata(EVALS / kata_name)
+        name = f"{kata_name}-revision"
+        existing = [] if args.fresh else data["katas"].get(name, {}).get("runs", [])
+        done = {r["index"] for r in existing if is_valid(r)}
+        runs[name] = [r for r in existing if r["index"] in done]
+        for run in source["katas"][kata_name]["runs"]:
+            patch = Path(run["raw"]) / "diff.patch"
+            if not is_valid(run) or run["index"] in done:
+                continue
+            if not patch.is_file():
+                raise SystemExit(f"{kata_name}#{run['index']}: no hay {patch}; vuelve a correr la kata")
+            jobs.append((review_kata(kata, patch), run["index"]))
+    execute(jobs, runs, args)
+    for name, kata_runs in runs.items():
+        for run in kata_runs:
+            run["source"] = f"{Path(args.results).name}#{run['index']}"
+    save_results(output, data, runs, args)
     return 0
 
 
@@ -592,6 +680,16 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--fresh", action="store_true", help="repite también las ejecuciones válidas")
     run.add_argument("--keep", action="store_true", help="conserva el directorio de trabajo")
     run.set_defaults(func=command_run)
+    review = sub.add_parser("review", help="revisa con architecture-reviewer el diff de cada corrida")
+    review.add_argument("results", help="resultado cuyas corridas se revisan (evals/results/….json)")
+    review.add_argument("--kata", action="append", required=True)
+    review.add_argument("--model", required=True)
+    review.add_argument("--label", required=True)
+    review.add_argument("--parallel", type=int, default=1)
+    review.add_argument("--budget", type=float, default=5.0)
+    review.add_argument("--fresh", action="store_true")
+    review.add_argument("--keep", action="store_true")
+    review.set_defaults(func=command_review)
     table = sub.add_parser("table", help="tabla Markdown de uno o más resultados")
     table.add_argument("results", nargs="+")
     table.set_defaults(func=command_table)
