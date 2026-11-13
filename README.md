@@ -14,7 +14,9 @@ stacks/                 Traducción por stack; rust/template y astro/template so
 templates/web/          Proceso comercial: descubrimiento, spec, cotización, entrega
 plugins/craft-backend/  Plugin de Claude Code: hexagonal, errores, TDD, Rust
 plugins/craft-web/      Plugin de Claude Code: principios WEB, Astro, proceso comercial
-scripts/                Verificador de consistencia del harness y sus tests
+scripts/                Verificador de consistencia, runner de katas y sus tests
+evals/                  Katas: corrección y consumo con sesiones reales
+CLAUDE.md               Cómo se hace un cambio en este repo
 .claude-plugin/         Este repo funciona como marketplace de plugins
 ```
 
@@ -67,6 +69,7 @@ python3 -m unittest discover -s scripts/tests          # tests del verificador
 | `FRONTMATTER` | Un `SKILL.md` o subagente sin `name` o `description`, o con un `name` que no coincide con su carpeta o archivo |
 | `STACK-PATH` | Una ruta entre comillas invertidas en la descripción de una skill de stack que no existe en la plantilla |
 | `EXEMPLAR-PATH` | Una ruta entre comillas invertidas en una tabla del índice de ejemplos (`references/exemplars.md`) de una skill de stack que no existe en la plantilla |
+| `CLAUDE-MD-SIZE` | El `CLAUDE.md` de la raíz supera 800 palabras: es el procedimiento de trabajo, no un manual |
 | `STACK-STATUS` | Una versión de stack distinta en `stacks/README.md` y en su guía |
 | `VOLATILE-COUNT` | Un conteo de tests en la documentación (fuera del CHANGELOG) |
 | `MISSING-TEST` | Un test citado entre comillas invertidas en una sección "Verificación", en una tabla de Enforcement o en una fila `test` del inventario que no existe en la plantilla (o una fila `test` que no cita ninguno): una función con prefijo de principio (`hex_4_…`, admite `*`), con o sin archivo (`tests/naming.rs::hex_4_*`), o un archivo de test (`routes.test.ts`) |

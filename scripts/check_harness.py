@@ -23,6 +23,7 @@ Comprobaciones:
                  ejemplos (`references/exemplars.md` de una skill de stack) no
                  existe en la plantilla. Cuenta como ruta todo lo que lleve `/`;
                  admite `*`.
+  CLAUDE-MD-SIZE el `CLAUDE.md` de la raíz supera CLAUDE_MD_MAX_WORDS palabras
   STACK-STATUS   la versión de un stack en `stacks/README.md` no coincide con el
                  `**Estado:**` de su guía
   VOLATILE-COUNT un conteo de tests ("36 tests", "16 e2e") en la documentación.
@@ -386,6 +387,24 @@ def check_exemplars(root: Path, files: list[Path]) -> list[Problem]:
                         f"`{token}` no existe en la plantilla ({rel(root, template)})",
                     ))
     return problems
+
+
+# Se lee entero en cada sesión que trabaja en el harness: el procedimiento
+# cabe en ~600 palabras; el margen hasta 800 absorbe ajustes, no un manual.
+CLAUDE_MD_MAX_WORDS = 800
+
+
+def check_claude_md(root: Path) -> list[Problem]:
+    path = root / "CLAUDE.md"
+    if not path.is_file():
+        return []
+    words = len(re.findall(r"\w+", path.read_text(encoding="utf-8")))
+    if words <= CLAUDE_MD_MAX_WORDS:
+        return []
+    return [Problem(
+        "CLAUDE.md", 1, "CLAUDE-MD-SIZE",
+        f"{words} palabras, el límite es {CLAUDE_MD_MAX_WORDS}: enlaza en vez de copiar",
+    )]
 
 
 def check_stack_status(root: Path) -> list[Problem]:
@@ -839,6 +858,7 @@ def check(root: Path) -> list[Problem]:
         *check_frontmatter(root, files),
         *check_stack_descriptions(root, files),
         *check_exemplars(root, files),
+        *check_claude_md(root),
         *check_stack_status(root),
         *check_volatile_counts(root, files),
         *check_cited_tests(root, files),

@@ -102,6 +102,17 @@ class Frontmatter(unittest.TestCase):
         self.assertIn("revisor", messages)
 
 
+class ClaudeMd(unittest.TestCase):
+    def test_claude_md_over_the_word_limit_fails(self) -> None:
+        found = problems("claude_md_too_long")
+        self.assertEqual({("CLAUDE-MD-SIZE", "CLAUDE.md")}, summary("claude_md_too_long"))
+        self.assertIn("802", found[0].message)
+        self.assertIn(str(check_harness.CLAUDE_MD_MAX_WORDS), found[0].message)
+
+    def test_missing_claude_md_is_fine(self) -> None:
+        self.assertNotIn("CLAUDE-MD-SIZE", {p.code for p in problems("valid")})
+
+
 class Stacks(unittest.TestCase):
     def test_paths_in_stack_skill_description_exist_in_template(self) -> None:
         found = problems("stack_description_path")
