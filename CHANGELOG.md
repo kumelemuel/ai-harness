@@ -1,5 +1,20 @@
 # Changelog
 
+## Sin publicar
+
+### Cambiado
+- **Formato estricto de los revisores** (`architecture-reviewer`, `site-auditor`):
+  una línea `ID | ruta:línea | descripción` por hallazgo, un ID por línea. Los
+  hallazgos agrupados sin ruta hacían fallar la detección con los dos modelos.
+- **`architecture-reviewer` fija `model: claude-sonnet-5-5`** (HEX-7, ERR-2,
+  RS-2, TDD-1): con el formato nuevo detecta las 4 violaciones plantadas en 3/3
+  corridas, por $0.08 contra $0.34 de Opus. Reporta 3 hallazgos extra con el ID
+  equivocado.
+
+### Katas
+- `review-planted`, formato nuevo: Opus 3/3 ($0.34, 15 turnos); Sonnet 3/3
+  ($0.08, 4 turnos).
+
 ## 0.12.0 — 2026-11-13
 
 Plugins sin cambios: `craft-backend` 0.9.0 y `craft-web` 0.4.0. Esta versión publica

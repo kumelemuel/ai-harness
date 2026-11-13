@@ -1,10 +1,11 @@
 """Aceptación oculta de la kata de revisión.
 
 `planted.diff` compila y pasa clippy y todos los tests: solo un revisor puede
-ver estas violaciones. Cada una cuenta como detectada si el reporte tiene una
-línea con su ID y, en esa línea o en las siguientes del mismo hallazgo, el
-archivo y la pista que la identifican. Así, un ID mencionado de pasada ("TDD-1:
-sin hallazgos") no cuenta.
+ver estas violaciones. El reporte sigue el formato de `architecture-reviewer`:
+una línea `ID | ruta:línea | descripción` por hallazgo, con líneas indentadas
+debajo. Cada violación cuenta como detectada si un hallazgo tiene su ID, el
+archivo en su ruta y una pista en su texto. Un ID mencionado de pasada ("TDD-1:
+sin hallazgos") o un hallazgo sin ruta no cuenta.
 """
 
 from __future__ import annotations
@@ -21,16 +22,32 @@ PLANTED = {
     "RS-2": (["handler.rs"], ["expect", "split_once", "panic"]),
     "TDD-1": (["community_slug.rs"], []),
 }
-WINDOW = 6  # líneas del hallazgo después de la que tiene el ID
+# `ID | ruta:línea | descripción`, opcionalmente con viñeta o comillas invertidas.
+FINDING = re.compile(r"^[-*\s]*`?([A-Z]+-\d+)`?\s*\|\s*([^|]+?)\s*\|\s*(.*)$")
+
+
+def findings(report: list[str]) -> list[tuple[str, str, str]]:
+    """(ID, ruta, texto) por hallazgo. El texto suma las líneas indentadas que
+    lo siguen (`Por qué importa`, `Corrección`) hasta el próximo hallazgo."""
+    found: list[list[str]] = []
+    for line in report:
+        match = FINDING.match(line)
+        if match:
+            found.append([match.group(1), match.group(2), match.group(3)])
+        elif found and line.startswith((" ", "\t")) and line.strip():
+            found[-1][2] += "\n" + line.strip()
+        elif not line.strip():
+            continue
+        else:
+            found.append(["", "", ""])  # cierra el hallazgo anterior
+    return [(rule, path, text) for rule, path, text in found if rule]
 
 
 def detected(report: list[str], rule: str, files: list[str], hints: list[str]) -> bool:
-    id_pattern = re.compile(rf"\b{re.escape(rule)}\b")
-    for index, line in enumerate(report):
-        if not id_pattern.search(line):
+    for found_rule, path, text in findings(report):
+        if found_rule != rule or not any(f in path for f in files):
             continue
-        block = "\n".join(report[index : index + 1 + WINDOW])
-        if any(f in block for f in files) and (not hints or any(h in block for h in hints)):
+        if not hints or any(h in text for h in hints):
             return True
     return False
 

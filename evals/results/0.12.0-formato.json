@@ -1,0 +1,280 @@
+{
+  "katas": {
+    "review-planted": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 84,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.4058524,
+          "turns": 16,
+          "tokens": {
+            "input": 22,
+            "output": 5620,
+            "cache_read": 192782,
+            "cache_write": 31851
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 22,
+              "outputTokens": 5620,
+              "cacheReadInputTokens": 192782,
+              "cacheCreationInputTokens": 31851,
+              "costUSD": 0.4058524
+            }
+          },
+          "skills": [],
+          "subagents": [],
+          "files_read": [
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/domain/src/value_objects/community_slug.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Bash": 5,
+            "Glob": 3,
+            "Read": 4,
+            "Grep": 3
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 11,
+          "tool_result_chars": {
+            "Bash": 13742,
+            "Glob": 6249,
+            "Read": 22425,
+            "Grep": 6080
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": true
+            }
+          },
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-formato/review-planted-1-20261113-092017"
+        },
+        {
+          "index": 2,
+          "duration_s": 74,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.336619,
+          "turns": 12,
+          "tokens": {
+            "input": 14,
+            "output": 5044,
+            "cache_read": 84775,
+            "cache_write": 27341
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 14,
+              "outputTokens": 5044,
+              "cacheReadInputTokens": 84775,
+              "cacheCreationInputTokens": 27341,
+              "costUSD": 0.336619
+            }
+          },
+          "skills": [],
+          "subagents": [],
+          "files_read": [
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/domain/src/value_objects/community_slug.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Bash": 3,
+            "Read": 4,
+            "Glob": 4
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 7,
+          "tool_result_chars": {
+            "Bash": 8563,
+            "Read": 23747,
+            "Glob": 8645
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": true
+            }
+          },
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-formato/review-planted-2-20261113-092017"
+        },
+        {
+          "index": 3,
+          "duration_s": 52,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.32058680000000006,
+          "turns": 15,
+          "tokens": {
+            "input": 16,
+            "output": 4539,
+            "cache_read": 96114,
+            "cache_write": 26315
+          },
+          "models": {
+            "claude-opus-5-5": {
+              "inputTokens": 16,
+              "outputTokens": 4539,
+              "cacheReadInputTokens": 96114,
+              "cacheCreationInputTokens": 26315,
+              "costUSD": 0.32058680000000006
+            }
+          },
+          "skills": [],
+          "subagents": [],
+          "files_read": [
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/domain/src/value_objects/community_slug.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Bash": 3,
+            "Read": 5,
+            "Glob": 5,
+            "Grep": 1
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 8,
+          "tool_result_chars": {
+            "Bash": 8490,
+            "Read": 24799,
+            "Glob": 515,
+            "Grep": 5381
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": true
+            }
+          },
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-formato/review-planted-3-20261113-092017"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 0.336619,
+          "min": 0.32058680000000006,
+          "max": 0.4058524
+        },
+        "turns": {
+          "median": 15,
+          "min": 12,
+          "max": 16
+        },
+        "requests": {
+          "median": 8,
+          "min": 7,
+          "max": 11
+        },
+        "tool_result_chars": {
+          "median": 40955,
+          "min": 39185,
+          "max": 48496
+        },
+        "tool_result_chars_by_tool": {
+          "Bash": {
+            "median": 8563,
+            "min": 8490,
+            "max": 13742
+          },
+          "Glob": {
+            "median": 6249,
+            "min": 515,
+            "max": 8645
+          },
+          "Grep": {
+            "median": 5381,
+            "min": 0,
+            "max": 6080
+          },
+          "Read": {
+            "median": 23747,
+            "min": 22425,
+            "max": 24799
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 16,
+            "min": 14,
+            "max": 22
+          },
+          "output": {
+            "median": 5044,
+            "min": 4539,
+            "max": 5620
+          },
+          "cache_read": {
+            "median": 96114,
+            "min": 84775,
+            "max": 192782
+          },
+          "cache_write": {
+            "median": 27341,
+            "min": 26315,
+            "max": 31851
+          }
+        },
+        "files_read": {
+          "median": 4,
+          "min": 4,
+          "max": 5
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "acceptance": "3/3",
+        "checks": {
+          "HEX-7": "3/3",
+          "ERR-2": "3/3",
+          "RS-2": "3/3",
+          "TDD-1": "3/3"
+        }
+      }
+    }
+  },
+  "version": "0.12.0",
+  "label": "formato",
+  "model": "claude-opus-5-5",
+  "plugins": {
+    "craft-backend": "0.9.0",
+    "craft-web": "0.4.0"
+  },
+  "claude": "2.1.316 (Claude Code)",
+  "date": "2026-11-13"
+}

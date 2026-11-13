@@ -140,6 +140,36 @@ Opus, por menos de la mitad del costo ($0.58 contra $1.36 en Rust y $0.15
 contra $0.42 en Astro). La aceptación no ve lo que solo ve un revisor (HEX-7,
 TDD-1, ERR-2). Por eso la recomendación espera la revisión cruzada.
 
+#### Formato estricto del revisor
+
+`architecture-reviewer` y `site-auditor` exigen una línea por hallazgo:
+`ID | ruta:línea | descripción`, un ID por línea y el detalle indentado
+debajo. La aceptación conserva el criterio (ID, archivo y pista en el mismo
+hallazgo) y solo adapta el parseo. La única variable respecto de
+`0.11.0-base` y `0.11.0-sonnet` es el prompt del revisor.
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| review-planted | 0.12.0-formato | claude-opus-5-5 | 3/3 | $0.34 ($0.32–$0.41) | 15 (12–16) | 8 (7–11) | 16 (14–22) | 5k (5k–6k) | 96k (85k–193k) | 27k (26k–32k) | 41k (39k–48k) | 4 (4–5) | 0 | 0 |
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| review-planted | 0.12.0-formato-sonnet | claude-sonnet-5-5 | 3/3 | $0.08 ($0.08–$0.09) | 4 (4–5) | 4 | 8 | 2k (2k–3k) | 28k (28k–29k) | 13k (13k–16k) | 13k (10k–18k) | 0 (0–1) | 0 | 0 |
+
+- **Los dos modelos detectaron las 4 violaciones en las 3 corridas.** El
+  formato eliminó las omisiones por hallazgos agrupados, y Sonnet ya no
+  etiqueta como HEX-7 el cambio de `_`.
+- **Sonnet agregó 3 hallazgos con el ID equivocado,** en 2 de 3 corridas.
+  Son observaciones razonables sobre el 409 de `Reserved`, pero las etiquetó
+  como HEX-1, HEX-3 y HEX-8, que tratan de dependencias, puertos y kernel.
+  Opus no tuvo hallazgos fuera de las reglas plantadas.
+- **Costo:** Sonnet $0.08 contra $0.34 de Opus.
+- **Decisión:** se cumple la regla. `architecture-reviewer` fija
+  `model: claude-sonnet-5-5`. Verificado con una sesión real: la sesión
+  principal en Opus invoca al subagente, y `modelUsage` muestra al subagente
+  en Sonnet. `site-auditor` cambia de formato pero no de modelo, porque no
+  tiene una kata equivalente.
+
 ### Índice de ejemplos (revertido)
 
 `references/exemplars.md` en `rust-stack` y `astro-stack`, con los `SKILL.md`

@@ -67,11 +67,21 @@ en este orden:
 
 ## Formato del reporte
 
-Por cada hallazgo:
+Un hallazgo es **una línea**, con tres campos separados por ` | `:
 
-- **[ID] `ruta:línea`**: qué falla, en una frase.
-- **Por qué importa:** para el visitante o para el cliente.
-- **Corrección:** el texto o el cambio concreto que propones.
+```
+ID | ruta:línea | qué falla, en una frase
+  Por qué importa: para el visitante o para el cliente.
+  Corrección: el texto o el cambio concreto que propones.
+```
+
+- Un solo ID por línea. Si un problema viola varias reglas, escribe una línea
+  por ID, cada una con su ruta. Nunca `[A / B]` ni un ID sin ruta.
+- `ruta:línea` es el archivo concreto; si el problema abarca varios archivos,
+  una línea por archivo.
+- Las líneas `Por qué importa` y `Corrección` van indentadas debajo de su
+  hallazgo; no abren uno nuevo. Tablas o listas de apoyo van después de todos
+  los hallazgos, nunca en su lugar.
 
 Ordena de más a menos grave. Si el sitio está listo para entregar, dilo en una línea y
 lista solo lo que sigue pendiente en `delivery-checklist.md`.
