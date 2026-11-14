@@ -48,10 +48,11 @@ subagentes o principios, y anota el resultado en el CHANGELOG. No corren en CI.
   configuraciones no se solapan.
 - Un subagente se mide como subagente (`subagent` en `kata.toml`), no con
   `--agent`, que no precarga sus `skills:`.
-- **Fijar `model:` en un subagente** exige que el modelo más económico detecte
-  todas las violaciones plantadas en las 3 corridas, y que sus falsos positivos
-  y hallazgos con ID equivocado (clasificados a mano) no superen los del modelo
-  de referencia.
+- **El `model:` de un subagente es el que la medición respalda, en cualquier
+  dirección** (más económico o más capaz que la sesión). Lo respalda si detecta
+  todas las violaciones plantadas en las 3 corridas, y si sus falsos positivos
+  y hallazgos con ID equivocado (clasificados a mano) no superan los del otro
+  modelo medido. Sin `model:`, el subagente hereda el modelo de la sesión.
 - Los plugins cargan en su lugar, desde el clon: **no edites `plugins/` ni lo
   que enlazan mientras corre una kata**, o la medición mezcla dos versiones.
 - Una corrida cortada por la API queda inválida; vuelve a correr con la misma

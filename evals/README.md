@@ -278,9 +278,21 @@ mano.
 
 En contra: Opus 0, Sonnet 7.
 
-**Decisión:** Sonnet no cumple ni la detección ni la precisión.
-`architecture-reviewer` sigue sin `model:`, es decir, hereda el modelo de la
-sesión. Costo del revisor: Opus $0.22, Sonnet $0.05.
+**Decisión:** Sonnet no cumple ni la detección ni la precisión; Opus cumple
+las dos. `architecture-reviewer` fija `model: claude-opus-5-5` (la regla vale en
+cualquier dirección, ver `CLAUDE.md`). Sin la fijación, el flujo recomendado
+("Sonnet implementa, Opus revisa") correría el revisor en Sonnet, porque el
+subagente hereda el modelo de la sesión. Costo del revisor: Opus $0.22, Sonnet
+$0.05.
+
+**La fijación surte efecto** (`0.13.0-fijacion-opus`): la kata con la sesión
+principal en Sonnet y el plugin desde el clon, sin `--subagent-model`. Las 7
+peticiones del subagente corrieron en `claude-opus-5-5` (`modelUsage`: Opus
+$0.24, Sonnet $0.05) y la aceptación pasó.
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| review-planted-subagent | 0.13.0-fijacion-opus | claude-sonnet-5-5 | 1/1 | $0.29 | 2 | 7 | 4 | 0k | 27k | 12k | 33k | 0 | 0 | 0 |
 
 #### Revisión cruzada con el revisor como subagente
 
@@ -317,6 +329,13 @@ la misma kata, el mismo modelo y el mismo número de corrida, compartieron
 `CARGO_TARGET_DIR`. El revisor de la corrida 1 lo detectó: los tests que
 corrió eran de otro árbol. La lectura del diff es válida; las corridas de
 tests dentro de esas revisiones, no. `cache_slot` incluye ahora la etiqueta.
+
+**Consecuencias en 0.13.0:** los cuatro falsos positivos TDD-1 sobre
+`apps/server/src/main.rs` (dos en cada modo de revisión) llevaron a dejar escrito que el composition root no
+lleva test unitario propio (TDD-1 y el revisor). El `Spy` con nombre de `Stub`
+llevó a asignar la semántica de los prefijos de dobles al revisor
+(`core/verification.md`): el test de nombres ve el prefijo, no lo que hace el
+doble.
 
 ### Índice de ejemplos (archivado)
 

@@ -30,6 +30,25 @@ que hay una sola copia de cada principio.
 | `craft-backend` | Skills `hexagonal-architecture`, `error-handling`, `tdd` y `rust-stack`; subagente `architecture-reviewer`; hooks `PostToolUse` y `Stop` para workspaces Rust |
 | `craft-web` | Skills `web-principles`, `astro-stack` y `client-delivery`; subagente `site-auditor`; hooks `PostToolUse` y `Stop` para sitios Astro con `src/routes.ts` |
 
+## Modelos
+
+Flujo recomendado: **implementar con Sonnet y revisar con Opus**. La sesión
+principal corre en Sonnet (`claude --model claude-sonnet-5-5`) y, después de un
+cambio no trivial, invoca a `architecture-reviewer`, que tiene fijado
+`model: claude-opus-5-5`: corre en Opus aunque la sesión esté en Sonnet. Sin
+esa fijación heredaría el modelo de la sesión.
+
+| Flujo | Costo (renombre de una entidad, mediana) |
+|-------|------------------------------------------|
+| Sonnet implementa + Opus revisa | $1.13 ($0.64 + $0.49) |
+| Opus solo | $1.49 |
+
+Un 24 % menos, con hallazgos válidos comparables. Como revisor, Sonnet detectó
+las cuatro violaciones plantadas en 1 de 3 corridas, contra 3 de 3 de Opus, y
+sumó 7 falsos positivos o IDs equivocados, contra 0. `site-auditor` no tiene
+`model:`: no hay una kata que lo respalde. Las mediciones están en
+[`evals/README.md`](evals/README.md#modelos).
+
 ## Hooks
 
 `craft-backend` trae dos hooks que se activan solos en workspaces Rust con
