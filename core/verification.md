@@ -57,7 +57,8 @@ cambiaron de mecanismo.
 | TDD-1 | Test antes o junto a la producción (backend) | `revisor:architecture-reviewer` | Diff separado en producción y test, y orden de los commits |
 | TDD-1 | Test antes o junto a la producción (sitios) | `revisor:site-auditor` | Paso 8 del auditor |
 | TDD-2 | Los tests del núcleo no levantan runtime ni framework | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` (lee `[dev-dependencies]`) |
-| TDD-2 | Dobles con prefijo `Fake`, `Fixed`, `Stub` o `Spy` | `test` | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` |
+| TDD-2 | Dobles con prefijo `Fake`, `Fixed`, `Stub` o `Spy` (presencia del prefijo) | `test` | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` |
+| TDD-2 | Semántica de los prefijos: `Fake` con estado, `Fixed` y `Stub` con respuesta fija, `Spy` registra las llamadas | `revisor:architecture-reviewer` | Prioridad 5 del revisor: el prefijo de cada doble del diff dice lo que hace |
 | TDD-2 | Doble y adaptadores cumplen el mismo contrato | `herramienta` | `cargo test`: las baterías `{puerto}_contract!` corren contra el doble y cada adaptador. Sus casos los genera una macro: el verificador no puede citarlos |
 | TDD-2 | Forma de los tests: sin contenedor, fakes en vez de mocks, reglas no probadas por el endpoint | `revisor:architecture-reviewer` | Prioridad 5 del revisor |
 | VER-1 | Los tests de arquitectura corren en CI y no pasan en vacío | `herramienta` | `.github/workflows/harness.yml`, job `rust`, con `ARCH_REQUIRE_MATERIAL=1` |

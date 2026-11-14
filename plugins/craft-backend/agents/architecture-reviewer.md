@@ -56,6 +56,12 @@ arquitectura:
      producción o en el mismo commit, nunca después.
    - También: tests modificados para pasar sin justificación, y contenedor o
      mocks de librería en tests de núcleo (TDD-2).
+   - **TDD-2: semántica de los prefijos de dobles.** El test de nombres
+     comprueba el prefijo, no lo que hace el doble. Por cada doble que el diff
+     crea o modifica, comprueba que el prefijo dice la verdad: `Fake` tiene
+     estado; `Fixed` y `Stub` devuelven una respuesta fija y no registran
+     llamadas; `Spy` registra las llamadas para que el test las afirme. Un
+     `Stub` que guarda los comandos que recibe es un `Spy` mal nombrado.
 
 6. **RS-2 (Rust): `panic!` solo para invariantes rotos.** Clippy ya prohíbe
    `unwrap`. Revisa cada `panic!`, `expect`, `unreachable!` y `todo!` del diff:
