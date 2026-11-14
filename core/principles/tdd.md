@@ -17,12 +17,13 @@ Formato de cada principio: ver [README](README.md).
 - Verde: la implementación mínima que lo hace pasar.
 - Refactor: con los tests en verde, sin cambiar comportamiento.
 - Nunca modifiques un test para que pase sin justificarlo explícitamente.
+- El **composition root** (`HEX-2`) no lleva test unitario propio: solo cablea, y lo cubren los tests de endpoint. Cablear un handler nuevo no exige un test aparte.
 
 **Fundamento.** El test que falla primero demuestra que el test prueba algo y que el código existe porque un comportamiento lo exigió. Con agentes de IA es además el mecanismo de control: el agente converge hacia el test, así que el test define el objetivo.
 
 **Violaciones típicas.** Escribir implementación y test a la vez. Un test que nunca se vio fallar. Ajustar la aserción al resultado obtenido en vez de corregir el código.
 
-**Verificación.** No automatizable de forma fiable. Asignado al subagente revisor (`architecture-reviewer`; en sitios, `site-auditor`). Revisa que todo cambio de producción del diff tenga un cambio de test que lo exija. Si hay varios commits, el test aparece antes o junto a la producción. Los hooks garantizan verde, no rojo primero.
+**Verificación.** No automatizable de forma fiable. Asignado al subagente revisor (`architecture-reviewer`; en sitios, `site-auditor`). Revisa que todo cambio de producción del diff tenga un cambio de test que lo exija, salvo el cableado del composition root. Si hay varios commits, el test aparece antes o junto a la producción. Los hooks garantizan verde, no rojo primero.
 
 ---
 

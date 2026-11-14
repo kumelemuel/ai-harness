@@ -48,6 +48,9 @@ arquitectura:
    - Todo cambio de producción tiene un cambio de test que lo exige, es decir,
      un test nuevo o modificado que fallaría sin él. Un refactor sin cambio de
      comportamiento no lo necesita, pero dilo en el reporte.
+   - El composition root (en Rust, `apps/server/src/main.rs`) no lleva test
+     unitario propio: solo cablea, y lo cubren los tests de endpoint. No
+     reportes como TDD-1 el cableado de un handler o un adaptador nuevo.
    - Si el rango tiene más de un commit, revisa el orden con
      `git log --reverse --name-only <rango>`. El test aparece antes que la
      producción o en el mismo commit, nunca después.
