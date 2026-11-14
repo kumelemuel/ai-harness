@@ -120,7 +120,7 @@ Sonnet 5.5, mismo harness que la línea base:
 | rust-rename-community | 0.11.0-sonnet | claude-sonnet-5-5 | 3/3 | $0.58 ($0.57–$0.59) | 61 (56–76) | 16 (15–16) | 32 (30–32) | 22k (21k–22k) | 785k (710k–809k) | 72k (70k–72k) | 76k (75k–77k) | 11 (5–29) | 0 | 0 |
 
 **Revisor.** Opus detectó las 4 violaciones en 5 de 6 corridas: las 3 de la
-línea base y 2 de las 3 de [`0.11.0-indice`](#índice-de-ejemplos-revertido),
+línea base y 2 de las 3 de [`0.11.0-indice`](#índice-de-ejemplos-archivado),
 cuyo revisor no lee nada de lo que cambia esa configuración. Sonnet las
 detectó en 2 de 3.
 
@@ -318,7 +318,7 @@ la misma kata, el mismo modelo y el mismo número de corrida, compartieron
 corrió eran de otro árbol. La lectura del diff es válida; las corridas de
 tests dentro de esas revisiones, no. `cache_slot` incluye ahora la etiqueta.
 
-### Índice de ejemplos (revertido)
+### Índice de ejemplos (archivado)
 
 `references/exemplars.md` en `rust-stack` y `astro-stack`, con los `SKILL.md`
 remitiendo a él. Opus:
@@ -336,6 +336,11 @@ remitiendo a él. Opus:
   rangos que no se solapan. Ninguna de esas corridas leyó el índice. Pero el
   cambio también modificó el texto del `SKILL.md` de `rust-stack`, que el
   agente carga siempre. No se publica hasta entender la diferencia.
+- **Archivado.** No se investiga más. En una kata el proyecto es la plantilla,
+  así que el índice no tiene nada que ahorrar, y la subida del renombre cae
+  dentro de la variación entre días: el control sin índice del 2026-11-13 dio
+  $1.33–1.63. Se retoma cuando exista una kata sobre un proyecto que se apartó
+  de la plantilla.
 
 ### Dónde crece el contexto
 
@@ -425,6 +430,9 @@ mapa, corrido el mismo día):
   control, ninguna corrida lo invocó. El mapa no menciona al revisor.
 - **Decisión:** no baja ni los archivos ni el costo con rangos separados, así
   que se revierte (regla de D).
-- **Hallazgo que queda:** un `CLAUDE.md` en el proyecto cambió cuándo el
-  agente pide una revisión. Eso puede valer como palanca de calidad, no de
-  costo.
+- **El aumento no viene del mapa en sí,** que son 267 palabras en el
+  contexto, sino de que la sesión invocó al revisor y siguió trabajando sobre
+  sus hallazgos. Es un **cambio de flujo, no una regresión**: implementar y
+  revisar cuesta más que solo implementar.
+- **Pendiente:** si el flujo debe incluir al revisor se decide con la medición
+  del revisor como subagente.

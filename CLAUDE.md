@@ -40,10 +40,18 @@ subagentes o principios, y anota el resultado en el CHANGELOG. No corren en CI.
 - Fija siempre el modelo (`--model`).
 - **Una variable por configuración.** Si cambian dos cosas (un archivo y el
   texto de una skill, o el harness y el modelo), el efecto no se puede atribuir.
+- **El control corre intercalado, en la misma ventana de tiempo**
+  (`--subagent-model A --subagent-model B`, o las dos configuraciones en
+  paralelo). No se compara contra una línea base de otro día: el control del
+  renombre dio $1.33–1.63 contra los $1.35–1.37 de la línea base.
 - Con 3 corridas, un efecto solo se da por establecido si los rangos de las dos
   configuraciones no se solapan.
-- Si la versión de Claude Code cambió desde la línea base, vuelve a correr la
-  línea base antes de comparar.
+- Un subagente se mide como subagente (`subagent` en `kata.toml`), no con
+  `--agent`, que no precarga sus `skills:`.
+- **Fijar `model:` en un subagente** exige que el modelo más económico detecte
+  todas las violaciones plantadas en las 3 corridas, y que sus falsos positivos
+  y hallazgos con ID equivocado (clasificados a mano) no superen los del modelo
+  de referencia.
 - Los plugins cargan en su lugar, desde el clon: **no edites `plugins/` ni lo
   que enlazan mientras corre una kata**, o la medición mezcla dos versiones.
 - Una corrida cortada por la API queda inválida; vuelve a correr con la misma
