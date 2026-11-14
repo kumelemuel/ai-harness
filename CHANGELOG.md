@@ -3,16 +3,28 @@
 ## 0.13.0 — 2026-11-13
 
 Plugins: `craft-backend` 0.10.0 y `craft-web` 0.5.0, porque cambia el formato del
-reporte de sus revisores.
+reporte de sus revisores y `architecture-reviewer` fija su modelo.
 
 ### Cambiado
 - **Formato estricto de los revisores** (`architecture-reviewer`, `site-auditor`):
   una línea `ID | ruta:línea | descripción` por hallazgo y un ID por línea. Los
   hallazgos agrupados sin ruta hacían fallar la detección con los dos modelos.
-- **`architecture-reviewer` sigue sin `model:`**: Sonnet no cumple la regla
-  medido como subagente.
+- **`architecture-reviewer` fija `model: claude-opus-5-5`**: la medición
+  respalda a Opus como revisor y, sin la fijación, el flujo "Sonnet implementa,
+  Opus revisa" corría el revisor en Sonnet. La regla de `CLAUDE.md` vale ahora
+  en cualquier dirección.
+- **El composition root no lleva test unitario propio** (TDD-1): lo cubren los
+  tests de endpoint. El revisor lo marcaba como falso positivo.
+- **Semántica de los prefijos de dobles** (TDD-2): el revisor comprueba que
+  `Fake`, `Fixed`, `Stub` y `Spy` dicen lo que hace el doble.
+
+### Filas que cambiaron de mecanismo
+- TDD-2 (semántica de los prefijos de dobles): de `test` (solo el prefijo) a
+  `revisor:architecture-reviewer`.
 
 ### Agregado
+- **Sección "Modelos" en el README**: implementar con Sonnet y revisar con
+  Opus, con el costo combinado.
 - **Métricas de peticiones y de resultados por herramienta** en las katas:
   `num_turns` no cuenta peticiones a la API.
 - **Katas de subagente** (`subagent`, `--subagent-model`): el subagente con sus
@@ -25,6 +37,8 @@ reporte de sus revisores.
 Todo con controles intercalados en la misma ventana:
 - `review-planted-subagent`: Opus 4/4 en 3/3 corridas, 0 hallazgos en contra,
   $0.22. Sonnet 4/4 en 1/3, 7 en contra, $0.05.
+- `review-planted-subagent` con la sesión en Sonnet y el revisor fijado: el
+  subagente corrió en Opus, aceptación 1/1, $0.29.
 - Revisión cruzada de `rust-rename-community`: válidos por corrida, diffs de
   Opus 1/0/0 y de Sonnet 0/0/0. "Sonnet implementa, Opus revisa" cuesta $1.13,
   contra $1.49.
