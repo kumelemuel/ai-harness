@@ -17,8 +17,12 @@ ocultos que se copian después de que el agente termina) y `kata.toml`:
                   `{kata}` es el directorio de la kata
   timeout_minutes límite de la sesión del agente (por defecto 45)
   allowed_tools   herramientas extra, además de las de `ALLOWED_TOOLS`
-  agent           corre la sesión como ese subagente (`--agent`), p. ej. para
-                  medir un revisor con un modelo dado
+  agent           corre la sesión como ese subagente (`--agent`). Ojo: así no se
+                  precargan las `skills:` de su frontmatter
+  subagent        `plugin:agente` que la sesión principal invoca como subagente
+                  (con sus skills). Con `--subagent-model`, el plugin se carga
+                  desde una copia con ese `model:` (`--plugin-dir`), y el reporte
+                  que juzga la aceptación es el `tool_result` del subagente
   [env]           variables para el setup, el agente, sus hooks y la aceptación;
                   `{cache}` es un directorio persistente por kata y ejecución
 
@@ -93,6 +97,7 @@ class Kata:
     timeout_minutes: int = 45
     allowed_tools: list[str] = field(default_factory=list)
     agent: str | None = None
+    subagent: str | None = None
 
     def expanded_setup(self) -> list[str]:
         return [command.replace("{kata}", str(self.path)) for command in self.setup]
@@ -124,6 +129,7 @@ def load_kata(path: Path) -> Kata:
         timeout_minutes=int(config.get("timeout_minutes", 45)),
         allowed_tools=list(config.get("allowed_tools", [])),
         agent=config.get("agent"),
+        subagent=config.get("subagent"),
     )
 
 
@@ -151,6 +157,8 @@ class SessionMetrics:
     api_error_status: int | None
     requests: int = 0
     tool_result_chars: dict[str, int] = field(default_factory=dict)
+    subagent_reports: list[str] = field(default_factory=list)
+    subagent_async: bool = False
 
 
 def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetrics:
@@ -166,6 +174,8 @@ def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetri
     tool_names: dict[str, str] = {}
     result_chars: dict[str, int] = {}
     responses: set[str] = set()
+    reports: list[str] = []
+    launched_async = False
     skills: list[str] = []
     subagents: list[str] = []
     files: set[str] = set()
@@ -178,6 +188,11 @@ def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetri
             result = event
         if event.get("type") == "user":
             _add_result_chars(event, tool_names, result_chars)
+            for report in _subagent_reports(event, tool_names):
+                if report.startswith("Async agent launched"):
+                    launched_async = True
+                else:
+                    reports.append(report)
         if event.get("type") != "assistant":
             continue
         message_id = event.get("message", {}).get("id")
@@ -220,7 +235,27 @@ def parse_stream(lines: list[str], workdir: Path, harness: Path) -> SessionMetri
         api_error_status=(result or {}).get("api_error_status"),
         requests=len(responses),
         tool_result_chars=result_chars,
+        subagent_reports=reports,
+        subagent_async=launched_async,
     )
+
+
+def _tool_result_text(body) -> str:
+    if isinstance(body, list):
+        return "".join(part.get("text", "") for part in body if isinstance(part, dict))
+    return body or ""
+
+
+def _subagent_reports(event: dict, tool_names: dict[str, str]) -> list[str]:
+    content = event.get("message", {}).get("content")
+    if event.get("parent_tool_use_id") or not isinstance(content, list):
+        return []
+    return [
+        _tool_result_text(block.get("content"))
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "tool_result"
+        and tool_names.get(block.get("tool_use_id", "")) in ("Agent", "Task")
+    ]
 
 
 def _add_result_chars(event: dict, tool_names: dict[str, str], totals: dict[str, int]) -> None:
@@ -231,11 +266,7 @@ def _add_result_chars(event: dict, tool_names: dict[str, str], totals: dict[str,
     for block in content:
         if not isinstance(block, dict) or block.get("type") != "tool_result":
             continue
-        body = block.get("content")
-        if isinstance(body, list):
-            size = sum(len(part.get("text", "")) for part in body if isinstance(part, dict))
-        else:
-            size = len(body or "")
+        size = len(_tool_result_text(block.get("content")))
         name = tool_names.get(block.get("tool_use_id", ""), "?")
         totals[name] = totals.get(name, 0) + size
 
@@ -288,8 +319,17 @@ def spread(values: list[float]) -> dict | None:
 
 
 def is_valid(run: dict) -> bool:
-    """Una ejecución cortada por la API (límite de uso, 5xx) no mide al agente."""
-    return run.get("api_error_status") is None
+    """Una ejecución cortada por la API (límite de uso, 5xx), o una kata de
+    subagente sin su reporte, no mide al agente."""
+    return run.get("api_error_status") is None and not run.get("invalid")
+
+
+def cache_slot(kata: Kata, index: int, subagent_model: str | None, label: str) -> Path:
+    """Un `CARGO_TARGET_DIR` por configuración, variante y corrida. Dos corridas
+    en paralelo que compilan en el mismo directorio se pisan (E0463), y una
+    puede correr los tests compilados desde el árbol de la otra."""
+    variant = f"{kata.name}@{subagent_model}" if subagent_model else kata.name
+    return CACHE / label / variant / str(index)
 
 
 def pending_indices(existing: list[dict], runs: int) -> list[int]:
@@ -389,12 +429,18 @@ def parse_findings(report: str) -> list[dict]:
 
 
 REVIEW_AGENT = "craft-backend:architecture-reviewer"
-REVIEW_PROMPT = "Revisa el diff actual (cambios sin commit) antes de que lo suba.\n"
+REVIEW_PROMPT = (
+    "Pide al subagente craft-backend:architecture-reviewer que revise el diff actual "
+    "(cambios sin commit) antes de que lo suba. Invócalo en primer plano, nunca en "
+    "segundo plano. No revises nada tú: tu único paso es invocarlo. Después responde "
+    "solo «listo».\n"
+)
 
 
 def review_kata(source: Kata, patch: Path) -> Kata:
     """La revisión del diff de una corrida: la plantilla de la kata con el parche
-    aplicado sin commit, y la sesión como `architecture-reviewer`."""
+    aplicado sin commit. Una sesión mínima invoca a `architecture-reviewer` como
+    subagente, para que cargue sus skills (con `--agent` no las carga)."""
     return Kata(
         name=f"{source.name}-revision",
         path=source.path,
@@ -405,7 +451,7 @@ def review_kata(source: Kata, patch: Path) -> Kata:
         setup=[f"git apply {patch}", *source.setup],
         env=dict(source.env),
         timeout_minutes=20,
-        agent=REVIEW_AGENT,
+        subagent=REVIEW_AGENT,
     )
 
 
@@ -439,8 +485,10 @@ def copy_template(template: str, target: Path) -> None:
         shutil.copy(source, destination, follow_symlinks=False)
 
 
-def project_settings(plugins: list[str]) -> dict:
-    """Solo los plugins de la kata: los demás del usuario quedan deshabilitados."""
+def project_settings(plugins: list[str], overridden: list[str] | None = None) -> dict:
+    """Solo los plugins de la kata: los demás del usuario quedan deshabilitados.
+    Un plugin `overridden` se carga desde una copia (`--plugin-dir`), así que
+    el del marketplace también se deshabilita."""
     enabled: dict[str, bool] = {}
     user_settings = Path.home() / ".claude" / "settings.json"
     if user_settings.is_file():
@@ -450,8 +498,35 @@ def project_settings(plugins: list[str]) -> dict:
         except json.JSONDecodeError:
             pass
     for plugin in plugins:
-        enabled[f"{plugin}@{MARKETPLACE}"] = True
+        enabled[f"{plugin}@{MARKETPLACE}"] = plugin not in (overridden or [])
     return {"enabledPlugins": enabled}
+
+
+def set_frontmatter_model(text: str, model: str) -> str:
+    head, sep, body = text.partition("\n---\n")
+    lines = [line for line in head.splitlines() if not line.startswith("model:")]
+    lines.insert(1 + next(i for i, l in enumerate(lines[1:]) if l.startswith("name:")), f"model: {model}")
+    return "\n".join(lines) + sep + body
+
+
+def plugin_with_model(plugin: str, agent: str, model: str, target: Path) -> Path:
+    """Copia del plugin con `model:` fijado en un agente. Los symlinks quedan
+    absolutos hacia el repo: así no se copia la plantilla (ni su `target/`)."""
+    source = REPO / "plugins" / plugin
+    copy = target / plugin
+    shutil.copytree(source, copy, symlinks=True, ignore=shutil.ignore_patterns("__pycache__"))
+    for link in [p for p in copy.rglob("*") if p.is_symlink()]:
+        resolved = (source / link.relative_to(copy)).resolve()
+        link.unlink()
+        link.symlink_to(resolved)
+    agent_file = copy / "agents" / f"{agent}.md"
+    agent_file.write_text(set_frontmatter_model(agent_file.read_text(encoding="utf-8"), model), encoding="utf-8")
+    return copy
+
+
+def interleave(katas: list, models: list[str], indices: list[int]) -> list[tuple]:
+    """Las configuraciones alternadas en la misma ventana: A1, B1, A2, B2…"""
+    return [(kata, model, index) for kata in katas for index in indices for model in models]
 
 
 def save_diff(workdir: Path, target: Path) -> None:
@@ -470,7 +545,7 @@ def git(workdir: Path, *args: str) -> None:
     )
 
 
-def claude_command(kata: Kata, model: str, budget: float) -> list[str]:
+def claude_command(kata: Kata, model: str, budget: float, plugin_dir: Path | None = None) -> list[str]:
     command = [
         "claude", "-p", kata.prompt,
         "--output-format", "stream-json", "--verbose",
@@ -482,26 +557,36 @@ def claude_command(kata: Kata, model: str, budget: float) -> list[str]:
     ]
     if kata.agent:
         command += ["--agent", kata.agent]
+    if plugin_dir:
+        command += ["--plugin-dir", str(plugin_dir)]
     return command
 
 
-def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep: bool) -> dict:
+def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep: bool,
+             subagent_model: str | None = None) -> dict:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    run_dir = CACHE / "runs" / f"{harness_version()}-{label}" / f"{kata.name}-{index}-{stamp}"
-    workdir = CACHE / "work" / f"{kata.name}-{label}-{index}-{stamp}"
+    variant = f"{kata.name}@{subagent_model}" if subagent_model else kata.name
+    run_dir = CACHE / "runs" / f"{harness_version()}-{label}" / f"{variant}-{index}-{stamp}"
+    workdir = CACHE / "work" / f"{variant}-{label}-{index}-{stamp}"
     run_dir.mkdir(parents=True, exist_ok=True)
     workdir.mkdir(parents=True)
 
     copy_template(kata.template, workdir)
+    plugin_dir = None
+    overridden: list[str] = []
+    if kata.subagent and subagent_model:
+        plugin, agent = kata.subagent.split(":")
+        plugin_dir = plugin_with_model(plugin, agent, subagent_model, run_dir / "plugin")
+        overridden = [plugin]
     (workdir / ".claude").mkdir(exist_ok=True)
     (workdir / ".claude" / "settings.json").write_text(
-        json.dumps(project_settings(kata.plugins), indent=2) + "\n", encoding="utf-8"
+        json.dumps(project_settings(kata.plugins, overridden), indent=2) + "\n", encoding="utf-8"
     )
     git(workdir, "init", "-q")
     git(workdir, "add", "-A")
     git(workdir, "commit", "-qm", "plantilla")
 
-    cache = CACHE / kata.name / str(index)
+    cache = cache_slot(kata, index, subagent_model, label)
     cache.mkdir(parents=True, exist_ok=True)
     hook_log = run_dir / "hooks.log"
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
@@ -515,7 +600,7 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     hook_log.write_text("", encoding="utf-8")
 
-    command = claude_command(kata, model, budget)
+    command = claude_command(kata, model, budget, plugin_dir)
     log(kata, index, f"agente ({model})")
     started = dt.datetime.now()
     stream_file = run_dir / "stream.jsonl"
@@ -536,7 +621,8 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
     shutil.copytree(kata.path / "acceptance", workdir / "acceptance", dirs_exist_ok=True)
     log(kata, index, "aceptación")
     env["EVAL_RESULT_TEXT"] = str(run_dir / "result.txt")
-    (run_dir / "result.txt").write_text(metrics.result_text, encoding="utf-8")
+    report = "\n\n".join(metrics.subagent_reports) if kata.subagent else metrics.result_text
+    (run_dir / "result.txt").write_text(report, encoding="utf-8")
     acceptance = subprocess.run(shlex.split(kata.acceptance), cwd=workdir, env=env,
                                 capture_output=True, text=True, timeout=1800)
     (run_dir / "acceptance.txt").write_text(acceptance.stdout + acceptance.stderr, encoding="utf-8")
@@ -566,12 +652,24 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
         "tool_result_chars": metrics.tool_result_chars,
         "hook_blocks": parse_hook_log(hook_log.read_text(encoding="utf-8")),
         "acceptance": {"passed": verdict.passed, "checks": verdict.checks},
-        "findings": parse_findings(metrics.result_text),
+        "findings": parse_findings(report),
+        "subagent_model": subagent_model,
+        "invalid": _invalid_reason(kata, metrics),
         "raw": str(run_dir),
     }
     log(kata, index, f"listo: aceptación={'sí' if verdict.passed else 'no'} costo=${metrics.cost_usd:.2f} "
                      f"turnos={metrics.turns}")
     return run
+
+
+def _invalid_reason(kata: Kata, metrics: SessionMetrics) -> str | None:
+    if not kata.subagent:
+        return None
+    if metrics.subagent_async:
+        return "subagente en segundo plano: su reporte no llegó como tool_result"
+    if not metrics.subagent_reports:
+        return "sin reporte del subagente"
+    return None
 
 
 def log(kata: Kata, index: int, message: str) -> None:
@@ -596,23 +694,29 @@ def command_run(args: argparse.Namespace) -> int:
     # Retoma: conserva las ejecuciones válidas y corre solo las que faltan o
     # quedaron inválidas (salvo --fresh).
     runs: dict[str, list[dict]] = {}
+    pending: dict[str, list[int]] = {}
     jobs = []
-    for kata in katas:
-        existing = [] if args.fresh else data["katas"].get(kata.name, {}).get("runs", [])
-        indices = pending_indices(existing, args.runs)
-        runs[kata.name] = [r for r in existing if r["index"] not in indices]
-        jobs += [(kata, i) for i in indices]
+    models = args.subagent_model or [None]
+    for kata, submodel, index in interleave(katas, models, list(range(1, args.runs + 1))):
+        key = f"{kata.name}@{submodel}" if submodel else kata.name
+        if key not in runs:
+            existing = [] if args.fresh else data["katas"].get(key, {}).get("runs", [])
+            pending[key] = pending_indices(existing, args.runs)
+            runs[key] = [r for r in existing if r["index"] not in pending[key]]
+        if index in pending[key]:
+            jobs.append((key, kata, index, submodel))
     execute(jobs, runs, args)
     save_results(output, data, runs, args)
     return 0
 
 
-def execute(jobs: list[tuple[Kata, int]], runs: dict[str, list[dict]], args: argparse.Namespace) -> None:
+def execute(jobs: list[tuple], runs: dict[str, list[dict]], args: argparse.Namespace) -> None:
+    """Corre en el orden de `jobs` (intercalado si hay varias configuraciones)."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as pool:
-        futures = {pool.submit(run_once, k, i, args.model, args.label, args.budget, args.keep): k
-                   for k, i in jobs}
+        futures = {pool.submit(run_once, kata, index, args.model, args.label, args.budget, args.keep, submodel): key
+                   for key, kata, index, submodel in jobs}
         for future in concurrent.futures.as_completed(futures):
-            runs[futures[future].name].append(future.result())
+            runs[futures[future]].append(future.result())
 
 
 def save_results(output: Path, data: dict, runs: dict[str, list[dict]], args: argparse.Namespace) -> None:
@@ -652,7 +756,7 @@ def command_review(args: argparse.Namespace) -> int:
                 continue
             if not patch.is_file():
                 raise SystemExit(f"{kata_name}#{run['index']}: no hay {patch}; vuelve a correr la kata")
-            jobs.append((review_kata(kata, patch), run["index"]))
+            jobs.append((name, review_kata(kata, patch), run["index"], args.subagent_model))
     execute(jobs, runs, args)
     for name, kata_runs in runs.items():
         for run in kata_runs:
@@ -678,12 +782,15 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--parallel", type=int, default=1)
     run.add_argument("--budget", type=float, default=15.0, help="tope en USD por ejecución")
     run.add_argument("--fresh", action="store_true", help="repite también las ejecuciones válidas")
+    run.add_argument("--subagent-model", action="append",
+                     help="modelo del subagente de la kata (repetible: se intercalan en la misma ventana)")
     run.add_argument("--keep", action="store_true", help="conserva el directorio de trabajo")
     run.set_defaults(func=command_run)
     review = sub.add_parser("review", help="revisa con architecture-reviewer el diff de cada corrida")
     review.add_argument("results", help="resultado cuyas corridas se revisan (evals/results/….json)")
     review.add_argument("--kata", action="append", required=True)
-    review.add_argument("--model", required=True)
+    review.add_argument("--model", required=True, help="modelo de la sesión mínima que delega")
+    review.add_argument("--subagent-model", required=True, help="modelo del revisor")
     review.add_argument("--label", required=True)
     review.add_argument("--parallel", type=int, default=1)
     review.add_argument("--budget", type=float, default=5.0)

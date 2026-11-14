@@ -1,0 +1,794 @@
+{
+  "katas": {
+    "review-planted-subagent@claude-opus-5-5": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 67,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.2264683,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 480,
+            "cache_read": 28010,
+            "cache_write": 13117
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 480,
+              "cacheReadInputTokens": 28010,
+              "cacheCreationInputTokens": 13117,
+              "costUSD": 0.0031439000000000003
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 16,
+              "outputTokens": 4645,
+              "cacheReadInputTokens": 146102,
+              "cacheCreationInputTokens": 20228,
+              "costUSD": 0.2233244
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 6,
+            "Grep": 1
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 9,
+          "tool_result_chars": {
+            "Bash": 24609,
+            "Grep": 1729,
+            "Agent": 6195
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": true
+            }
+          },
+          "findings": [
+            {
+              "id": "RS-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:47",
+              "text": "`expect(\"slug con guion\")` cubre un caso que la entrada puede producir: el slug no tiene por qué llevar guion.\nPor qué importa: `CommunitySlug` acepta slugs sin guion, como \"rustchile\", y ahora también \"rust_chile\". `split_once('-')` devuelve `None` y la petición cae en pánico, así que un input válido de un usuario termina en un 500. Además, el mensaje no empieza con \"invariante: …\".\nCorrección: no uses `expect`. Comprueba el prefijo con `starts_with(\"official-\")` dentro del dominio (ver HEX-7) y sin desarmar el slug."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46",
+              "text": "El handler contiene una regla de negocio: los slugs `official-…` quedan reservados para cuentas del equipo, y para reconocerlas interpreta el formato del `owner_id` (\"staff-\").\nPor qué importa: la regla no tiene test de dominio y la convención \"staff-\" queda en el handler. Cualquier otro caso de uso que cree o renombre slugs tendrá que copiarla o la saltará.\nCorrección: muévela al dominio. Por ejemplo, `Community::create(...) -> Result<Community, ReservedCommunitySlug>`, con `CommunitySlug::is_official()` y `OwnerId::is_staff()`. El handler solo traduce ese error de dominio a la hoja `Reserved`."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:48",
+              "text": "La rama nueva `Reserved` no tiene un test del handler que la exija.\nPor qué importa: nada probó que esta regla fallara antes de implementarla. El pánico de la línea 47 pasó inadvertido justo por eso: no hay ningún test con un slug sin guion.\nCorrección: agregar `official_slug_by_non_staff_owner_is_reserved` (afirma `Err(Failure::Expected(CreateCommunityError::Reserved(Reserved { field: \"slug\" })))` y que no se guarda nada), `official_slug_by_staff_owner_is_created` y `slug_without_hyphen_is_created`."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/api/src/create_community.rs:71",
+              "text": "La traducción nueva de `Reserved` a Problem Details (con su helper `reserved` en la línea 98) no tiene test del endpoint.\nPor qué importa: ni el código HTTP 409 ni el código `COMMUNITIES_RESERVED_SLUG` están fijados, así que se pueden cambiar sin que falle ningún test.\nCorrección: agregar `reserved_returns_409_problem_details` en contexts/communities/api/tests/create_community.rs."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/domain/src/value_objects/community_slug.rs:17",
+              "text": "Ahora se acepta `_` en el slug, y ningún test lo exige ni fija sus bordes.\nPor qué importa: es un cambio de comportamiento del value object hecho sin test en rojo. `valid_hyphens` no tiene en cuenta `_`, así que pasan \"_rust\", \"rust_\", \"rust__chile\" y \"rust-_-chile\". Nadie decidió si eso es lo que se quiere.\nCorrección: agregar en el `mod tests` del mismo archivo `accepts_underscores` y tests para los bordes de `_`, y que la regla de separadores salga de esos tests."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/application/src/commands/create_community/error.rs:11",
+              "text": "`CreateCommunityError` suma la variante `Reserved`, pero falta su test del handler y su test del endpoint.\nPor qué importa: el compilador garantiza que el `match` del borde cubra todas las variantes. No garantiza que la variante se produzca ni que se traduzca bien.\nCorrección: son los mismos dos tests de arriba, `official_slug_by_non_staff_owner_is_reserved` y `reserved_returns_409_problem_details`.\n```\n**Separación de archivos (TDD-1)**\n- **Producción:** `api/src/codes.rs`, `api/src/create_community.rs`, `application/src/commands/create_community/error.rs`, `application/src/commands/create_community/handler.rs` (solo hunks fuera de `#[cfg(test)]`), `application/src/errors.rs` y `domain/src/value_objects/community_slug.rs` (solo hunks fuera de `#[cfg(test)]`).\n- **Test:** ninguno. No hay ningún cambio de test en todo el diff.\n- **Orden de commits:** no aplica, porque todo está sin commit.\n**Variantes de `CreateCommunityError` (ERR-2)**\n| Variante | Test del handler | Test del endpoint |\n|---|---|---|\n| Validation | `invalid_slug_is_a_validation_error`, `invalid_name_is_a_validation_error` | no lo verifiqué (la variante no cambió en el diff) |\n| Conflict | `existing_slug_is_a_conflict` | `conflict_returns_409_problem_details` |\n| ContentRejected | `rejected_content_is_content_rejected_and_not_saved` | `content_rejected_returns_422_problem_details` |\n| DependencyUnavailable | `unavailable_moderation_is_dependency_unavailable_and_not_saved` | `dependency_unavailable_returns_502_problem_details_without_reporting` |\n| Reserved | falta | falta |\n**Lo demás**\n- **ERR-1, ERR-3, ERR-4:** sin problemas. La hoja `Reserved` en `application/src/errors.rs` es plana, no envuelve ningún error y no expone transporte.\n- **Dependencias, vocabulario y nombres (HEX-1 a HEX-6 y HEX-8):** sin problemas. Los tests de arquitectura en verde cubren dependencias, nombres, puertos, kernel y errores.\n- **VER-1:** propongo un test de arquitectura que exija que cada variante de cada `{Verb}{Noun}Error` aparezca en algún test del handler y en algún test del endpoint. Habría detectado lo de `Reserved`."
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-subagente/review-planted-subagent@claude-opus-5-5-1-20261113-142914"
+        },
+        {
+          "index": 2,
+          "duration_s": 71,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.25115381,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 451,
+            "cache_read": 28011,
+            "cache_write": 13865
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 451,
+              "cacheReadInputTokens": 28011,
+              "cacheCreationInputTokens": 13865,
+              "costUSD": 0.00327901
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 16,
+              "outputTokens": 5486,
+              "cacheReadInputTokens": 156129,
+              "cacheCreationInputTokens": 21373,
+              "costUSD": 0.2478748
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 5,
+            "Grep": 2,
+            "Glob": 3
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 9,
+          "tool_result_chars": {
+            "Bash": 25182,
+            "Grep": 1910,
+            "Glob": 1002,
+            "Agent": 8012
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": true
+            }
+          },
+          "findings": [
+            {
+              "id": "RS-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:47",
+              "text": "`expect(\"slug con guion\")` cubre una entrada de usuario válida, no un invariante roto, y su mensaje no empieza con \"invariante: …\"\nPor qué importa: `CommunitySlug` acepta slugs sin guion (`rustchile`, y ahora `rust_chile`), así que cualquier usuario puede tumbar la petición con un panic, que llega como un 500 genérico en vez de crear la comunidad.\nCorrección: no extraer un prefijo con `expect`. Que el dominio exponga algo como `slug.is_reserved()` (p. ej. `starts_with(\"official-\")`), sin camino de panic."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46-50",
+              "text": "la regla de negocio \"los slugs `official-…` son solo para cuentas del equipo\" es un `if` en el handler\nPor qué importa: la regla no queda en el modelo, no se puede probar con un test de dominio puro y cualquier otro caso de uso que cree o renombre comunidades puede saltársela.\nCorrección: moverla al dominio. Por ejemplo, `Community::create(...) -> Result<Community, ReservedSlug>`, o un método del value object junto con el tipo de owner. El handler solo traduce el error a `Reserved { field: \"slug\" }`."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:48",
+              "text": "el handler decide si alguien es del equipo con `command.owner_id.starts_with(\"staff-\")` sobre el string crudo del command\nPor qué importa: el concepto \"cuenta del equipo\" queda como una convención de prefijo, oculta en un handler y sin tipo. Si cambia el formato de los ids, la regla se rompe en silencio.\nCorrección: modelarlo en el dominio (`OwnerId::is_staff()` o un concepto explícito) y usarlo desde el método del agregado del hallazgo anterior."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:99",
+              "text": "la variante nueva `CreateCommunityError::Reserved` no tiene test del handler que la produzca\nPor qué importa: el `match` exhaustivo solo garantiza que compila. Nada prueba que un slug `official-…` de un owner que no es del equipo dé `Failure::Expected(Reserved(..))`, ni que uno del equipo pase.\nCorrección: agregar `official_slug_for_non_staff_is_reserved_and_not_saved` y `official_slug_for_staff_is_created`."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/api/tests/create_community.rs:95",
+              "text": "la variante `Reserved` no tiene test de endpoint que la traduzca a Problem Details\nPor qué importa: el mapeo a 409 con `COMMUNITIES_RESERVED_SLUG` y el detalle \"slug is reserved\" no tiene ningún test.\nCorrección: agregar `reserved_returns_409_problem_details`, con un use case falso que devuelva `Reserved`, como hacen los demás tests del archivo."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/domain/src/value_objects/community_slug.rs:17",
+              "text": "el slug ahora acepta `_` y ningún test exige ese cambio\nPor qué importa: es un cambio de comportamiento del dominio, no un refactor. Sin test nadie lo pidió, y además abre otro camino al panic del hallazgo RS-2 (`rust_chile`).\nCorrección: si el producto quiere `_`, escribir primero `accepts_underscores` en el módulo de tests, verlo en rojo y después cambiar la línea. Si no lo quiere, revertir."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46-50",
+              "text": "la regla de reserva es producción nueva y ningún test la exige (el módulo `#[cfg(test)]` del archivo no cambió)\nPor qué importa: no hay evidencia de un rojo previo y la regla puede romperse sin que falle ningún test.\nCorrección: los tests de dominio y del handler indicados arriba, escritos antes que la implementación."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/api/src/create_community.rs:71,98-100",
+              "text": "la rama `Reserved` y el helper `reserved` se agregaron sin un test de endpoint\nPor qué importa: la traducción de transporte quedó sin probar.\nCorrección: `reserved_returns_409_problem_details`.\n```\nSobre los tests, los seis archivos del diff son de producción:\n- `api/src/codes.rs`\n- `api/src/create_community.rs`\n- `application/.../create_community/error.rs`\n- `application/.../create_community/handler.rs`\n- `application/src/errors.rs`\n- `domain/src/value_objects/community_slug.rs`\nNingún cambio cae dentro de un módulo `#[cfg(test)]`, no se tocó `tests/` ni `testing.rs`, y ninguno de los cambios es un refactor sin cambio de comportamiento. Como son cambios sin commit, no hay orden de commits que revisar.\nVariantes de `CreateCommunityError`, con su test de handler y de endpoint:\n| Variante | Test del handler | Test del endpoint |\n|---|---|---|\n| Validation | `invalid_slug_is_a_validation_error`, `invalid_name_is_a_validation_error` | falta |\n| Conflict | `existing_slug_is_a_conflict` | `conflict_returns_409_problem_details` |\n| ContentRejected | `rejected_content_is_content_rejected_and_not_saved` | `content_rejected_returns_422_problem_details` |\n| DependencyUnavailable | `unavailable_moderation_is_dependency_unavailable_and_not_saved` | `dependency_unavailable_returns_502_problem_details_without_reporting` |\n| Reserved (nueva) | falta | falta |\n`Validation` ya no tenía test de endpoint antes de este diff, así que no lo reporto como hallazgo del diff. Pero el contrato se modificó y le falta `validation_returns_422_problem_details` (o el status que corresponda).\nRevisé a mano el resto de las reglas y no encontré más problemas:\n- **ERR-1 / ERR-3:** `Reserved` es una hoja plana compartida en `application/errors`, devuelta en `Result`, sin envolver nada ni adaptadores involucrados.\n- **ERR-4:** el código de transporte sigue solo en `api` y no hay datos sensibles en los mensajes.\n- **HEX-1 a HEX-8:** dependencias, vocabulario y nombres están bien.\n**VER-1:** hay reglas que se podrían expresar como test y no lo tienen. Un test de arquitectura podría:\n- Prohibir `expect`/`panic!`/`unreachable!`/`todo!` fuera de `#[cfg(test)]` y de `testing.rs` cuando el mensaje no empieza con `\"invariante:\"` (RS-2).\n- Verificar que cada variante de un `{Verb}{Noun}Error` aparezca dentro de `Failure::Expected(...)` en los tests de su handler, y que el archivo de tests del endpoint la nombre (ERR-2).\nArchivos relevantes:\n- `/home/kumelemuel/.cache/ai-harness-evals/work/review-planted-subagent@claude-opus-5-5-subagente-2-20261113-143007/contexts/communities/application/src/commands/create_community/handler.rs`\n- `/home/kumelemuel/.cache/ai-harness-evals/work/review-planted-subagent@claude-opus-5-5-subagente-2-20261113-143007/contexts/communities/domain/src/value_objects/community_slug.rs`\n- `/home/kumelemuel/.cache/ai-harness-evals/work/review-planted-subagent@claude-opus-5-5-subagente-2-20261113-143007/contexts/communities/api/src/create_community.rs`\n- `/home/kumelemuel/.cache/ai-harness-evals/work/review-planted-subagent@claude-opus-5-5-subagente-2-20261113-143007/contexts/communities/api/tests/create_community.rs`"
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-subagente/review-planted-subagent@claude-opus-5-5-2-20261113-143007"
+        },
+        {
+          "index": 3,
+          "duration_s": 59,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.21151253,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 622,
+            "cache_read": 28013,
+            "cache_write": 13627
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 622,
+              "cacheReadInputTokens": 28013,
+              "cacheCreationInputTokens": 13627,
+              "costUSD": 0.00331693
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 12,
+              "outputTokens": 4266,
+              "cacheReadInputTokens": 102863,
+              "cacheCreationInputTokens": 20451,
+              "costUSD": 0.20819559999999998
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 5
+          },
+          "permission_denials": 0,
+          "api_error_status": null,
+          "requests": 7,
+          "tool_result_chars": {
+            "Bash": 27465,
+            "Agent": 7070
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": true
+            }
+          },
+          "findings": [
+            {
+              "id": "RS-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:47",
+              "text": "`expect(\"slug con guion\")` se ejecuta con entrada que el dominio da por válida (p. ej. \"rustchile\"), y su mensaje no empieza con \"invariante: …\".\nPor qué importa: `CommunitySlug` no exige guion, así que crear una comunidad con un slug de una sola palabra, válido, hace caer la petición. El catch-panic la convierte en 500, un fallo de servidor ante una petición correcta. Hoy los tests no lo detectan porque todos usan \"rust-chile\".\nCorrección: eliminar el `expect`. La comprobación del prefijo va en el dominio, como `slug.as_str().starts_with(\"official-\")` o un método `CommunitySlug::is_official()`, sin hacer pánico."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46-50",
+              "text": "El handler contiene la regla de negocio \"los slugs `official-…` son de cuentas del equipo\", decidida con un `if` sobre el prefijo del slug y del `owner_id`.\nPor qué importa: la regla queda fuera del agregado. Cualquier otro caso de uso que cree o renombre slugs puede saltársela, y no se puede probar con un test de dominio puro.\nCorrección: moverla al dominio. Por ejemplo, `Community::create` devuelve `Result<Community, ReservedSlug>`, con `OwnerId::is_staff()` y `CommunitySlug::is_official()`. El handler solo traduce `ReservedSlug` a la hoja `Reserved`."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:48",
+              "text": "La pertenencia al equipo se decide con `command.owner_id.starts_with(\"staff-\")`, inspeccionando el formato de un string del input en lugar de un concepto del dominio.\nPor qué importa: la autorización depende de una convención de nombres del identificador. Cualquiera que consiga un id con ese prefijo obtiene el privilegio, y la regla no tiene un dueño en el modelo.\nCorrección: representar \"es staff\" en el dominio (`OwnerId` o un tipo de rol) y que el agregado lo consulte. El handler no lee strings crudos para decidir."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:99",
+              "text": "La variante nueva `CreateCommunityError::Reserved` no tiene test de handler.\nPor qué importa: el `match` exhaustivo del borde compila, pero nada comprueba que el caso de uso produzca esa variante. Tampoco hay un test de la rama permitida (staff con slug `official-…`).\nCorrección: agregar `official_slug_by_non_staff_is_reserved_and_not_saved`, que afirme `Err(Failure::Expected(CreateCommunityError::Reserved(Reserved { field: \"slug\" })))` y que el repositorio quede vacío, y `official_slug_by_staff_is_created`."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/api/tests/create_community.rs:1",
+              "text": "La traducción de `Reserved` en el borde (`reserved()`, api/src/create_community.rs:98) no tiene test del endpoint.\nPor qué importa: el status, el `code` `COMMUNITIES_RESERVED_SLUG` y el cuerpo Problem Details pueden cambiar sin que falle ningún test.\nCorrección: agregar `reserved_returns_409_problem_details`, con el doble del use case devolviendo `Reserved`, que afirme el status, el `code` y el `detail`."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46",
+              "text": "Cambio de producción (regla de slug reservado, hoja nueva, variante nueva) sin ningún test nuevo ni modificado que lo exija.\nPor qué importa: no hay evidencia de un rojo previo, y el panic de la línea 47 muestra el riesgo: un test con un slug sin guion lo habría detectado.\nCorrección: escribir primero los tests de dominio y de handler descritos arriba, verlos fallar y después implementar."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/domain/src/value_objects/community_slug.rs:17",
+              "text": "Se acepta `_` en el slug sin ningún test que lo pida ni que fije sus límites.\nPor qué importa: es un cambio de comportamiento del dominio sin especificar. Ahora pasan \"rust__chile\", \"_rust\" o \"rust_\", cuando para los guiones sí se prohíben las posiciones raras. Además, cambia qué strings colisionan como slug.\nCorrección: si el producto lo quiere, agregar casos en `normalizes_to_lowercase` o en un test `accepts_underscores`, más casos de posición inválida en `rejects_misplaced_hyphens`. Si no, revertirlo."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/api/src/create_community.rs:71",
+              "text": "La rama de borde nueva y la función `reserved()` (línea 98) no tienen un test de transporte que las exija.\nPor qué importa: el código del borde se agregó solo para satisfacer al compilador, sin un test que fije el contrato HTTP.\nCorrección: el test `reserved_returns_409_problem_details` mencionado arriba."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/api/src/codes.rs:8",
+              "text": "Código público nuevo `COMMUNITIES_RESERVED_SLUG` sin un test que lo afirme en la respuesta.\nPor qué importa: los clientes ramifican sobre ese código. Si alguien lo renombra, nada lo detecta.\nCorrección: afirmarlo en el test del endpoint de `Reserved`.\n```\n**Archivos tocados.** Los seis son de producción. Ningún hunk cae dentro de un bloque `#[cfg(test)]` y no cambia nada en `tests/` ni en `testing.rs`. Son cambios sin commit, así que no hay orden de commits que revisar.\n**Lo que está bien:**\n- `Reserved` es una hoja plana en `application/errors` (ERR-2).\n- El handler la devuelve como `Failure::expected` en lugar de un pánico o una excepción (ERR-1).\n- No se tocaron adaptadores (ERR-3 no aplica).\n- El status HTTP y el código solo aparecen en `api` (ERR-4).\n- El mensaje \"{field} is reserved\" no filtra datos sensibles.\n**Tests de arquitectura (VER-1).** Corrí `cargo test --workspace` y todo pasa, incluido `tools/architecture` (dependencies, errors, kernel, naming, output, ports). Cubren HEX-1/2/3/5/6/8 y ERR-1; no vi violaciones manuales de esas reglas en el diff. Dos reglas se podrían convertir en test y hoy no lo tienen:\n- **RS-2:** que todo `expect` en código de producción empiece con `\"invariante:\"`. Un test sintáctico con `syn` sobre crates no-test habría detectado el de la línea 47.\n- **ERR-2:** que cada variante de un `{Verb}{Noun}Error` aparezca en algún test del handler (`Failure::Expected(...::Variante`) y en algún test del endpoint."
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-subagente/review-planted-subagent@claude-opus-5-5-3-20261113-143114"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 0.2264683,
+          "min": 0.21151253,
+          "max": 0.25115381
+        },
+        "turns": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        },
+        "requests": {
+          "median": 9,
+          "min": 7,
+          "max": 9
+        },
+        "tool_result_chars": {
+          "median": 34535,
+          "min": 32533,
+          "max": 36106
+        },
+        "tool_result_chars_by_tool": {
+          "Agent": {
+            "median": 7070,
+            "min": 6195,
+            "max": 8012
+          },
+          "Bash": {
+            "median": 25182,
+            "min": 24609,
+            "max": 27465
+          },
+          "Glob": {
+            "median": 0,
+            "min": 0,
+            "max": 1002
+          },
+          "Grep": {
+            "median": 1729,
+            "min": 0,
+            "max": 1910
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 4,
+            "min": 4,
+            "max": 4
+          },
+          "output": {
+            "median": 480,
+            "min": 451,
+            "max": 622
+          },
+          "cache_read": {
+            "median": 28011,
+            "min": 28010,
+            "max": 28013
+          },
+          "cache_write": {
+            "median": 13627,
+            "min": 13117,
+            "max": 13865
+          }
+        },
+        "files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "acceptance": "3/3",
+        "checks": {
+          "HEX-7": "3/3",
+          "ERR-2": "3/3",
+          "RS-2": "3/3",
+          "TDD-1": "3/3"
+        }
+      }
+    },
+    "review-planted-subagent@claude-sonnet-5-5": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 36,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.05627944,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 459,
+            "cache_read": 28014,
+            "cache_write": 12844
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 459,
+              "cacheReadInputTokens": 28014,
+              "cacheCreationInputTokens": 12844,
+              "costUSD": 0.00307884
+            },
+            "claude-sonnet-5-5": {
+              "inputTokens": 6,
+              "outputTokens": 2275,
+              "cacheReadInputTokens": 34536,
+              "cacheCreationInputTokens": 10794,
+              "costUSD": 0.053200599999999994
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 2
+          },
+          "permission_denials": 0,
+          "api_error_status": null,
+          "requests": 4,
+          "tool_result_chars": {
+            "Bash": 7763,
+            "Agent": 5304
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": false,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": false
+            }
+          },
+          "findings": [
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46-50",
+              "text": "El handler decide una regla de negocio: los slugs `official-…` quedan reservados a owners con prefijo `staff-`. Hace el parseo del slug y la comprobación de la cuenta.\nPor qué importa: la regla queda fuera del dominio y no se puede probar sin el handler. Otro caso de uso que cree o renombre comunidades la saltaría. Además, `starts_with(\"staff-\")` sobre un `String` crudo codifica en el handler el significado de un identificador.\nCorrección: moverla al dominio, por ejemplo `Community::create(slug, name, owner, …) -> Result<_, DomainError>` o un método de `CommunitySlug`/`OwnerId`. El handler solo mapea el rechazo a la hoja."
+            },
+            {
+              "id": "RS-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:47",
+              "text": "`expect(\"slug con guion\")` cubre un caso que no es un invariante. Un slug válido puede no tener guion, por ejemplo `rust`, y la validación de `CommunitySlug` no lo exige.\nPor qué importa: **cualquier slug sin guion hace `panic!` en producción** y devuelve un 500 en vez de crear la comunidad. Es un bug introducido por el diff. Además, el mensaje no empieza con `\"invariante: …\"`.\nCorrección: eliminar el `expect`. Si la regla se queda, expresarla con `starts_with(\"official-\")` dentro del dominio."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46",
+              "text": "No hay ningún cambio de test en el diff (`git status` solo muestra archivos de producción). La rama `Reserved`, el cambio del slug y el endpoint no tienen un test que los exija.\nPor qué importa: el panic anterior habría aparecido con un test de slug sin guion. No hay evidencia de que se escribiera un test en rojo primero.\nCorrección: añadir primero los tests de dominio y de handler. Después, la implementación."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/application/src/commands/create_community/error.rs:11",
+              "text": "La nueva variante `Reserved` no tiene su test de handler, `Failure::Expected(CreateCommunityError::Reserved(..))`. Tampoco tiene test de endpoint para su traducción a respuesta.\nPor qué importa: el compilador obliga a que el `match` sea exhaustivo, pero no a que la variante esté probada.\nCorrección: tests que faltan: `rejects_official_slug_for_non_staff_owner` (handler), `allows_official_slug_for_staff_owner` y `reserved_returns_409_with_code_reserved_slug` (api/create_community)."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/application/src/errors.rs:16",
+              "text": "La hoja `Reserved` es casi un duplicado de `Conflict`, y su semántica (\"reservado para otra clase de cuenta\") duplica la de `Conflict`. En la api se traduce a `Problem::conflict`, el mismo status.\nPor qué importa: aumenta la superficie del contrato sin que el cliente pueda ramificar de otra forma. Si el producto quiere ramificar, debe decidirlo explícitamente.\nCorrección: usar `Conflict { resource: \"slug\" }`, o justificar la hoja nueva y dejarla probada. Menor: el `field` de `Reserved` y el mensaje \"slug is reserved\" se acoplan al texto del transporte."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/domain/src/value_objects/community_slug.rs:17",
+              "text": "El slug ahora admite `_`, un cambio de regla de dominio sin relación con el resto del diff. Choca con la regla del handler, que asume `-` como separador.\nPor qué importa: es un cambio de comportamiento del dominio sin test. Además, `official_x` esquiva la regla de reserva (`prefix` sería el slug completo, que no es `official`). Eso lo vuelve un agujero de la funcionalidad nueva y un cambio de contrato de datos ya persistidos.\nCorrección: revertirlo o hacerlo en un cambio aparte con su test de dominio. Que la reserva viva en el mismo value object o agregado que valida el slug."
+            },
+            {
+              "id": "ERR-4",
+              "path": "contexts/communities/api/src/create_community.rs:98-100",
+              "text": "`reserved()` está bien ubicado en `api` y es plano, sin envolver. Observación sin infracción: el código `RESERVED_SLUG` en `codes.rs:8` queda sin test de endpoint (ver ERR-2).\nResumen de dependencias: HEX-1/2/3 no muestran violaciones en el diff. `api` importa solo `communities_application`. VER-1: no hay test de arquitectura que cubra \"el handler no contiene `expect`/`panic!`\". Sería útil proponerlo, o activar un lint de clippy equivalente.\nRutas: `/home/kumelemuel/.cache/ai-harness-evals/work/review-planted-subagent@claude-sonnet-5-5-subagente-1-20261113-142914/contexts/communities/` (archivos citados bajo `application/`, `api/` y `domain/`)."
+            }
+          ],
+          "subagent_model": "claude-sonnet-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-subagente/review-planted-subagent@claude-sonnet-5-5-1-20261113-142914"
+        },
+        {
+          "index": 2,
+          "duration_s": 29,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.05736954999999999,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 457,
+            "cache_read": 28015,
+            "cache_write": 12672
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 457,
+              "cacheReadInputTokens": 28015,
+              "cacheCreationInputTokens": 12672,
+              "costUSD": 0.0030434500000000005
+            },
+            "claude-sonnet-5-5": {
+              "inputTokens": 6,
+              "outputTokens": 2222,
+              "cacheReadInputTokens": 34966,
+              "cacheCreationInputTokens": 11439,
+              "costUSD": 0.0543261
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 2
+          },
+          "permission_denials": 0,
+          "api_error_status": null,
+          "requests": 4,
+          "tool_result_chars": {
+            "Bash": 9459,
+            "Agent": 5239
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": false,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": false
+            }
+          },
+          "findings": [
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46",
+              "text": "El handler decide la regla de negocio \"los slugs `official-…` son solo del staff\". Hace un `split_once` sobre el slug y mira el prefijo `staff-` del `owner_id`.\nPor qué importa: la regla queda fuera del dominio. Cualquier otro caso de uso que cree o renombre comunidades puede saltársela, y no se puede probar sin el handler y sus puertos.\nCorrección: modelarla en el dominio, por ejemplo `Community::create(slug, owner, …) -> Result<_, ReservedSlug>` o un método del value object. El handler solo mapea ese error a la hoja `Reserved`."
+            },
+            {
+              "id": "RS-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46",
+              "text": "`.expect(\"slug con guion\")` no empieza con `\"invariante: …\"`. Además, el invariante es falso. `CommunitySlug` admite slugs sin guion, como `abc`, así que esto entra en pánico con input de usuario.\nPor qué importa: una petición válida con slug `rust` tumba el handler con un panic. Un fallo de negocio o de validación pasa a ser un bug del árbol B.\nCorrección: eliminar el `expect`. Si el prefijo se calcula, hacerlo en el dominio con `split_once` y manejar el caso `None`, o usar `starts_with(\"official-\")`."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46",
+              "text": "La producción cambia en 6 archivos y ningún archivo de test cambia. No hay test que exija la regla `Reserved`, ni el cambio del slug, ni la variante nueva. Este cambio parece una funcionalidad nueva, no un refactor.\nPor qué importa: no hay evidencia de que el rojo viniera primero. El comportamiento nuevo, incluido el pánico, queda sin cobertura.\nCorrección: escribir primero tests del dominio y del handler para `official-x` con un dueño que no es staff, con un dueño staff, y con un slug sin guion."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/application/src/commands/create_community/error.rs:10",
+              "text": "La variante nueva `CreateCommunityError::Reserved` no tiene test del handler. Haría falta uno que afirme `Failure::Expected(CreateCommunityError::Reserved(..))`, por ejemplo `rejects_reserved_slug_for_non_staff_owner`.\nPor qué importa: el `match` exhaustivo del compilador no prueba que la variante se produzca.\nCorrección: añadir ese test en el módulo de tests del handler."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/api/src/create_community.rs:72",
+              "text": "La traducción de `Reserved` a respuesta no tiene test del endpoint. Falta, por ejemplo, `reserved_slug_returns_409_with_code_COMMUNITIES_RESERVED_SLUG`.\nPor qué importa: el status HTTP y el código público podrían cambiar sin que ningún test falle.\nCorrección: añadir el test del endpoint que provoque `Reserved` y compruebe status y código."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/domain/src/value_objects/community_slug.rs:19",
+              "text": "Se amplía la regla de validación del slug para aceptar `_`. Es un cambio de comportamiento del dominio sin relación con la funcionalidad `Reserved` y sin test. Los tests existentes siguen verdes sin exigirlo.\nPor qué importa: abre el formato público de los slugs, que es difícil de revertir. Parece una modificación colada en el mismo diff.\nCorrección: separarla en su propio cambio, con un test de rojo primero, o revertirla si no es intencional."
+            },
+            {
+              "id": "ERR-1",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:47",
+              "text": "`Reserved` es una hoja nueva en `application/errors.rs` con semántica casi idéntica a `Conflict`. Se mapea a `Problem::conflict` en el borde. No es incorrecto, pero amplía el contrato público con una variante equivalente.\nPor qué importa: el cliente recibe dos conflictos distintos, y cada hoja nueva exige su helper y sus tests.\nCorrección: si el producto no necesita distinguirlas, reutilizar `Conflict`. Si sí, mantener `Reserved` con sus tests."
+            },
+            {
+              "id": "VER-1",
+              "path": "(repositorio)",
+              "text": "No ejecuté tests de arquitectura. Falta verificar que existan reglas para HEX-1 (el `api` no importa `domain`) y para los `expect` con prefijo `\"invariante:\"`.\nPor qué importa: RS-2 depende de la revisión manual.\nCorrección: proponer un test o lint que exija que los `expect` fuera de tests empiecen con `\"invariante: \"`.\nNo encontré problemas de dependencias ni de nombres (HEX-1 a HEX-6, HEX-8). `api` solo importa `application`, y `Reserved` sigue la convención de hojas."
+            }
+          ],
+          "subagent_model": "claude-sonnet-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-subagente/review-planted-subagent@claude-sonnet-5-5-2-20261113-143038"
+        },
+        {
+          "index": 3,
+          "duration_s": 33,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.06689856,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 384,
+            "cache_read": 28016,
+            "cache_write": 12521
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 384,
+              "cacheReadInputTokens": 28016,
+              "cacheCreationInputTokens": 12521,
+              "costUSD": 0.00297676
+            },
+            "claude-sonnet-5-5": {
+              "inputTokens": 10,
+              "outputTokens": 2675,
+              "cacheReadInputTokens": 68793,
+              "cacheCreationInputTokens": 12109,
+              "costUSD": 0.0639218
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 4
+          },
+          "permission_denials": 0,
+          "api_error_status": null,
+          "requests": 6,
+          "tool_result_chars": {
+            "Bash": 9751,
+            "Agent": 5035
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "HEX-7": true,
+              "ERR-2": true,
+              "RS-2": true,
+              "TDD-1": true
+            }
+          },
+          "findings": [
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46-50",
+              "text": "El handler implementa la regla de negocio \"los slugs `official-…` solo para cuentas `staff-…`\": parsea el slug con `split_once` y compara prefijos del owner.\nPor qué importa: la regla no se puede probar sin el handler y no la protege ningún agregado. Cualquier otro camino que cree comunidades se la salta.\nCorrección: moverla al dominio, por ejemplo un método de `CommunitySlug` o una factory de `Community` que reciba el owner y devuelva `Result` con un error de dominio. El handler solo lo traduce a la hoja `Reserved`."
+            },
+            {
+              "id": "RS-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:47",
+              "text": "`.expect(\"slug con guion\")` entra en pánico con cualquier slug válido sin guion (`rust`, `abc`), y el mensaje no empieza con `\"invariante: …\"`.\nPor qué importa: la invariante es falsa. `CommunitySlug::new` acepta slugs sin guion, así que un request normal hace paniquear al handler en lugar de crear la comunidad. Es una regresión de comportamiento.\nCorrección: eliminar el `expect`. Usar `slug.as_str().starts_with(\"official-\")`, o mejor, mover la regla al dominio (ver HEX-7)."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:49",
+              "text": "La variante nueva `CreateCommunityError::Reserved` no tiene test del handler que la produzca con `Failure::Expected(Reserved(…))`.\nPor qué importa: el diff no toca ningún archivo de test. La regla de reserva (y su rama permitida para `staff-`) queda sin cobertura.\nCorrección: añadir `create_community_rejects_reserved_official_slug_for_non_staff` y `create_community_allows_official_slug_for_staff` en el módulo de tests del handler."
+            },
+            {
+              "id": "ERR-2",
+              "path": "contexts/communities/api/src/create_community.rs:71",
+              "text": "La traducción de `Reserved` a 409 con código `COMMUNITIES_RESERVED_SLUG` no tiene test de endpoint.\nPor qué importa: el mapeo HTTP y el código público pueden cambiar sin que ningún test falle.\nCorrección: añadir `create_community_returns_409_reserved_slug` en `contexts/communities/api/tests/create_community.rs`."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/application/src/commands/create_community/handler.rs:46",
+              "text": "El cambio de producción es nuevo comportamiento y el diff no incluye ningún test que lo exija (ni de handler, ni de endpoint, ni de dominio).\nPor qué importa: no hay evidencia de rojo primero. Los 6 archivos modificados son todos de producción.\nCorrección: escribir primero los tests en rojo y luego la implementación."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/domain/src/value_objects/community_slug.rs:17",
+              "text": "Se admite `_` en el slug, un cambio de comportamiento del dominio, sin test nuevo. Los tests existentes (`rejects_invalid_characters`) no lo cubren.\nPor qué importa: el cambio no tiene relación con la regla de reserva y amplía el formato público de slugs sin que ningún test lo exija. Además `_` no está en el vocabulario del resto de la validación de guiones.\nCorrección: si es intencional, añadir un test (`accepts_underscore`) y justificarlo en un cambio aparte. Si no, revertirlo."
+            },
+            {
+              "id": "HEX-7",
+              "path": "contexts/communities/api/src/create_community.rs:98-100",
+              "text": "`reserved()` incluye el texto \"is reserved\" y un 409 elegidos en el adaptador. Es una traducción de borde, así que es aceptable. La inconsistencia es que la semántica \"reservado\" se resolvió con `Problem::conflict`, igual que `Conflict`.\nPor qué importa: el cliente distingue los dos casos solo por `code`. Es menor y no es una violación estricta.\nCorrección: confirmar con producto si 403 o 422 encaja mejor para un slug reservado. Si 409 es lo acordado, no hay cambio.\n```\nLo que sí está bien: `Reserved` es una hoja plana compartida en `application/errors`, sin envolver. El `match` del borde es exhaustivo. `api` no importa `domain`.\nVER-1: propondría un test de arquitectura que prohíba `expect`, `unwrap` y `split_once` sobre datos de dominio en `application/commands`. Tampoco hay uno que verifique que los handlers no contienen comparaciones de strings de negocio, aunque eso solo se detecta de forma parcial."
+            }
+          ],
+          "subagent_model": "claude-sonnet-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-subagente/review-planted-subagent@claude-sonnet-5-5-3-20261113-143128"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 0.05736954999999999,
+          "min": 0.05627944,
+          "max": 0.06689856
+        },
+        "turns": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        },
+        "requests": {
+          "median": 4,
+          "min": 4,
+          "max": 6
+        },
+        "tool_result_chars": {
+          "median": 14698,
+          "min": 13067,
+          "max": 14786
+        },
+        "tool_result_chars_by_tool": {
+          "Agent": {
+            "median": 5239,
+            "min": 5035,
+            "max": 5304
+          },
+          "Bash": {
+            "median": 9459,
+            "min": 7763,
+            "max": 9751
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 4,
+            "min": 4,
+            "max": 4
+          },
+          "output": {
+            "median": 457,
+            "min": 384,
+            "max": 459
+          },
+          "cache_read": {
+            "median": 28015,
+            "min": 28014,
+            "max": 28016
+          },
+          "cache_write": {
+            "median": 12672,
+            "min": 12521,
+            "max": 12844
+          }
+        },
+        "files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "acceptance": "1/3",
+        "checks": {
+          "HEX-7": "3/3",
+          "ERR-2": "3/3",
+          "RS-2": "3/3",
+          "TDD-1": "1/3"
+        }
+      }
+    }
+  },
+  "version": "0.12.0",
+  "label": "subagente",
+  "model": "claude-haiku-5-5",
+  "plugins": {
+    "craft-backend": "0.9.0",
+    "craft-web": "0.4.0"
+  },
+  "claude": "2.1.316 (Claude Code)",
+  "date": "2026-11-13"
+}

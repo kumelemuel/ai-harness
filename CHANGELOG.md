@@ -8,10 +8,21 @@
   hallazgos agrupados sin ruta hacían fallar la detección con los dos modelos.
 
 ### Agregado
+- **Katas de subagente** (`subagent` en `kata.toml`, `--subagent-model`): el
+  subagente con sus skills y su `model:` en una copia del plugin
+  (`--plugin-dir`), con los modelos intercalados en la misma ventana. `--agent`
+  no precarga las skills.
 - **`run_evals.py review`** y `diff.patch` por corrida: revisa con
   `architecture-reviewer` el diff final de cada corrida de una configuración.
 
 ### Katas
+- **Revisor como subagente, con sus skills** (`review-planted-subagent`; HEX-7,
+  ERR-2, RS-2, TDD-1), Opus y Sonnet intercalados: Opus 4/4 en 3/3 corridas y 0
+  hallazgos en contra; Sonnet en 1/3 y 7 en contra (falsos positivos e IDs
+  equivocados). No se fija `model:`.
+- Revisión cruzada con el revisor como subagente: hallazgos válidos por corrida,
+  diffs de Opus 1/0/0 y de Sonnet 0/0/0. "Sonnet implementa, Opus revisa" cuesta
+  $1.13, contra $1.49.
 - Revisión cruzada de `rust-rename-community` (revisor Opus, sin skills por
   `--agent`): hallazgos válidos por corrida, Opus 0/0/0 y Sonnet 1/0/0. "Sonnet
   implementa, Opus revisa" cuesta $1.09, contra $1.49 de "Opus implementa".

@@ -11,6 +11,7 @@ prueba aquí. Se prueba lo que interpreta su salida, con fixtures grabados en
 from __future__ import annotations
 
 import json
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -229,11 +230,111 @@ RS-2 | a.rs:3 | `expect` sobre input | con barra
     def test_review_kata_applies_the_patch_over_the_template(self) -> None:
         source = run_evals.load_kata(FIXTURES / "kata_valid")
         review = run_evals.review_kata(source, Path("/runs/x/diff.patch"))
-        self.assertEqual("craft-backend:architecture-reviewer", review.agent)
+        self.assertEqual("craft-backend:architecture-reviewer", review.subagent)
+        self.assertIsNone(review.agent)
+        self.assertIn("craft-backend:architecture-reviewer", review.prompt)
         self.assertEqual(source.template, review.template)
         self.assertEqual(["git apply /runs/x/diff.patch", *source.setup], review.expanded_setup())
         self.assertEqual(source.env, review.env)
         self.assertEqual("kata_valid-revision", review.name)
+
+
+class Subagent(unittest.TestCase):
+    def test_subagent_report_comes_from_its_tool_result(self) -> None:
+        lines = [
+            json.dumps({"type": "assistant", "message": {"id": "m1", "content": [
+                {"type": "tool_use", "id": "t1", "name": "Agent",
+                 "input": {"subagent_type": "craft-backend:architecture-reviewer"}}]}}),
+            json.dumps({"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "t1",
+                 "content": [{"type": "text", "text": "HEX-7 | a.rs:1 | x"}]}]}}),
+            json.dumps({"type": "result", "num_turns": 2, "result": "Resumen de la sesión principal"}),
+        ]
+        metrics = run_evals.parse_stream(lines, RECORDED_WORKDIR, RECORDED_HARNESS)
+        self.assertEqual(["HEX-7 | a.rs:1 | x"], metrics.subagent_reports)
+
+    def test_a_subagent_launched_in_background_leaves_no_report(self) -> None:
+        lines = [
+            json.dumps({"type": "assistant", "message": {"id": "m1", "content": [
+                {"type": "tool_use", "id": "t1", "name": "Agent", "input": {}}]}}),
+            json.dumps({"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "t1",
+                 "content": "Async agent launched successfully. agentId: a1"}]}}),
+        ]
+        metrics = run_evals.parse_stream(lines, RECORDED_WORKDIR, RECORDED_HARNESS)
+        self.assertEqual([], metrics.subagent_reports)
+        self.assertTrue(metrics.subagent_async)
+
+    def test_runs_without_a_subagent_report_are_invalid(self) -> None:
+        run = _run(0.1, 2, 10, 0, False)
+        run["invalid"] = "subagente en segundo plano"
+        self.assertFalse(run_evals.is_valid(run))
+        self.assertTrue(run_evals.is_valid(_run(0.1, 2, 10, 0, False)))
+
+    def test_cache_slot_is_per_variant(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_subagent")
+        self.assertNotEqual(
+            run_evals.cache_slot(kata, 1, "claude-opus-5-5", "x"),
+            run_evals.cache_slot(kata, 1, "claude-sonnet-5-5", "x"),
+        )
+        self.assertEqual(run_evals.CACHE / "base" / "kata_subagent" / "1", run_evals.cache_slot(kata, 1, None, "base"))
+
+    def test_cache_slot_is_per_label(self) -> None:
+        """Dos configuraciones en paralelo con la misma kata no comparten target."""
+        kata = run_evals.load_kata(FIXTURES / "kata_subagent")
+        self.assertNotEqual(
+            run_evals.cache_slot(kata, 1, "m", "revision-de-opus"),
+            run_evals.cache_slot(kata, 1, "m", "revision-de-sonnet"),
+        )
+
+    def test_kata_declares_the_subagent(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_subagent")
+        self.assertEqual("craft-backend:architecture-reviewer", kata.subagent)
+        self.assertIsNone(run_evals.load_kata(FIXTURES / "kata_valid").subagent)
+
+    def test_plugin_copy_pins_the_agent_model_and_keeps_links_absolute(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = run_evals.plugin_with_model(
+                "craft-backend", "architecture-reviewer", "claude-haiku-5-5", Path(tmp))
+            agent = (copy / "agents" / "architecture-reviewer.md").read_text()
+            self.assertEqual(1, agent.count("\nmodel: claude-haiku-5-5\n"))
+            link = copy / "skills" / "rust-stack" / "references" / "template"
+            self.assertTrue(link.is_symlink())
+            self.assertTrue(Path(os.readlink(link)).is_absolute())
+            self.assertTrue((link / "Cargo.toml").is_file())
+            # Lo demás del plugin queda igual.
+            self.assertTrue((copy / "hooks" / "hooks.json").is_file())
+
+    def test_plugin_copy_replaces_an_existing_model(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            first = run_evals.plugin_with_model("craft-backend", "architecture-reviewer", "a", Path(tmp) / "1")
+            agent = first / "agents" / "architecture-reviewer.md"
+            agent.write_text(agent.read_text())  # ya tiene model: a
+            text = run_evals.set_frontmatter_model(agent.read_text(), "b")
+            self.assertIn("\nmodel: b\n", text)
+            self.assertNotIn("model: a", text)
+
+    def test_overridden_plugin_is_disabled_in_the_marketplace(self) -> None:
+        settings = run_evals.project_settings(["craft-backend"], overridden=["craft-backend"])
+        self.assertFalse(settings["enabledPlugins"]["craft-backend@ai-harness"])
+
+    def test_command_loads_the_plugin_copy(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_subagent")
+        command = run_evals.claude_command(kata, "claude-haiku-5-5", 1.0, plugin_dir=Path("/p/craft-backend"))
+        self.assertEqual("/p/craft-backend", command[command.index("--plugin-dir") + 1])
+        self.assertNotIn("--agent", command)
+
+    def test_subagent_models_are_interleaved(self) -> None:
+        jobs = run_evals.interleave(["k"], ["opus", "sonnet"], [1, 2, 3])
+        self.assertEqual(
+            [("k", "opus", 1), ("k", "sonnet", 1), ("k", "opus", 2),
+             ("k", "sonnet", 2), ("k", "opus", 3), ("k", "sonnet", 3)],
+            jobs,
+        )
 
 
 class HookLog(unittest.TestCase):

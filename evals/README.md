@@ -245,6 +245,79 @@ reportes dice no encontrarlas. `CLAUDE_CODE_SUBAGENT_MODEL` no se impone a
 `model:`: medir el subagente con otro modelo requiere cambiar su `model:`
 por configuración.
 
+#### Revisor como subagente (con sus skills)
+
+`review-planted-subagent`: una sesión mínima en Haiku solo invoca a
+`architecture-reviewer`. El plugin se carga desde una copia con el `model:`
+del revisor fijado (`--subagent-model`, `--plugin-dir`). El reporte que juzga
+la aceptación es el `tool_result` del subagente, no lo que dice la sesión.
+Opus y Sonnet corrieron intercalados, de a dos, en la misma ventana.
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| review-planted-subagent@claude-opus-5-5 | 0.12.0-subagente | claude-haiku-5-5 | 3/3 | $0.23 ($0.21–$0.25) | 2 | 9 (7–9) | 4 | 0k (0k–1k) | 28k (28k–28k) | 14k (13k–14k) | 35k (33k–36k) | 0 | 0 | 0 |
+| review-planted-subagent@claude-sonnet-5-5 | 0.12.0-subagente | claude-haiku-5-5 | 1/3 | $0.06 ($0.06–$0.07) | 2 | 4 (4–6) | 4 | 0k (0k–0k) | 28k (28k–28k) | 13k (13k–13k) | 15k (13k–15k) | 0 | 0 | 0 |
+
+**Detección:** Opus encontró las 4 violaciones en 3/3 corridas; Sonnet, en
+1/3. En las otras dos, Sonnet volvió a etiquetar como HEX-7 el `_` sin test,
+que es TDD-1.
+
+**Precisión:** hallazgos ajenos a las violaciones plantadas, clasificados a
+mano.
+
+| Modelo | Corrida | Hallazgo | Clasificación |
+|---|---|---|---|
+| Opus | 1–3 | Extras: TDD-1 de la regla de reserva y de `reserved()` sin tests, una segunda línea HEX-7 para `staff-`, ERR-2 del endpoint | válidos |
+| Sonnet | 1 | ERR-2 `errors.rs:16`: "la hoja duplica `Conflict`" | falso positivo (opinión, sin regla violada) |
+| Sonnet | 1 | HEX-7 `community_slug.rs:17` | ID equivocado (es TDD-1) |
+| Sonnet | 1 | ERR-4 `create_community.rs:98`: "observación sin infracción" | falso positivo (lo admite el propio reporte) |
+| Sonnet | 2 | HEX-7 `community_slug.rs:19` | ID equivocado (es TDD-1) |
+| Sonnet | 2 | ERR-1 `handler.rs:47`: semántica parecida a `Conflict` | falso positivo |
+| Sonnet | 2 | VER-1 sin ruta: "no ejecuté tests" | falso positivo |
+| Sonnet | 3 | HEX-7 `create_community.rs:98`: "es una traducción de borde" | falso positivo (lo admite el propio reporte) |
+
+En contra: Opus 0, Sonnet 7.
+
+**Decisión:** Sonnet no cumple ni la detección ni la precisión.
+`architecture-reviewer` sigue sin `model:`, es decir, hereda el modelo de la
+sesión. Costo del revisor: Opus $0.22, Sonnet $0.05.
+
+#### Revisión cruzada con el revisor como subagente
+
+`run_evals.py review` en modo subagente (Opus, con sus skills), sobre los
+mismos diffs de `0.12.0-diffs-opus` y `0.12.0-diffs-sonnet`:
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-rename-community-revision | 0.12.0-revision-sub-de-opus | claude-haiku-5-5 | 3/3 | $0.55 ($0.44–$0.58) | 2 (2–8) | 13 (10–21) | 4 (4–16) | 0k (0k–3k) | 28k (18k–161k) | 23k (13k–34k) | 90k (73k–92k) | 20 (13–23) | 0 | 0 (0–1) |
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-rename-community-revision | 0.12.0-revision-sub-de-sonnet | claude-haiku-5-5 | 3/3 | $0.49 ($0.42–$0.56) | 2 (2–9) | 13 (11–23) | 4 (4–18) | 0k (0k–3k) | 18k (18k–207k) | 23k (23k–25k) | 80k (57k–92k) | 14 (12–14) | 0 | 0 (0–1) |
+
+| Diff de | Corrida | Hallazgo | Clasificación | Justificación |
+|---|---|---|---|---|
+| Opus | 1 | VER-1 `tools/architecture/tests/naming.rs:1` | falso positivo (del entorno) | Es real, pero sobre el runner, no sobre el diff: los tests que corrió no eran los de su árbol (ver abajo) |
+| Opus | 1 | VER-1 `api/tests/rename_community.rs:24` | válido | `StubRenameUseCase` guarda los comandos que recibe: es un `Spy` con nombre de `Stub`, y ninguna regla lo ve |
+| Opus | 2, 3 | ninguno | — | — |
+| Sonnet | 1 | ninguno | — | — |
+| Sonnet | 2 | TDD-1 `apps/server/src/main.rs:47` | falso positivo | Cablear sin test es la convención de la plantilla |
+| Sonnet | 3 | ERR-4 `api/src/rename_community.rs:41` | falso positivo | El rechazo de los extractores de axum es el mismo patrón que `create_community` en la plantilla, no algo del diff |
+| Sonnet | 3 | TDD-1 `apps/server/src/main.rs:42` | falso positivo | Convención de la plantilla |
+
+**Hallazgos válidos por corrida:** diffs de Opus 1, 0, 0; diffs de Sonnet 0,
+0, 0.
+
+**Costo combinado:** Sonnet implementa ($0.64) + Opus revisa como subagente
+($0.49) = $1.13, contra $1.49 de "Opus implementa". Es un 24 % menos, con
+hallazgos válidos comparables. Se recomienda ese flujo.
+
+**Salvedad del entorno:** las dos revisiones se corrieron en paralelo y, con
+la misma kata, el mismo modelo y el mismo número de corrida, compartieron
+`CARGO_TARGET_DIR`. El revisor de la corrida 1 lo detectó: los tests que
+corrió eran de otro árbol. La lectura del diff es válida; las corridas de
+tests dentro de esas revisiones, no. `cache_slot` incluye ahora la etiqueta.
+
 ### Índice de ejemplos (revertido)
 
 `references/exemplars.md` en `rust-stack` y `astro-stack`, con los `SKILL.md`

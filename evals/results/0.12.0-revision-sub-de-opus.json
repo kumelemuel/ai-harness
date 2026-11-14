@@ -1,0 +1,376 @@
+{
+  "katas": {
+    "rust-rename-community-revision": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 146,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.58295849,
+          "turns": 8,
+          "tokens": {
+            "input": 16,
+            "output": 3248,
+            "cache_read": 160509,
+            "cache_write": 33560
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 16,
+              "outputTokens": 3248,
+              "cacheReadInputTokens": 160509,
+              "cacheCreationInputTokens": 33560,
+              "costUSD": 0.009942689999999999
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 30,
+              "outputTokens": 10816,
+              "cacheReadInputTokens": 480829,
+              "cacheCreationInputTokens": 52082,
+              "costUSD": 0.5730158000000001
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-revision-sub-de-opus/rust-rename-community-revision@claude-opus-5-5-1-20261113-190151/plugin/craft-backend/skills/tdd/references/tdd.md",
+            "Cargo.toml",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/rename_community/command.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/ports/inbound/rename_community.rs",
+            "contexts/communities/domain/src/community.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 8,
+            "Glob": 3,
+            "Read": 13,
+            "Grep": 5
+          },
+          "permission_denials": 3,
+          "api_error_status": null,
+          "requests": 21,
+          "tool_result_chars": {
+            "Bash": 37185,
+            "Glob": 984,
+            "Read": 39232,
+            "Grep": 8391,
+            "Agent": 6613
+          },
+          "hook_blocks": {
+            "stop": 1
+          },
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [
+            {
+              "id": "VER-1",
+              "path": "tools/architecture/tests/naming.rs:1",
+              "text": "La pasada en verde de los tests (también los de arquitectura) no corresponde al código de este árbol.\nPor qué importa: el target compartido (/home/kumelemuel/.cache/ai-harness-evals/rust-rename-community-revision@claude-opus-5-5/1/target) se reutilizó sin recompilar. Los tests que corrieron no son los de las fuentes: `renamed_returns_200_with_the_updated_community` en lugar de `owner_gets_200_with_the_updated_community`, y `non_owner_is_forbidden_and_nothing_is_saved` en lugar de `..._and_nothing_changes`. Los tests de arquitectura leen las fuentes desde la ruta de compilación, así que pueden haber revisado otro checkout.\nCorrección: antes de subir, correr `CARGO_TARGET_DIR=$(mktemp -d) cargo test --workspace` (o un `cargo clean` del target) y confirmar el verde. Yo no pude hacerlo porque el entorno me denegó el comando."
+            },
+            {
+              "id": "VER-1",
+              "path": "contexts/communities/api/tests/rename_community.rs:24",
+              "text": "Ninguna regla de arquitectura revisa el nombre de los dobles de puertos entrantes (`StubRenameUseCase`, `StubCreateUseCase`).\nPor qué importa: `hex_5_adapters_are_named_by_technology_and_concept` solo mira puertos salientes y capacidades del kernel. Además, `StubRenameUseCase` guarda los comandos que recibe, así que en la práctica es un `Spy` con nombre de `Stub`, y nada lo detecta.\nCorrección: si el equipo quiere aplicar el mismo vocabulario a los dobles de casos de uso, extender el test de nombres a los `impl` de traits de `ports/inbound` en código de test. Hoy TDD-2 solo lo exige para puertos salientes, así que no lo cuento como violación.\n```\n**Revisado sin hallazgos**\n- **HEX-7:** el handler lee el input, valida con `CommunityName::new`, carga con `find_by_id`, delega la regla de propiedad en `Community::rename` (que ya estaba en el dominio y tiene sus tests), guarda y mapea. No hay `if` de negocio en el handler ni en el endpoint.\n- **ERR-1 / ERR-3:** `find_by_id` devuelve `Option`, y el handler lo convierte en `NotFound` porque este caso de uso exige que la comunidad exista. Las fallas de repositorio salen como `Fault` (árbol B). Los adaptadores no deciden ninguna rama de negocio.\n- **ERR-2:** `RenameCommunityError` es cerrado y tiene tres hojas planas (`Validation`, `NotFound`, `Forbidden`). `NotCommunityOwner` se traduce a `Forbidden` sin envolverlo. Cada variante tiene su test en las dos capas:\n| Variante | Test del handler | Test del endpoint |\n|---|---|---|\n| Validation | `invalid_name_is_a_validation_error_and_nothing_changes` | `invalid_name_gets_400_problem_details` |\n| NotFound | `unknown_community_is_not_found` | `unknown_community_gets_404_problem_details` |\n| Forbidden | `non_owner_is_forbidden_and_nothing_changes` | `non_owner_gets_403_problem_details` |\n- **ERR-4:** los códigos HTTP están solo en `api` y `edge/http`. El `match` del endpoint cubre todas las variantes y usa un helper por hoja. Un `Fault` produce un 500 genérico y pasa por `FaultReporter` (lo prueba `fault_returns_generic_500_and_is_reported_without_leaking`). No hay logging en el núcleo ni datos sensibles en los mensajes.\n- **TDD-1:** el cambio no tiene commits, así que no se puede comprobar el orden rojo-verde.\n- **Producción:**\n- `main.rs`\n- `codes.rs`\n- `api/src/lib.rs`\n- `api/src/rename_community.rs`\n- `commands/mod.rs`\n- `commands/rename_community/*`, salvo el módulo de tests\n- `errors.rs`\n- `ports/inbound/*`\n- `community_repository.rs`\n- `in_memory_community.rs`, el `impl`\n- `problem.rs`, la función `forbidden`\n- **Test:**\n- `api/tests/*.rs`\n- `testing.rs`\n- `testing/contracts/community_repository.rs`\n- el módulo de tests de `handler.rs`\n- el módulo de tests de `problem.rs`\n- **Qué test exige cada cambio:**\n- `find_by_id`: lo exigen tres casos nuevos de la batería de contrato, que corren contra el fake y contra el adaptador en memoria.\n- `Problem::forbidden`: lo exige `forbidden_is_403_problem_json`.\n- Handler y endpoint: los exigen sus tests.\n- `main.rs`: sin test. Es cableado del composition root, igual que lo que ya había.\n- **Test modificado:** el cambio en `api/tests/create_community.rs` solo agrega el campo `rename_community` que hace falta para compilar. Está justificado.\n- **TDD-2:** los tests usan el handler con `FakeCommunityAdapter`, sin contenedor ni mocks de librería, y afirman sobre `Result`.\n- **RS-2:** los `expect` del código de producción están bien. Los únicos `unreachable!` y `expect` nuevos están en tests y en `testing/`, que están exentos.\n- **HEX-1 a HEX-6 y HEX-8:**\n- `api` solo importa `application`.\n- El cableado expone `Arc<dyn RenameCommunityUseCase>`.\n- Los nombres siguen el patrón esperado (`RenameCommunityUseCase`, `RenameCommunityHandler`, `RenameCommunityCommand`, `Response`, `Error`, `HttpRequest`, `HttpResponse`).\n- La respuesta no expone tipos del dominio.\n- El kernel no se tocó.\nArchivos principales:\n- /home/kumelemuel/.cache/ai-harness-evals/work/rust-rename-community-revision@claude-opus-5-5-revision-sub-de-opus-1-20261113-190151/contexts/communities/application/src/commands/rename_community/handler.rs\n- /home/kumelemuel/.cache/ai-harness-evals/work/rust-rename-community-revision@claude-opus-5-5-revision-sub-de-opus-1-20261113-190151/contexts/communities/api/src/rename_community.rs\n- /home/kumelemuel/.cache/ai-harness-evals/work/rust-rename-community-revision@claude-opus-5-5-revision-sub-de-opus-1-20261113-190151/contexts/communities/api/tests/rename_community.rs"
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-revision-sub-de-opus/rust-rename-community-revision@claude-opus-5-5-1-20261113-190151",
+          "source": "0.12.0-diffs-opus.json#1"
+        },
+        {
+          "index": 2,
+          "duration_s": 95,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.44398629000000006,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 306,
+            "cache_read": 17889,
+            "cache_write": 23425
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 306,
+              "cacheReadInputTokens": 17889,
+              "cacheCreationInputTokens": 23425,
+              "costUSD": 0.005017290000000001
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 18,
+              "outputTokens": 7632,
+              "cacheReadInputTokens": 202285,
+              "cacheCreationInputTokens": 49160,
+              "costUSD": 0.43896900000000005
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "apps/server/src/main.rs",
+            "contexts/communities/api/src/codes.rs",
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/rename_community/command.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/ports/inbound/rename_community.rs",
+            "contexts/communities/application/src/ports/outbound/community_repository.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/application/src/testing/contracts/community_repository.rs",
+            "contexts/communities/domain/src/community.rs",
+            "contexts/communities/domain/src/errors.rs",
+            "contexts/communities/infrastructure/src/in_memory_community.rs",
+            "edge/http/src/problem.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 1,
+            "Glob": 2,
+            "Read": 20,
+            "Grep": 2
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 10,
+          "tool_result_chars": {
+            "Bash": 727,
+            "Glob": 3055,
+            "Read": 55153,
+            "Grep": 8990,
+            "Agent": 5323
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-revision-sub-de-opus/rust-rename-community-revision@claude-opus-5-5-2-20261113-190151",
+          "source": "0.12.0-diffs-opus.json#2"
+        },
+        {
+          "index": 3,
+          "duration_s": 124,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.5509059199999999,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 445,
+            "cache_read": 28242,
+            "cache_write": 13498
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 445,
+              "cacheReadInputTokens": 28242,
+              "cacheCreationInputTokens": 13498,
+              "costUSD": 0.0032049200000000004
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 24,
+              "outputTokens": 10396,
+              "cacheReadInputTokens": 402525,
+              "cacheCreationInputTokens": 51836,
+              "costUSD": 0.547701
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "apps/server/src/main.rs",
+            "contexts/communities/api/src/codes.rs",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/command.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/ports/inbound/rename_community.rs",
+            "contexts/communities/application/src/ports/outbound/community_repository.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/application/src/testing/contracts/community_repository.rs",
+            "contexts/communities/domain/src/community.rs",
+            "contexts/communities/domain/src/value_objects/community_name.rs",
+            "contexts/communities/infrastructure/src/in_memory_community.rs",
+            "edge/http/src/problem.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 1,
+            "Read": 23,
+            "Glob": 3,
+            "Grep": 3
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 13,
+          "tool_result_chars": {
+            "Bash": 727,
+            "Read": 77128,
+            "Glob": 3078,
+            "Grep": 2994,
+            "Agent": 6087
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.12.0-revision-sub-de-opus/rust-rename-community-revision@claude-opus-5-5-3-20261113-190332",
+          "source": "0.12.0-diffs-opus.json#3"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 0.5509059199999999,
+          "min": 0.44398629000000006,
+          "max": 0.58295849
+        },
+        "turns": {
+          "median": 2,
+          "min": 2,
+          "max": 8
+        },
+        "requests": {
+          "median": 13,
+          "min": 10,
+          "max": 21
+        },
+        "tool_result_chars": {
+          "median": 90014,
+          "min": 73248,
+          "max": 92405
+        },
+        "tool_result_chars_by_tool": {
+          "Agent": {
+            "median": 6087,
+            "min": 5323,
+            "max": 6613
+          },
+          "Bash": {
+            "median": 727,
+            "min": 727,
+            "max": 37185
+          },
+          "Glob": {
+            "median": 3055,
+            "min": 984,
+            "max": 3078
+          },
+          "Grep": {
+            "median": 8391,
+            "min": 2994,
+            "max": 8990
+          },
+          "Read": {
+            "median": 55153,
+            "min": 39232,
+            "max": 77128
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 4,
+            "min": 4,
+            "max": 16
+          },
+          "output": {
+            "median": 445,
+            "min": 306,
+            "max": 3248
+          },
+          "cache_read": {
+            "median": 28242,
+            "min": 17889,
+            "max": 160509
+          },
+          "cache_write": {
+            "median": 23425,
+            "min": 13498,
+            "max": 33560
+          }
+        },
+        "files_read": {
+          "median": 20,
+          "min": 13,
+          "max": 23
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 1
+        },
+        "acceptance": "3/3",
+        "checks": {
+          "reporte": "3/3"
+        }
+      }
+    }
+  },
+  "version": "0.12.0",
+  "label": "revision-sub-de-opus",
+  "model": "claude-haiku-5-5",
+  "plugins": {
+    "craft-backend": "0.9.0",
+    "craft-web": "0.4.0"
+  },
+  "claude": "2.1.316 (Claude Code)",
+  "date": "2026-11-13"
+}

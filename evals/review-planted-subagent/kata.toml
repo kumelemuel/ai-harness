@@ -1,0 +1,12 @@
+description = "Revisión plantada con el revisor como subagente (con sus skills)"
+template = "stacks/rust/template"
+plugins = ["craft-backend"]
+# Como subagente carga sus skills; con `agent` (--agent) no las carga.
+# Con --subagent-model, el plugin se carga desde una copia con ese model:.
+subagent = "craft-backend:architecture-reviewer"
+setup = ["git apply {kata}/../review-planted/planted.diff", "cargo build --workspace --tests"]
+acceptance = "python3 acceptance/check.py"
+timeout_minutes = 20
+
+[env]
+CARGO_TARGET_DIR = "{cache}/target"
