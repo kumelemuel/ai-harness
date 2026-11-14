@@ -1,37 +1,37 @@
 # Changelog
 
-## Sin publicar
+## 0.13.0 — 2026-11-13
+
+Plugins: `craft-backend` 0.10.0 y `craft-web` 0.5.0, porque cambia el formato del
+reporte de sus revisores.
 
 ### Cambiado
 - **Formato estricto de los revisores** (`architecture-reviewer`, `site-auditor`):
-  una línea `ID | ruta:línea | descripción` por hallazgo, un ID por línea. Los
+  una línea `ID | ruta:línea | descripción` por hallazgo y un ID por línea. Los
   hallazgos agrupados sin ruta hacían fallar la detección con los dos modelos.
+- **`architecture-reviewer` sigue sin `model:`**: Sonnet no cumple la regla
+  medido como subagente.
 
 ### Agregado
-- **Katas de subagente** (`subagent` en `kata.toml`, `--subagent-model`): el
-  subagente con sus skills y su `model:` en una copia del plugin
-  (`--plugin-dir`), con los modelos intercalados en la misma ventana. `--agent`
-  no precarga las skills.
-- **`run_evals.py review`** y `diff.patch` por corrida: revisa con
-  `architecture-reviewer` el diff final de cada corrida de una configuración.
+- **Métricas de peticiones y de resultados por herramienta** en las katas:
+  `num_turns` no cuenta peticiones a la API.
+- **Katas de subagente** (`subagent`, `--subagent-model`): el subagente con sus
+  skills y su `model:` en una copia del plugin (`--plugin-dir`), con los modelos
+  intercalados. `--agent` no precarga las skills.
+- **`run_evals.py review`** y `diff.patch` por corrida: revisión cruzada del
+  diff final de cada corrida.
 
 ### Katas
-- **Revisor como subagente, con sus skills** (`review-planted-subagent`; HEX-7,
-  ERR-2, RS-2, TDD-1), Opus y Sonnet intercalados: Opus 4/4 en 3/3 corridas y 0
-  hallazgos en contra; Sonnet en 1/3 y 7 en contra (falsos positivos e IDs
-  equivocados). No se fija `model:`.
-- Revisión cruzada con el revisor como subagente: hallazgos válidos por corrida,
-  diffs de Opus 1/0/0 y de Sonnet 0/0/0. "Sonnet implementa, Opus revisa" cuesta
-  $1.13, contra $1.49.
-- Revisión cruzada de `rust-rename-community` (revisor Opus, sin skills por
-  `--agent`): hallazgos válidos por corrida, Opus 0/0/0 y Sonnet 1/0/0. "Sonnet
-  implementa, Opus revisa" cuesta $1.09, contra $1.49 de "Opus implementa".
-- Mapa del proyecto en la plantilla Rust (medido y revertido): aceptación 6/6;
-  `rust-rename-community` sube a $2.03 ($1.68–2.09), porque la sesión invoca al
-  revisor y sigue trabajando sobre sus hallazgos. La consulta por slug lee
-  menos archivos, pero con rangos que se solapan.
-- `review-planted`, formato nuevo: Opus 3/3 ($0.34, 15 turnos); Sonnet 3/3
-  ($0.08, 4 turnos).
+Todo con controles intercalados en la misma ventana:
+- `review-planted-subagent`: Opus 4/4 en 3/3 corridas, 0 hallazgos en contra,
+  $0.22. Sonnet 4/4 en 1/3, 7 en contra, $0.05.
+- Revisión cruzada de `rust-rename-community`: válidos por corrida, diffs de
+  Opus 1/0/0 y de Sonnet 0/0/0. "Sonnet implementa, Opus revisa" cuesta $1.13,
+  contra $1.49.
+- Mapa del proyecto en la plantilla Rust: medido y revertido. El renombre subió
+  a $1.68–2.09 porque la sesión invocó al revisor (es un cambio de flujo).
+- Las mediciones del revisor con `--agent` (`review-planted`) quedan solo como
+  referencia: corrieron sin skills.
 
 ## 0.12.0 — 2026-11-13
 
