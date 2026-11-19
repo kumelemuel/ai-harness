@@ -42,6 +42,8 @@ cambiaron de mecanismo.
 | HEX-6 | DTOs de puerto saliente sin `Command`, `Query`, `Response` ni `Result` | `test` | `tests/naming.rs::hex_6_outbound_dtos_do_not_use_reserved_vocabulary` |
 | HEX-6 | Tipos de transporte con el nombre del transporte | `test` | `tests/naming.rs::hex_6_transport_types_carry_the_transport_name` |
 | HEX-7 | Lógica de negocio fuera del dominio | `revisor:architecture-reviewer` | Prioridad 1 del revisor: `if` de negocio, cálculos y transiciones en handlers o adaptadores |
+| HEX-7 | Servicio de dominio sin estado, sin puertos ni E/S | `revisor:architecture-reviewer` | Prioridad 1 del revisor |
+| HEX-7 | Ningún tipo de `domain` ni de `application` (fuera de `ports/outbound`) se llama `…Service` | `test` | `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role` |
 | HEX-8 | El kernel no tiene dependencias | `test` | `tests/kernel.rs::hex_8_kernel_depends_only_on_std` |
 | HEX-8 | Traits del kernel: marcadores o capacidades de la lista cerrada | `test` | `tests/kernel.rs::hex_8_kernel_traits_are_model_markers_or_listed_capabilities` |
 | ERR-1 | Los errores de `domain` no implementan `std::error::Error` | `test` | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` |

@@ -1,4 +1,4 @@
-//! Nombres y vocabulario (HEX-4, HEX-5, HEX-6).
+//! Nombres y vocabulario (HEX-4, HEX-5, HEX-6, HEX-7).
 
 mod common;
 
@@ -767,6 +767,45 @@ fn hex_6_transport_types_carry_the_transport_name() {
     assert_no_violations(
         "HEX-6: tipos de transporte con el nombre del transporte",
         &[("tipos *Request/*Response de api", transport)],
+        violations,
+    );
+}
+
+#[test]
+fn hex_7_service_suffix_is_only_an_outbound_role() {
+    let mut violations = Vec::new();
+    let mut checked = 0;
+
+    let core: Vec<(String, Items)> = scan(&dirs_of(Layer::Domain, "src"), None)
+        .into_iter()
+        .chain(
+            scan(&dirs_of(Layer::Application, "src"), None)
+                .into_iter()
+                .filter(|(file, _)| !file.contains("/src/ports/outbound/")),
+        )
+        .collect();
+
+    for (file, items) in core {
+        let traits = items.traits.iter().map(|t| t.ident.to_string());
+        for name in items.types.iter().cloned().chain(traits) {
+            checked += 1;
+            if name.ends_with("Service") {
+                violations.push(format!(
+                    "{file}: `{name}`: un servicio de dominio se nombra por la regla que \
+                     evalúa (`PasswordPolicy`); un caso de uso, `{{Verb}}{{Noun}}UseCase` \
+                     + `Handler` (HEX-4)"
+                ));
+            }
+        }
+    }
+
+    assert_no_violations(
+        "HEX-7: `Service` es solo un rol de puerto saliente (HEX-5, último recurso); \
+         en domain y application ningún tipo se llama `…Service`",
+        &[(
+            "tipos de domain y application fuera de ports/outbound",
+            checked,
+        )],
         violations,
     );
 }

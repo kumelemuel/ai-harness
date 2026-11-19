@@ -79,6 +79,10 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   transición de estado en el handler: **detente** y muévelo a un método del
   agregado que devuelva `Result`.
 - Agregados inmutables, con comportamiento.
+- Una regla que no es de un solo agregado va en un **servicio de dominio**: sin
+  estado, sin puertos ni E/S (el handler le pasa los datos), nombrado por la
+  regla (`PasswordPolicy`), **nunca `…Service`**. `Service` solo es un rol de
+  puerto saliente, de último recurso.
 
 **Kernel compartido (HEX-8)**
 - Solo primitivas y solo el lenguaje estándar: `Result`, los tipos de los dos

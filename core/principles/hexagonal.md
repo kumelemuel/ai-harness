@@ -107,7 +107,7 @@ nombres de capa y la dirección de dependencias no.
 | `Gateway` | Servicio de un tercero |
 | `Client` | Otro servicio del mismo sistema |
 | `Synchronizer` | Publicar o sincronizar estado hacia otro sistema |
-| `Service` | Utilidad que no encaja en lo anterior (último recurso) |
+| `Service` | Utilidad técnica que no encaja en lo anterior (último recurso). Es el único uso del sufijo: nunca en `domain` ni en `application` fuera de `ports/outbound` (HEX-7) |
 
 Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es el sustantivo del puerto sin el sufijo de rol** (`Postgres…`, `InMemory…`, `Http…`, `NoOp…`):
 
@@ -166,11 +166,13 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 
 Agregados inmutables con comportamiento en sus métodos. Las reglas se evalúan en el dominio y devuelven `Result` (`ERR-1`).
 
+**Servicio de dominio.** Una regla que no pertenece a un solo agregado (una política de contraseñas, una regla que compara dos agregados) va en un servicio de dominio: vive en `domain`, no tiene estado, recibe valores del dominio y devuelve `Result`. No recibe puertos ni hace E/S: si la regla necesita datos externos, el handler los carga y se los pasa. Se nombra por la regla que evalúa (`PasswordPolicy`, `MembershipEligibility`), **nunca `…Service`**. Un tipo que solo enumera opciones (`MembershipPolicy { Open, Closed }`) es un value object, no un servicio.
+
 **Fundamento.** Un handler con lógica de negocio es un modelo anémico disfrazado. Si la regla vive en el agregado, se prueba sin infraestructura y no se duplica entre casos de uso.
 
-**Violaciones típicas.** El handler calcula, valida longitudes o decide si una transición es válida. Es **la violación más frecuente de los agentes de IA**: tienden a escribir el `if` donde están editando.
+**Violaciones típicas.** El handler calcula, valida longitudes o decide si una transición es válida. Es **la violación más frecuente de los agentes de IA**: tienden a escribir el `if` donde están editando. Un `PasswordService` en el dominio, o un servicio de dominio que recibe un repositorio.
 
-**Verificación.** Revisión (difícil de automatizar). Cubierto por el subagente `architecture-reviewer`.
+**Verificación.** La lógica fuera del dominio y que un servicio de dominio no tenga estado ni E/S, por revisión (difícil de automatizar): el subagente `architecture-reviewer`. El nombre, por test de arquitectura: en `domain` y en `application` (fuera de `ports/outbound`) ningún tipo termina en `Service`. En Rust: `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role`.
 
 ---
 
@@ -222,10 +224,10 @@ Agregar una exige cambiar esta lista y el test del kernel en el mismo commit.
 | Framework o librerías utilitarias en el núcleo | Estándar del lenguaje + kernel |
 | Agregar un trait al kernel porque varios contextos lo usan | Solo capacidades de la lista de HEX-8 |
 | Reglas de negocio en el handler | Encapsularlas en el dominio |
+| `PasswordService` en el dominio | Servicio de dominio nombrado por la regla: `PasswordPolicy` (HEX-7) |
 
 ---
 
 ## Decisiones abiertas
 
-1. **Criterio para el sufijo `Service`.** Definir cuándo se permite, para que no se vuelva cajón de sastre.
-2. **Publicación de eventos de dominio.** El kernel admite el marcador `DomainEvent`, pero no está decidido cómo emite eventos un agregado inmutable (HEX-7) ni quién los publica. Se decide con el primer contexto que los necesite.
+1. **Publicación de eventos de dominio.** El kernel admite el marcador `DomainEvent`, pero no está decidido cómo emite eventos un agregado inmutable (HEX-7) ni quién los publica. Se decide con el primer contexto que los necesite.

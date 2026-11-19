@@ -108,6 +108,7 @@ Las versiones de crates externos se declaran una sola vez en
 | Identidad autenticada | El middleware del composition root inserta `edge_http::AuthenticatedAccount` como `Extension`; el handler la lee con `Option<Extension<…>>` y responde 401 si falta |
 | Agregado inmutable (HEX-7) | Campos privados, getters, comportamiento `fn rename(&self, …) -> Result<Self, NotCommunityOwner>` |
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
+| Servicio de dominio (HEX-7) | Tipo sin campos con funciones asociadas: `pub struct PasswordPolicy;` con `pub fn validate(password: &str) -> Result<(), WeakPassword>`. Sin `Arc<dyn …>` ni `BoxFuture`: los datos los carga el handler |
 | Composition root (HEX-2) | `apps/server/src/main.rs`: construye adaptadores y handlers, arma cada `{Ctx}Api { … }` y compone sus `Router` |
 | Capacidades del kernel (HEX-8) | `kernel::IdGenerator` y `kernel::FaultReporter` (traits; `Clock` es la tercera de la lista, aún sin uso en la plantilla). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en `communities-infrastructure`, `StderrFaultReporterAdapter` en `infrastructure-stderr`. `uuid` nunca en el núcleo. |
 
@@ -299,11 +300,12 @@ communities_application::moderation_gateway_contract! {
 | HEX-5 / TDD-2 adaptadores `{Prefijo}{Concepto}Adapter`, en todo el workspace (`src/` y `tests/`, también `#[cfg(test)]`): todo tipo que implementa un puerto de `ports/outbound` o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa. En código de test, el prefijo es `Fake`, `Fixed`, `Stub` o `Spy`. En producción, el prefijo no está vacío, no empieza con uno de esos, y el adaptador vive en infraestructura (`contexts/{ctx}/infrastructure` o `infrastructure/*`) | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
 | HEX-8 el kernel no declara dependencias (ni de test ni por `target`), y sus traits públicos son marcadores de modelo o capacidades de la lista cerrada | `tests/kernel.rs::hex_8_*` (`toml` + `syn`) | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
+| HEX-7 ningún tipo de `domain` ni de `application` fuera de `ports/outbound` se llama `…Service` (structs, enums y traits, también en código de test) | `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role` (`syn`) | `cargo test` |
 | ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
 | ERR-1 en `application` tampoco: las hojas de `errors.rs`, los `*Error` de `commands/` y `queries/` (`{Verb}{Noun}Error`), y los errores de los puertos (los `*Error` de `ports/` y todo `E` de un `Failure<E>` en `ports/`). El `impl` se busca en cualquier archivo del crate, y uno generado por macro sobre `$tipo` cuenta | `tests/errors.rs::err_1_application_errors_do_not_implement_std_error` (`syn`) | `cargo test` |
 | ERR-4 el núcleo no escribe en la salida: `domain` y `application` no invocan `println!`, `eprintln!`, `print!`, `eprint!` ni `dbg!` (también con ruta `std::…!`, dentro de otra macro o de un `macro_rules!`). Exento lo que exige `test`: `#[cfg(test)]`, `#[cfg(all(test, …))]`, `#![cfg(test)]` y los archivos de un `#[cfg(test)] mod x;`. `testing` (`cfg(any(test, feature = "testing"))`) no está exento. Los crates de logging ya los impide `hex_2_core_*` | `tests/output.rs::err_4_*` (`syn` + tokens) | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
-| HEX-1…6, HEX-8, ERR-1, ERR-4 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
+| HEX-1…6, HEX-7 (nombres), HEX-8, ERR-1, ERR-4 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
 | Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
 | TDD-2 / ERR-3 el doble y los adaptadores cumplen el mismo contrato del puerto | Batería de contrato (`application::testing::contracts`) | `cargo test` |
 | HEX-7, ERR-1…3, TDD-1 (test antes o junto a la producción en el diff y en el orden de commits) | `architecture-reviewer`. Los hooks garantizan verde, no rojo primero | revisión |
@@ -359,6 +361,7 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 | Rutas HTTP dentro de `infrastructure` junto a la persistencia | Crate `{ctx}-api` separado; `api` e `infrastructure` no se ven (HEX-1) |
 | `uuid`, `serde`, `chrono` en `domain`/`application` | Solo `std` + kernel; la implementación va en infraestructura |
 | `trait CommunityRepositoryPort` | `trait CommunityRepository` |
+| `PasswordService` en el dominio | `PasswordPolicy` (HEX-7) |
 | `PostgresCommunityRepositoryAdapter`, `UuidIdGenerator` | `PostgresCommunityAdapter`, `UuidIdGeneratorAdapter` (HEX-5) |
 | Un trait de negocio en el kernel porque dos contextos lo usan (`CommunityLookup`) | Un puerto en el `application` de cada contexto, o un `Client`. El kernel solo admite las capacidades de HEX-8 |
 | Inbound `CommunityCreationPort` + impl `CreateCommunityUseCase` | Inbound `CreateCommunityUseCase` + impl `CreateCommunityHandler` |

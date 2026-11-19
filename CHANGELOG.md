@@ -2,6 +2,16 @@
 
 ## Sin publicar
 
+### Agregado
+- **Servicios de dominio** (HEX-7, HEX-5): una regla que no es de un solo
+  agregado vive en `domain`, sin estado ni E/S, y se nombra por la regla
+  (`PasswordPolicy`). Cierra la decisión abierta sobre `Service`: solo es un rol
+  de puerto saliente, y `hex_7_service_suffix_is_only_an_outbound_role` lo
+  impide en `domain` y `application`. Viene de kumenity (`PasswordPolicy`).
+
+### Filas que cambiaron de mecanismo
+- HEX-7 (nombre de los servicios de dominio): de sin verificar a `test`.
+
 ### Corregido
 - **`DomainEvent` es un marcador del kernel** (HEX-8): el texto admitía
   "marcadores de error y de evento", pero `hex_8_*` rechazaba todo trait fuera
