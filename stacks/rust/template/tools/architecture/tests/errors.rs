@@ -180,12 +180,15 @@ fn err_1_domain_errors_do_not_implement_std_error() {
 
 const LEAF: &str = "hoja de errors.rs";
 const CONTRACT: &str = "contrato {Verb}{Noun}Error";
+const WORKFLOW: &str = "error de un workflow {Verb}{Noun}WorkflowError";
 const PORT: &str = "error declarado de un puerto";
 
 /// Errores del árbol A que declara un crate de `application`, con el motivo.
 ///
 /// - Hojas: todo `struct`/`enum` de `errors.rs` (o `errors/`).
 /// - Contratos: los `*Error` de `commands/` y `queries/` (`{Verb}{Noun}Error`).
+/// - Workflows: los `*Error` de `workflows/` (`{Verb}{Noun}WorkflowError`). Sin
+///   material propio: un contexto puede no tener workflows.
 /// - Puertos: los `*Error` de `ports/` y todo `E` de un `Failure<E>` en `ports/outbound/`.
 #[derive(Default)]
 struct DeclaredErrors {
@@ -224,6 +227,7 @@ impl DeclaredErrors {
             let reason = match first.as_str() {
                 "errors" => Some(LEAF),
                 "commands" | "queries" => Some(CONTRACT),
+                "workflows" => Some(WORKFLOW),
                 "ports" => {
                     // Solo los salientes: el `Failure<E>` de un puerto entrante es
                     // el contrato del caso de uso, que se clasifica en `commands/`

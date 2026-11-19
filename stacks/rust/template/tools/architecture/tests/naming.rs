@@ -817,3 +817,62 @@ fn hex_7_service_suffix_is_only_an_outbound_role() {
         violations,
     );
 }
+
+fn is_workflow_type(name: &str) -> bool {
+    (name.ends_with("Workflow") && name != "Workflow")
+        || (name.ends_with("WorkflowError") && name != "WorkflowError")
+}
+
+#[test]
+fn hex_4_workflows_are_internal_to_application() {
+    let mut violations = Vec::new();
+
+    // `api` depende de casos de uso: un workflow no es parte del contrato.
+    let api_dirs = [dirs_of(Layer::Api, "src"), dirs_of(Layer::Api, "tests")].concat();
+    let api_files = scan(&api_dirs, None);
+    let api_scanned = api_files.len();
+    for (file, items) in api_files {
+        for ident in items.idents.iter().filter(|i| is_workflow_type(i)) {
+            violations.push(format!(
+                "{file}: referencia a `{ident}`: api ve casos de uso, no workflows"
+            ));
+        }
+    }
+
+    // Un `*Workflow` vive en `application/src/workflows/` y no es un caso de uso.
+    let application = scan(&dirs_of(Layer::Application, "src"), None);
+    let application_scanned = application.len();
+    for (file, items) in application {
+        let in_workflows = file.contains("/src/workflows/");
+        if !in_workflows {
+            for name in items.types.iter().filter(|n| is_workflow_type(n)) {
+                violations.push(format!(
+                    "{file}: `{name}` debe vivir en application/src/workflows/{{verb_noun}}/"
+                ));
+            }
+            continue;
+        }
+        for imp in &items.impls {
+            let Some((_, trait_path, _)) = &imp.trait_ else {
+                continue;
+            };
+            let contract = last_segment(trait_path);
+            if contract.ends_with("UseCase") {
+                violations.push(format!(
+                    "{file}: un workflow implementa `{contract}`: un caso de uso es un \
+                     `{{Verb}}{{Noun}}Handler` en commands/ o queries/"
+                ));
+            }
+        }
+    }
+
+    assert_no_violations(
+        "HEX-4: un `{Verb}{Noun}Workflow` es orquestación compartida de application: \
+         vive en workflows/, no implementa un UseCase y api nunca lo nombra",
+        &[
+            ("archivos de api (src/ y tests/)", api_scanned),
+            ("archivos de application", application_scanned),
+        ],
+        violations,
+    );
+}

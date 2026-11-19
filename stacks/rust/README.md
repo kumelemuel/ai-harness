@@ -39,6 +39,7 @@ contexts/{ctx}/
 │       │   └── dtos/           {concepto}_payloads.rs: el contenedor {Contrato}Payloads es el módulo (si hace falta)
 │       ├── commands/{caso}/    command.rs · response.rs · error.rs · handler.rs
 │       ├── queries/{caso}/     query.rs · response.rs · error.rs · handler.rs
+│       ├── workflows/{verb_noun}/  workflow.rs ({Verb}{Noun}Workflow) · error.rs ({Verb}{Noun}WorkflowError)
 │       ├── errors.rs           hojas compartidas (ERR-2)
 │       ├── testing.rs          dobles (Fake…Adapter) + block_on, feature `testing`
 │       └── testing/contracts/  {puerto}.rs: batería de contrato + macro {puerto}_contract!
@@ -103,6 +104,7 @@ Las versiones de crates externos se declaran una sola vez en
 |-----------|------|
 | Puerto entrante (HEX-4) | `pub trait CreateCommunityUseCase: Send + Sync { fn execute(&self, command) -> BoxFuture<'_, Result<Response, Failure<Error>>>; }` |
 | Handler (HEX-4) | `pub struct CreateCommunityHandler { communities: Arc<dyn CommunityRepository>, … }` con `new(…)`; implementa el `UseCase` |
+| Workflow (HEX-4) | `pub struct FollowUpWorkflow { … Arc<dyn Puerto> … }` con `pub async fn run(&self, …) -> Result<T, Failure<FollowUpWorkflowError>>`: un tipo concreto, sin trait, que los handlers reciben como `Arc<FollowUpWorkflow>`. Cada handler hace `.map_err(\|f\| f.map_expected(…))` hacia su contrato. **Aún sin ejemplo en la plantilla:** `communities` tiene un solo caso de uso |
 | DTOs del caso de uso | `CreateCommunityCommand`, `CreateCommunityResponse`, `CreateCommunityError`, cada uno en su archivo dentro de `commands/create_community/`, reexportados en `mod.rs` |
 | Contrato sin tipos de dominio (HEX-4) | `Response` con `String`/primitivos; `impl From<&Community> for CreateCommunityResponse` |
 | Puerto saliente (HEX-5) | `pub trait CommunityRepository: Send + Sync` con métodos que devuelven `BoxFuture<'a, Result<T, Fault>>` |
@@ -309,6 +311,7 @@ batería.
 | HEX-3 `domain` no ve `application` | Cargo (no está declarado) + `hex_1_*` | compilación |
 | HEX-3 `domain` no declara puertos: no nombra `BoxFuture`, `Fault` ni `Failure` del kernel (por ruta, por nombre importado o con alias, también dentro de macros; `use kernel::*` falla porque no se puede verificar). El criterio es semántico, no de nombres: un puerto implica E/S | `tests/ports.rs::hex_3_*` (`syn` + tokens) | `cargo test` |
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
+| HEX-4 `*Workflow`/`*WorkflowError` solo en `application/src/workflows/`, sin implementar un `UseCase`, y `api` nunca los nombra; ERR-1 los cubre también (`impl Error` prohibido) | `tests/naming.rs::hex_4_workflows_are_internal_to_application`, `tests/errors.rs::err_1_application_*` | `cargo test` |
 | HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
 | HEX-5 puertos salientes con sufijo de rol (incluido `Publisher`) o un nombre propio de la lista (`UnitOfWork`), nunca `Port` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` | `cargo test` |
 | HEX-5 / TDD-2 adaptadores `{Prefijo}{Concepto}Adapter`, en todo el workspace (`src/` y `tests/`, también `#[cfg(test)]`): todo tipo que implementa un puerto de `ports/outbound` o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa. En código de test, el prefijo es `Fake`, `Fixed`, `Stub` o `Spy`. En producción, el prefijo no está vacío, no empieza con uno de esos, y el adaptador vive en infraestructura (`contexts/{ctx}/infrastructure` o `infrastructure/*`) | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |

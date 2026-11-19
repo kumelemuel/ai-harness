@@ -38,6 +38,7 @@ cambiaron de mecanismo.
 | HEX-4 | Las implementaciones se llaman `*Handler` | `test` | `tests/naming.rs::hex_4_use_case_implementations_are_handlers` |
 | HEX-4 | `api` depende del `UseCase`, nunca del `Handler` | `test` | `tests/naming.rs::hex_4_api_depends_on_use_cases_never_on_handlers` |
 | HEX-4 | El contrato no expone tipos de `domain` | `test` | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` |
+| HEX-4 | Workflows en `workflows/`, sin `UseCase`, invisibles para `api` | `test` | `tests/naming.rs::hex_4_workflows_are_internal_to_application` |
 | HEX-5 | Puertos salientes con sufijo de rol o nombre propio de la lista (`UnitOfWork`), nunca `Port` | `test` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` |
 | HEX-5 | Adaptadores `{Tecnología}{Concepto}Adapter` en infraestructura, sin prefijos de doble | `test` | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` |
 | HEX-6 | DTOs de puerto saliente sin `Command`, `Query`, `Response` ni `Result` | `test` | `tests/naming.rs::hex_6_outbound_dtos_do_not_use_reserved_vocabulary` |

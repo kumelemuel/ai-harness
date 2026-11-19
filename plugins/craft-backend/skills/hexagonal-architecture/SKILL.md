@@ -57,6 +57,10 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 - `Command`/`Query`, `Response` y `Error` junto al handler, como tipos de
   primer nivel. **El contrato no expone tipos de `domain`.**
 - El adaptador *driving* inyecta el `UseCase`, nunca el `Handler`.
+- Pasos que comparten varios handlers: `{Verb}{Noun}Workflow` en
+  `application/workflows/{verb_noun}/`, con su `{Verb}{Noun}WorkflowError` de hojas
+  compartidas. No es caso de uso: sin puerto entrante, `api` nunca lo ve, y cada
+  handler traduce su error con `match` exhaustivo. Nunca un handler que llama a otro.
 
 **Puertos salientes (HEX-5)**
 - Sufijo por rol: `Repository`, `Cache`, `Gateway` (tercero), `Client` (servicio

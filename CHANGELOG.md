@@ -3,6 +3,10 @@
 ## Sin publicar
 
 ### Agregado
+- **Workflows** (HEX-4, ERR-1): pasos que comparten varios handlers, como
+  `{Verb}{Noun}Workflow` en `application/workflows/`, con un error cerrado de
+  hojas compartidas. No es caso de uso, y `api` nunca lo ve. Lo verifica
+  `hex_4_workflows_are_internal_to_application`, y ERR-1 cubre sus errores.
 - **Rol `Publisher` y puerto `UnitOfWork`** (HEX-5): `Publisher` despacha eventos
   de dominio dentro del proceso. `UnitOfWork` es la frontera transaccional que
   declara `application`, y es el único puerto con nombre propio (sin sufijo de
@@ -40,6 +44,7 @@
   mediciones anteriores.
 
 ### Filas que cambiaron de mecanismo
+- HEX-4 (workflows): de sin regla a `test`.
 - HEX-7 (nombre de los servicios de dominio): de sin verificar a `test`.
 - HEX-1 (autenticación sin dependencias entre contextos): de sin regla a
   `test`, con `hex_1_dependencies_point_inward`.

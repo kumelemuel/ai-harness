@@ -88,12 +88,13 @@ nombres de capa y la dirección de dependencias no.
 - Los DTOs del contrato son tipos de primer nivel junto al handler, no anidados en la interfaz.
 - El contrato (`Command`, `Query`, `Response`, `Error`) no expone tipos de `domain`: como `api` no ve `domain` (HEX-1), el contrato se expresa con tipos del lenguaje o de `application`.
 - El adaptador *driving* depende del `UseCase`, nunca del `Handler`.
+- **Workflows.** Cuando varios handlers comparten la misma secuencia de pasos (reclamar un recurso, llamar a un colaborador, revertir si falla), esa secuencia es un `{Verb}{Noun}Workflow` en `application/workflows/{verb_noun}/`. No es un caso de uso: no tiene puerto entrante, el adaptador *driving* nunca lo ve, y los handlers lo reciben por constructor. Su error es un `{Verb}{Noun}WorkflowError` cerrado, hecho de las mismas hojas compartidas (`ERR-2`), que cada handler traduce con un `match` exhaustivo a las hojas que admite su contrato. Orquesta como un handler: las reglas siguen en el dominio (HEX-7).
 
 **Fundamento.** Un caso de uso es la unidad de cambio y de prueba. Interfaces de un solo método evitan "servicios de aplicación" que crecen sin límite. El adaptador depende de una abstracción, así que se puede sustituir o probar sin la clase concreta.
 
-**Violaciones típicas.** Un `CommunityService` con diez métodos. Un controller que inyecta el handler. Un `Response` que expone el agregado tal cual.
+**Violaciones típicas.** Un `CommunityService` con diez métodos. Un controller que inyecta el handler. Un `Response` que expone el agregado tal cual. Un handler que invoca a otro handler para reutilizar sus pasos (va en un workflow). Un controller que llama a un workflow.
 
-**Verificación.** Test de arquitectura: `api` no depende de `*Handler` y cada `*UseCase` declara un solo método. Tampoco expone tipos de `domain`: ni en los campos públicos y variantes de `Command`, `Query`, `Response` y `Error`, ni en las firmas del `UseCase`, ni en una reexportación pública desde `application`. Las conversiones (`From<&Agregado> for Response`) y los `use` del handler no son contrato. Que `api` no declare `domain` no basta: un valor de dominio que llega por un campo público se puede usar sin importar el crate. En Rust: `tests/naming.rs::hex_4_*`.
+**Verificación.** Test de arquitectura: `api` no depende de `*Handler` y cada `*UseCase` declara un solo método. Tampoco expone tipos de `domain`: ni en los campos públicos y variantes de `Command`, `Query`, `Response` y `Error`, ni en las firmas del `UseCase`, ni en una reexportación pública desde `application`. Las conversiones (`From<&Agregado> for Response`) y los `use` del handler no son contrato. Que `api` no declare `domain` no basta: un valor de dominio que llega por un campo público se puede usar sin importar el crate. Los workflows viven solo en `workflows/`, no implementan un `UseCase` y `api` no los nombra. En Rust: `tests/naming.rs::hex_4_*`.
 
 ---
 
