@@ -167,6 +167,8 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 
 Agregados inmutables con comportamiento en sus métodos. Las reglas se evalúan en el dominio y devuelven `Result` (`ERR-1`).
 
+**Crear y reconstituir.** Un agregado nace por una vía con nombre propio (`create`) que aplica lo que solo vale al nacer: el estado inicial, las reglas de alta y el evento inicial (`DomainEvent`). Reconstituirlo desde la persistencia es otra vía (`restore` o el constructor canónico), que acepta cualquier estado y no repite las reglas de alta ni emite eventos. La forma depende del lenguaje: funciones asociadas del agregado, o un `{Agregado}Factory` en el dominio si el constructor del lenguaje es público y no se puede reservar para la reconstitución (los `record` de Java). El identificador lo recibe de afuera (`IdGenerator`, HEX-8), no lo genera el dominio.
+
 **Servicio de dominio.** Una regla que no pertenece a un solo agregado (una política de contraseñas, una regla que compara dos agregados) va en un servicio de dominio: vive en `domain`, no tiene estado, recibe valores del dominio y devuelve `Result`. No recibe puertos ni hace E/S: si la regla necesita datos externos, el handler los carga y se los pasa. Se nombra por la regla que evalúa (`PasswordPolicy`, `MembershipEligibility`), **nunca `…Service`**. Un tipo que solo enumera opciones (`MembershipPolicy { Open, Closed }`) es un value object, no un servicio.
 
 **Fundamento.** Un handler con lógica de negocio es un modelo anémico disfrazado. Si la regla vive en el agregado, se prueba sin infraestructura y no se duplica entre casos de uso.

@@ -16,9 +16,11 @@
   (`PasswordPolicy`). Cierra la decisión abierta sobre `Service`: solo es un rol
   de puerto saliente, y `hex_7_service_suffix_is_only_an_outbound_role` lo
   impide en `domain` y `application`. Viene de kumenity (`PasswordPolicy`).
-- **Crear o reconstituir un agregado** (`stacks/rust`): `create` y `restore`
-  como funciones asociadas, en lugar de un `AccountFactory` como el de
-  kumenity. Es solo un ejemplo, sin regla nueva.
+- **Crear o reconstituir un agregado** (HEX-7): dos vías con nombre. `create`
+  aplica el estado inicial, las reglas de alta y el evento inicial; `restore`
+  acepta cualquier estado y no emite eventos. En Rust son funciones asociadas.
+  Un `{Agregado}Factory` solo hace falta si el constructor del lenguaje es
+  público, como en los `record` de Java. El id viene de `IdGenerator`.
 
 ### Cambiado
 - **Aceptación de las katas Rust:** firma un JWT y arranca el servidor con
