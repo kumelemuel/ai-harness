@@ -1,9 +1,14 @@
 use crate::errors::NotCommunityOwner;
+use crate::events::CommunityEvent;
 use crate::value_objects::{CommunityId, CommunityName, CommunitySlug, OwnerId};
 use kernel::AggregateRoot;
 
 /// Agregado inmutable: el comportamiento devuelve un nuevo estado o un error
 /// de dominio (HEX-7). Las reglas viven aquí, no en el handler.
+///
+/// Cada transición registra su evento en el estado nuevo. El handler los toma
+/// con `take_events` y guarda el agregado sin eventos pendientes: no se
+/// persisten.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Community {
     id: CommunityId,
@@ -11,6 +16,7 @@ pub struct Community {
     slug: CommunitySlug,
     name: CommunityName,
     is_public: bool,
+    events: Vec<CommunityEvent>,
 }
 
 impl Community {
@@ -21,12 +27,17 @@ impl Community {
         name: CommunityName,
         is_public: bool,
     ) -> Self {
+        let created = CommunityEvent::Created {
+            community_id: id.clone(),
+            owner: owner.clone(),
+        };
         Self {
             id,
             owner,
             slug,
             name,
             is_public,
+            events: vec![created],
         }
     }
 
@@ -40,10 +51,27 @@ impl Community {
             return Err(NotCommunityOwner);
         }
 
+        let mut events = self.events.clone();
+        events.push(CommunityEvent::Renamed {
+            community_id: self.id.clone(),
+            name: name.clone(),
+        });
         Ok(Self {
             name,
+            events,
             ..self.clone()
         })
+    }
+
+    /// Eventos registrados desde la última vez que se tomaron.
+    pub fn events(&self) -> &[CommunityEvent] {
+        &self.events
+    }
+
+    /// Separa los eventos pendientes: el agregado que devuelve no tiene ninguno.
+    pub fn take_events(mut self) -> (Self, Vec<CommunityEvent>) {
+        let events = std::mem::take(&mut self.events);
+        (self, events)
     }
 
     pub fn id(&self) -> &CommunityId {
@@ -104,6 +132,47 @@ mod tests {
             "Rust Chile",
             "el original no muta"
         );
+    }
+
+    #[test]
+    fn creating_records_created() {
+        let created = community("alice");
+
+        assert_eq!(
+            created.events(),
+            [CommunityEvent::Created {
+                community_id: CommunityId::new("c-1".into()),
+                owner: OwnerId::new("alice".into()),
+            }]
+        );
+    }
+
+    #[test]
+    fn renaming_appends_renamed_without_touching_the_original() {
+        let original = community("alice");
+        let new_name = CommunityName::new("Rust Santiago".into()).unwrap();
+
+        let renamed = original
+            .rename(&OwnerId::new("alice".into()), new_name.clone())
+            .unwrap();
+
+        assert_eq!(renamed.events().len(), 2);
+        assert_eq!(
+            renamed.events()[1],
+            CommunityEvent::Renamed {
+                community_id: CommunityId::new("c-1".into()),
+                name: new_name,
+            }
+        );
+        assert_eq!(original.events().len(), 1, "el original no muta");
+    }
+
+    #[test]
+    fn taking_events_leaves_none_pending() {
+        let (community, events) = community("alice").take_events();
+
+        assert_eq!(events.len(), 1);
+        assert!(community.events().is_empty());
     }
 
     #[test]

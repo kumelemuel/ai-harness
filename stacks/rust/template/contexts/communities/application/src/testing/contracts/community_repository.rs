@@ -12,14 +12,19 @@ fn slug(value: &str) -> CommunitySlug {
     CommunitySlug::new(value.into()).expect("invariante: slug de prueba válido")
 }
 
+/// Como lo guarda un handler: sin eventos pendientes, porque no se persisten.
+/// Así `find` puede devolver un agregado igual al guardado en cualquier
+/// adaptador, también en uno que reconstituye desde una base de datos.
 fn community(id: &str, slug_value: &str) -> Community {
-    Community::create(
+    let (community, _events) = Community::create(
         CommunityId::new(id.into()),
         OwnerId::new("alice".into()),
         slug(slug_value),
         CommunityName::new("Rust Chile".into()).expect("invariante: nombre de prueba válido"),
         true,
     )
+    .take_events();
+    community
 }
 
 async fn save(adapter: &impl CommunityRepository, community: &Community) {

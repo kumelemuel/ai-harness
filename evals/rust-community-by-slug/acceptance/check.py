@@ -6,6 +6,9 @@ eligió el agente) y los tests de arquitectura. Imprime `PASS`/`FAIL` por cheque
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 import os
 import socket
@@ -18,6 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FAILED = False
+# Clave del servidor de la aceptación: firma los tokens con los que se autentica.
+JWT_SECRET = "kata-acceptance-secret"
 
 
 def report(name: str, ok: bool, detail: str = "") -> None:
@@ -26,10 +31,19 @@ def report(name: str, ok: bool, detail: str = "") -> None:
     print(f"{'PASS' if ok else 'FAIL'} {name}{': ' + detail if detail and not ok else ''}", flush=True)
 
 
+def token(account: str) -> str:
+    """JWT HS256 para `account`, como lo verifica `JwtAccessTokenAdapter`."""
+    encode = lambda data: base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+    header = encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    claims = encode(json.dumps({"sub": account, "exp": int(time.time()) + 3600}).encode())
+    signature = hmac.new(JWT_SECRET.encode(), f"{header}.{claims}".encode(), hashlib.sha256).digest()
+    return f"{header}.{claims}.{encode(signature)}"
+
+
 def call(base: str, method: str, path: str, account: str, body: dict | None = None):
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(base + path, data=data, method=method)
-    request.add_header("x-account-id", account)
+    request.add_header("authorization", f"Bearer {token(account)}")
     if data is not None:
         request.add_header("content-type", "application/json")
     try:
@@ -53,7 +67,7 @@ def start_server() -> tuple[subprocess.Popen, str] | None:
     target = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
     address = f"127.0.0.1:{free_port()}"
     process = subprocess.Popen([str(target / "debug" / "server")], cwd=ROOT,
-                               env={**os.environ, "BIND_ADDRESS": address},
+                               env={**os.environ, "BIND_ADDRESS": address, "JWT_SECRET": JWT_SECRET},
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(100):
         try:

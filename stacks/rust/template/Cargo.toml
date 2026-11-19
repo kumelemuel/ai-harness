@@ -14,11 +14,16 @@ communities-domain = { path = "contexts/communities/domain" }
 communities-application = { path = "contexts/communities/application" }
 communities-infrastructure = { path = "contexts/communities/infrastructure" }
 communities-api = { path = "contexts/communities/api" }
+iam-domain = { path = "contexts/iam/domain" }
+iam-application = { path = "contexts/iam/application" }
+iam-infrastructure = { path = "contexts/iam/infrastructure" }
+iam-api = { path = "contexts/iam/api" }
 edge-http = { path = "edge/http" }
 infrastructure-stderr = { path = "infrastructure/stderr" }
 
 # Externos (solo los usan los anillos exteriores; ver tools/architecture)
 axum = "0.8"
+jsonwebtoken = "9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }

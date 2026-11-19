@@ -3,6 +3,7 @@
 pub mod commands;
 pub mod errors;
 pub mod ports;
+pub mod subscribers;
 
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;

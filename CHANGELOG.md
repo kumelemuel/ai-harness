@@ -1,5 +1,86 @@
 # Changelog
 
+## 0.14.0 — 2026-11-19
+
+Plugins: `craft-backend` 0.11.0 y `craft-web` 0.5.0. `craft-backend` suma reglas
+de kumenity y de un proyecto Java de referencia: eventos de dominio y sus
+suscriptores, workflows, `UnitOfWork`, servicios de dominio, autenticación con
+`iam` y criterios de error.
+
+### Agregado
+- **Eventos de dominio** (HEX-7, HEX-8): la transición del agregado registra el
+  evento; el handler los toma, guarda sin eventos y publica por
+  `{Concepto}EventPublisher`, con el despachador en infraestructura. Viene de un
+  proyecto Java de referencia. La plantilla lo implementa en `communities`
+  (`Created`, `Renamed`), y `kernel` declara
+  `DomainEvent`. Cierra la decisión abierta sobre la publicación.
+- **Suscriptores de eventos** (HEX-4): segundo tipo de puerto entrante,
+  `{Concepto}EventSubscriber`, con solo `on`. Lo invoca el despachador de
+  infraestructura y puede recibir el evento de dominio. Las reacciones son
+  `{Verb}{Noun}Subscriber`, en `application/subscribers/`. En la plantilla,
+  `InProcessCommunityEventAdapter` reemplaza al NoOp y
+  `RecordCommunityHistorySubscriber` registra el historial.
+- **Workflows** (HEX-4, ERR-1): pasos que comparten varios handlers, como
+  `{Verb}{Noun}Workflow` en `application/workflows/`, con un error cerrado de
+  hojas compartidas. No es caso de uso, y `api` nunca lo ve. Lo verifica
+  `hex_4_workflows_are_internal_to_application`, y ERR-1 cubre sus errores.
+- **Rol `Publisher` y puerto `UnitOfWork`** (HEX-5): `Publisher` despacha eventos
+  de dominio dentro del proceso. `UnitOfWork` es la frontera transaccional que
+  declara `application`, y es el único puerto con nombre propio (sin sufijo de
+  rol). Sus adaptadores son `{Tecnología}UnitOfWorkAdapter`.
+- **Autenticación real en la plantilla Rust** (HEX-1, ERR-3): contexto `iam`
+  mínimo con `VerifyAccessTokenUseCase`, el puerto `AccessTokenService`,
+  `JwtAccessTokenAdapter` (HS256) y el middleware `IamApi::protect`. Reemplaza
+  el `authenticate` de ejemplo, que confiaba en `x-account-id`. En kumenity, el
+  `TokenVerifier` vivía en `shared`, que ven todos los contextos.
+- **Composition root por contexto** (`stacks/rust`): `config.rs` (`JWT_SECRET`
+  obligatorio, sin `Debug`) y `contexts/{ctx}.rs`, que devuelve el `{Ctx}Api`.
+  Lo toma de los `containers/` de kumenity.
+- **Servicios de dominio** (HEX-7, HEX-5): una regla que no es de un solo
+  agregado vive en `domain`, sin estado ni E/S, y se nombra por la regla
+  (`PasswordPolicy`). Cierra la decisión abierta sobre `Service`: solo es un rol
+  de puerto saliente, y `hex_7_service_suffix_is_only_an_outbound_role` lo
+  impide en `domain` y `application`. Viene de kumenity (`PasswordPolicy`).
+- **Crear o reconstituir un agregado** (HEX-7): dos vías con nombre. `create`
+  aplica el estado inicial, las reglas de alta y el evento inicial; `restore`
+  acepta cualquier estado y no emite eventos. En Rust son funciones asociadas.
+  Un `{Agregado}Factory` solo hace falta si el constructor del lenguaje es
+  público, como en los `record` de Java. El id viene de `IdGenerator`.
+
+### Cambiado
+- **Corte de ERR-2:** si el caso de uso persiste un estado de negocio y
+  responde con éxito, no es error; es una hoja solo si aborta.
+- **Éxito degradado** (ERR-3): un colaborador llamado después de confirmar el
+  estado no revierte el caso de uso. Su error queda registrado en el estado.
+- **Registro de negocio** (ERR-4): el resultado de negocio que el producto
+  necesita registrar va por un puerto saliente `{Concepto}LogService`. El
+  `FaultReporter` sigue siendo solo del manejador global.
+- **Aceptación de las katas Rust:** firma un JWT y arranca el servidor con
+  `JWT_SECRET`, en lugar de enviar `x-account-id`. Las katas no se corrieron
+  aún: la plantilla creció con `iam`, así que su costo no es comparable con las
+  mediciones anteriores.
+
+### Filas que cambiaron de mecanismo
+- HEX-4 (workflows): de sin regla a `test`.
+- HEX-4 (suscriptores de eventos): de sin regla a `test`.
+- HEX-7 (nombre de los servicios de dominio): de sin verificar a `test`.
+- HEX-1 (autenticación sin dependencias entre contextos): de sin regla a
+  `test`, con `hex_1_dependencies_point_inward`.
+
+### Corregido
+- **ERR-1 clasificaba como error de puerto el contrato de una query** (ERR-1):
+  el `Failure<E>` de `ports/inbound` registraba `{Verb}{Noun}Error` como error
+  de puerto, porque `ports/` se recorre antes que `queries/`. Con solo queries,
+  `ARCH_REQUIRE_MATERIAL=1` fallaría por 0 contratos. Ahora solo cuenta
+  `ports/outbound`.
+- **`DomainEvent` es un marcador del kernel** (HEX-8): el texto admitía
+  "marcadores de error y de evento", pero `hex_8_*` rechazaba todo trait fuera
+  de `ValueObject`, `Entity`, `AggregateRoot` e `Identifier`. Se agrega
+  `DomainEvent` a la lista. Los marcadores de error (`DomainError`,
+  `ApplicationError`) solo van si el lenguaje los necesita: en Java, para sellar
+  jerarquías entre módulos, como en un proyecto Java de referencia; en Rust no hacen falta, porque el
+  `enum` del contrato ya cierra la jerarquía.
+
 ## 0.13.0 — 2026-11-13
 
 Plugins: `craft-backend` 0.10.0 y `craft-web` 0.5.0, porque cambia el formato del

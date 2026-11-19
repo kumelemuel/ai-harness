@@ -49,7 +49,7 @@ async fn post(
 
     let mut request = Request::post("/communities").header(CONTENT_TYPE, "application/json");
     if let Some(account) = account {
-        // En producción la inserta el middleware de autenticación del composition root.
+        // En producción la inserta el middleware de `iam-api` (`IamApi::protect`).
         request = request.extension(AuthenticatedAccount {
             account_id: account.into(),
         });

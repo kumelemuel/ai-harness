@@ -39,6 +39,10 @@ Reglas:
   envuelve (`FromDomain`, `FromVault`).
 - El significado de un fallo lo decide el producto **por caso de uso**: el mismo
   rechazo puede ser éxito en un caso y error en otro.
+- **Corte:** si el caso de uso persiste un estado de negocio (rechazado, fallido)
+  y responde con éxito, **no es error**: va en el `Response`. Es hoja del contrato
+  solo si aborta (sin estado nuevo, o revirtiendo) y el cliente debe corregir o
+  reintentar.
 
 ## Adaptadores (ERR-3)
 
@@ -54,6 +58,9 @@ Reglas:
 - Cualquier otra falla técnica: árbol B.
 - El adaptador no decide la rama de negocio ni devuelve errores pensados
   para HTTP.
+- **Éxito degradado:** un colaborador llamado **después** de confirmar el estado
+  (sincronizar, notificar) no revierte el caso de uso si falla. Su error
+  declarado queda registrado en el estado (`synced = false`), sin hoja ni `Fault`.
 
 ## Borde (ERR-4)
 
@@ -64,6 +71,9 @@ Reglas:
   a través de un puerto saliente.
 - El núcleo no hace logging. Nunca datos sensibles ni secretos en errores,
   mensajes o registros.
+- Registro de un resultado de negocio que el producto necesita: un puerto
+  saliente (`{Concepto}LogService`) que invoca el handler. El `FaultReporter` solo
+  lo invoca el manejador global (árbol B).
 
 ## Tests
 

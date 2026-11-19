@@ -39,13 +39,19 @@ contexts/{ctx}/
 │       │   └── dtos/           {concepto}_payloads.rs: el contenedor {Contrato}Payloads es el módulo (si hace falta)
 │       ├── commands/{caso}/    command.rs · response.rs · error.rs · handler.rs
 │       ├── queries/{caso}/     query.rs · response.rs · error.rs · handler.rs
+│       ├── subscribers/        {verb_noun}.rs → {Verb}{Noun}Subscriber (impl {Concepto}EventSubscriber)
+│       ├── workflows/{verb_noun}/  workflow.rs ({Verb}{Noun}Workflow) · error.rs ({Verb}{Noun}WorkflowError)
 │       ├── errors.rs           hojas compartidas (ERR-2)
 │       ├── testing.rs          dobles (Fake…Adapter) + block_on, feature `testing`
 │       └── testing/contracts/  {puerto}.rs: batería de contrato + macro {puerto}_contract!
 ├── infrastructure/             → kernel, {ctx}-domain, {ctx}-application (+ uuid, sqlx…)
 └── api/                        → kernel, {ctx}-application, edge-http (+ axum, serde). Nunca domain.
     └── src/                    {Ctx}Api { use cases, faults }.protected()/public() → Router
-apps/server/  (o app/)          composition root: construye contextos, compone rutas, autentica
+apps/server/  (o app/)          composition root: cablea, no implementa
+└── src/
+    ├── main.rs                 lee la configuración, compone las rutas: iam.protect(ctx.protected())
+    ├── config.rs               variables de entorno, una vez al arrancar (JWT_SECRET obligatorio)
+    └── contexts/{ctx}.rs       construye adaptadores y handlers del contexto, devuelve su {Ctx}Api
 tools/architecture/             tests de arquitectura (VER-1)
 ```
 
@@ -99,16 +105,21 @@ Las versiones de crates externos se declaran una sola vez en
 |-----------|------|
 | Puerto entrante (HEX-4) | `pub trait CreateCommunityUseCase: Send + Sync { fn execute(&self, command) -> BoxFuture<'_, Result<Response, Failure<Error>>>; }` |
 | Handler (HEX-4) | `pub struct CreateCommunityHandler { communities: Arc<dyn CommunityRepository>, … }` con `new(…)`; implementa el `UseCase` |
+| Workflow (HEX-4) | `pub struct FollowUpWorkflow { … Arc<dyn Puerto> … }` con `pub async fn run(&self, …) -> Result<T, Failure<FollowUpWorkflowError>>`: un tipo concreto, sin trait, que los handlers reciben como `Arc<FollowUpWorkflow>`. Cada handler hace `.map_err(\|f\| f.map_expected(…))` hacia su contrato. **Aún sin ejemplo en la plantilla:** `communities` tiene un solo caso de uso |
 | DTOs del caso de uso | `CreateCommunityCommand`, `CreateCommunityResponse`, `CreateCommunityError`, cada uno en su archivo dentro de `commands/create_community/`, reexportados en `mod.rs` |
 | Contrato sin tipos de dominio (HEX-4) | `Response` con `String`/primitivos; `impl From<&Community> for CreateCommunityResponse` |
 | Puerto saliente (HEX-5) | `pub trait CommunityRepository: Send + Sync` con métodos que devuelven `BoxFuture<'a, Result<T, Fault>>` |
 | Adaptador (HEX-5) | `InMemoryCommunityAdapter`, `PostgresCommunityAdapter`, `NoOpModerationAdapter` |
+| Frontera transaccional (HEX-5) | Puerto `UnitOfWork` en `ports/outbound`. **Aún sin ejemplo en la plantilla:** con un único adaptador en memoria no hay transacción que delimitar, y en Rust la firma natural (`fn execute<T>(…)`) es genérica, así que no admite `Arc<dyn UnitOfWork>`. Se diseña con el primer adaptador con transacción real (p. ej. `PostgresUnitOfWorkAdapter` sobre `sqlx::Transaction`) |
 | DTOs de puerto saliente (HEX-6) | `ports/outbound/dtos/moderation_payloads.rs`: `ReviewContentRequest` (entrada), `ModerationVerdict` (salida, `Approved` o `Rejected { reason }`) y `ModerationError` (error declarado). Rust no tiene un tipo contenedor: el módulo `{concepto}_payloads` hace de `{Contrato}Payloads`, y `dtos/mod.rs` reexporta sus tipos |
 | Transporte (HEX-6) | `CreateCommunityHttpRequest` (`Deserialize`), `CreateCommunityHttpResponse` (`Serialize`) en `{ctx}-api` |
-| Identidad autenticada | El middleware del composition root inserta `edge_http::AuthenticatedAccount` como `Extension`; el handler la lee con `Option<Extension<…>>` y responde 401 si falta |
+| Identidad autenticada (HEX-1) | El contexto `iam` declara `VerifyAccessTokenUseCase` (en `queries/`) y el puerto `AccessTokenService`, que implementa `JwtAccessTokenAdapter`. Un token inválido es `AccessTokenVerdict::Invalid`, un veredicto y no un error (ERR-3). `IamApi::protect(routes)`, en `iam-api`, es el middleware: lee `Authorization: Bearer …`, ejecuta el caso de uso, inserta `edge_http::AuthenticatedAccount` como `Extension` y, si no hay identidad, responde 401 sin llegar a la ruta. El handler de otro contexto la lee con `Option<Extension<…>>` y responde 401 si falta, por si la ruta quedó sin proteger |
 | Agregado inmutable (HEX-7) | Campos privados, getters, comportamiento `fn rename(&self, …) -> Result<Self, NotCommunityOwner>` |
+| Eventos de dominio (HEX-7) | `CommunityEvent` (`enum`, `impl kernel::DomainEvent`) en `domain/src/events.rs`. `Community` guarda `events: Vec<CommunityEvent>`: `create` registra `Created`, y `rename` devuelve el estado nuevo con `Renamed` agregado. `take_events(self) -> (Self, Vec<CommunityEvent>)` los separa. El handler guarda el agregado sin eventos y publica con `CommunityEventPublisher::publish(&events)`. Adaptador `InProcessCommunityEventAdapter::new(vec![…])`, en `communities-infrastructure`: cada evento, en orden, a cada suscriptor, y la primera falla corta. Suscriptor de ejemplo: `RecordCommunityHistorySubscriber`, sobre `CommunityHistoryRepository` (`InMemoryCommunityHistoryAdapter`). Contrato del suscriptor: `trait CommunityEventSubscriber { fn on<'a>(&'a self, event: &'a CommunityEvent) -> BoxFuture<'a, Result<(), Fault>>; }`. Doble del publicador: `SpyCommunityEventAdapter`. La batería del repositorio guarda agregados sin eventos pendientes, la forma persistida |
+| Crear o reconstituir (HEX-7) | Dos funciones asociadas del agregado: en Rust, los campos privados ya reservan la construcción, así que no hace falta un `…Factory`. `create(…)` aplica lo que solo vale al nacer: el estado inicial, las reglas de alta y el evento inicial (`Account::create` deja la cuenta pendiente de verificación). `restore(…)` rearma el agregado con los value objects ya leídos de la persistencia, en cualquier estado, sin reglas de alta ni eventos. Si un dato persistido ya no pasa su value object, el adaptador lo convierte en `Fault` (dato corrupto, ver Errores). El id llega de `IdGenerator`, nunca de `uuid` en el dominio |
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
-| Composition root (HEX-2) | `apps/server/src/main.rs`: construye adaptadores y handlers, arma cada `{Ctx}Api { … }` y compone sus `Router` |
+| Servicio de dominio (HEX-7) | Tipo sin campos con funciones asociadas: `pub struct PasswordPolicy;` con `pub fn validate(password: &str) -> Result<(), WeakPassword>`. Sin `Arc<dyn …>` ni `BoxFuture`: los datos los carga el handler |
+| Composition root (HEX-2) | `apps/server/src/contexts/{ctx}.rs`: construye adaptadores y handlers y devuelve el `{Ctx}Api { … }` armado. `main.rs` solo compone los `Router`. `config.rs` lee el entorno una vez; un secreto obligatorio que falta detiene el arranque, nunca tiene un valor por defecto, y `Config` no deriva `Debug` |
 | Capacidades del kernel (HEX-8) | `kernel::IdGenerator` y `kernel::FaultReporter` (traits; `Clock` es la tercera de la lista, aún sin uso en la plantilla). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en `communities-infrastructure`, `StderrFaultReporterAdapter` en `infrastructure-stderr`. `uuid` nunca en el núcleo. |
 
 ---
@@ -274,6 +285,14 @@ communities_application::moderation_gateway_contract! {
   muestra como `ignored, motivo`, y `--include-ignored` lo corre y muestra por qué no pasa.
   Un `supported` que el adaptador no cumple falla como cualquier caso.
 
+**Puerto sin errores declarados cuyo resultado depende de la entrada.** Con un verificador
+de tokens, el escenario no lo fija la fábrica sino el token. `access_token_service_contract!`
+recibe, además de `new_adapter`, un `issue: |adapter, subject| …` que emite un token válido
+con la misma clave. Los casos lo usan para el válido y para el alterado. El doble emite tokens
+propios (`FakeAccessTokenAdapter::issue`); el adaptador JWT los firma con `jsonwebtoken` en su
+test. Lo propio de la tecnología (vencido, otra clave) va en el test del adaptador, no en la
+batería.
+
 **Puerto nuevo:**
 
 1. Escribe `testing/contracts/{puerto}.rs`, con un caso por comportamiento del que dependan
@@ -294,16 +313,19 @@ communities_application::moderation_gateway_contract! {
 | HEX-3 `domain` no ve `application` | Cargo (no está declarado) + `hex_1_*` | compilación |
 | HEX-3 `domain` no declara puertos: no nombra `BoxFuture`, `Fault` ni `Failure` del kernel (por ruta, por nombre importado o con alias, también dentro de macros; `use kernel::*` falla porque no se puede verificar). El criterio es semántico, no de nombres: un puerto implica E/S | `tests/ports.rs::hex_3_*` (`syn` + tokens) | `cargo test` |
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
+| HEX-4 puerto entrante: `*UseCase` con solo `execute`, o `*EventSubscriber` con solo `on`; implementaciones `*Subscriber` (no `*EventSubscriber`) en `application/src/subscribers/`, sin implementar un `UseCase`. El `EventSubscriber` puede recibir el evento de dominio | `tests/naming.rs::hex_4_inbound_ports_are_single_method_use_cases`, `hex_4_event_subscribers_are_named_and_placed`, `hex_4_use_case_contracts_do_not_expose_domain_types` | `cargo test` |
+| HEX-4 `*Workflow`/`*WorkflowError` solo en `application/src/workflows/`, sin implementar un `UseCase`, y `api` nunca los nombra; ERR-1 los cubre también (`impl Error` prohibido) | `tests/naming.rs::hex_4_workflows_are_internal_to_application`, `tests/errors.rs::err_1_application_*` | `cargo test` |
 | HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
-| HEX-5 puertos salientes con sufijo de rol, nunca `Port` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` | `cargo test` |
+| HEX-5 puertos salientes con sufijo de rol (incluido `Publisher`) o un nombre propio de la lista (`UnitOfWork`), nunca `Port` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` | `cargo test` |
 | HEX-5 / TDD-2 adaptadores `{Prefijo}{Concepto}Adapter`, en todo el workspace (`src/` y `tests/`, también `#[cfg(test)]`): todo tipo que implementa un puerto de `ports/outbound` o una capacidad del kernel. Concepto es el puerto sin su rol, o la capacidad completa. En código de test, el prefijo es `Fake`, `Fixed`, `Stub` o `Spy`. En producción, el prefijo no está vacío, no empieza con uno de esos, y el adaptador vive en infraestructura (`contexts/{ctx}/infrastructure` o `infrastructure/*`) | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` (`syn`) | `cargo test` |
 | HEX-8 el kernel no declara dependencias (ni de test ni por `target`), y sus traits públicos son marcadores de modelo o capacidades de la lista cerrada | `tests/kernel.rs::hex_8_*` (`toml` + `syn`) | `cargo test` |
 | HEX-6 vocabulario de DTOs y `{Caso}Http*` en `api` | `tests/naming.rs::hex_6_*` | `cargo test` |
+| HEX-7 ningún tipo de `domain` ni de `application` fuera de `ports/outbound` se llama `…Service` (structs, enums y traits, también en código de test) | `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role` (`syn`) | `cargo test` |
 | ERR-1/RS-2 ningún error de dominio implementa `std::error::Error` (tampoco dentro de un `macro_rules!`) | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` (`syn`) + compilador: `?` no convierte el error en `Fault` | `cargo test` |
 | ERR-1 en `application` tampoco: las hojas de `errors.rs`, los `*Error` de `commands/` y `queries/` (`{Verb}{Noun}Error`), y los errores de los puertos (los `*Error` de `ports/` y todo `E` de un `Failure<E>` en `ports/`). El `impl` se busca en cualquier archivo del crate, y uno generado por macro sobre `$tipo` cuenta | `tests/errors.rs::err_1_application_errors_do_not_implement_std_error` (`syn`) | `cargo test` |
 | ERR-4 el núcleo no escribe en la salida: `domain` y `application` no invocan `println!`, `eprintln!`, `print!`, `eprint!` ni `dbg!` (también con ruta `std::…!`, dentro de otra macro o de un `macro_rules!`). Exento lo que exige `test`: `#[cfg(test)]`, `#[cfg(all(test, …))]`, `#![cfg(test)]` y los archivos de un `#[cfg(test)] mod x;`. `testing` (`cfg(any(test, feature = "testing"))`) no está exento. Los crates de logging ya los impide `hex_2_core_*` | `tests/output.rs::err_4_*` (`syn` + tokens) | `cargo test` |
 | `unwrap` prohibido; `unsafe` prohibido | `[workspace.lints]` | `cargo clippy -D warnings` |
-| HEX-1…6, HEX-8, ERR-1, ERR-4 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
+| HEX-1…6, HEX-7 (nombres), HEX-8, ERR-1, ERR-4 mientras el agente edita | Hook `PostToolUse` de craft-backend: `rustfmt` + `cargo test -p architecture` | cada edición de `.rs`/`Cargo.toml` (~1 s) |
 | Todo lo anterior antes de cerrar | Hook `Stop` de craft-backend: `clippy --no-deps -D warnings` sobre los crates de la arquitectura + `cargo test --workspace` | al terminar, si hay cambios Rust sin commit |
 | TDD-2 / ERR-3 el doble y los adaptadores cumplen el mismo contrato del puerto | Batería de contrato (`application::testing::contracts`) | `cargo test` |
 | HEX-7, ERR-1…3, TDD-1 (test antes o junto a la producción en el diff y en el orden de commits) | `architecture-reviewer`. Los hooks garantizan verde, no rojo primero | revisión |
@@ -357,8 +379,14 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 |-----------|------|
 | Un crate por contexto con capas como módulos | Un crate por capa (RS-1) |
 | Rutas HTTP dentro de `infrastructure` junto a la persistencia | Crate `{ctx}-api` separado; `api` e `infrastructure` no se ven (HEX-1) |
+| `trait DomainError` o `ApplicationError` en el kernel (marcadores de Java) | Nada: el `enum` `{Verb}{Noun}Error` ya cierra el contrato. En Rust el kernel no declara marcadores de error (HEX-8) |
 | `uuid`, `serde`, `chrono` en `domain`/`application` | Solo `std` + kernel; la implementación va en infraestructura |
 | `trait CommunityRepositoryPort` | `trait CommunityRepository` |
+| `PasswordService` en el dominio | `PasswordPolicy` (HEX-7) |
+| `trait TokenVerifier` en un `shared` que ven todos los contextos | `VerifyAccessTokenUseCase` en `iam` y su middleware en `iam-api`, que el composition root aplica (HEX-1) |
+| `JWT_SECRET` con valor por defecto, o `#[derive(Debug)]` en la configuración | Obligatorio al arrancar; `Config` sin `Debug` (ERR-4) |
+| Todo el cableado en un `main.rs` que crece con cada contexto | Un `contexts/{ctx}.rs` por contexto que devuelve su `{Ctx}Api` |
+| `AccountFactory::create` / `::reconstitute`, que reciben `String` | `Account::create` / `Account::restore`, que reciben value objects; el adaptador traduce los `String` persistidos |
 | `PostgresCommunityRepositoryAdapter`, `UuidIdGenerator` | `PostgresCommunityAdapter`, `UuidIdGeneratorAdapter` (HEX-5) |
 | Un trait de negocio en el kernel porque dos contextos lo usan (`CommunityLookup`) | Un puerto en el `application` de cada contexto, o un `Client`. El kernel solo admite las capacidades de HEX-8 |
 | Inbound `CommunityCreationPort` + impl `CreateCommunityUseCase` | Inbound `CreateCommunityUseCase` + impl `CreateCommunityHandler` |

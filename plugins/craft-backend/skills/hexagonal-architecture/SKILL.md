@@ -45,6 +45,10 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   Evans a propósito (sigue a Cockburn); no lo "corrijas".
 - El cableado ocurre solo en el composition root, que expone el contrato y no
   la implementación.
+- Autenticación: caso de uso del contexto de identidad, con su middleware en el
+  `api` de ese contexto. El composition root lo aplica a las rutas de los demás,
+  y la cuenta cruza como tipo del borde (`AuthenticatedAccount`). Nunca un
+  `TokenVerifier` compartido ni un contexto que importe la identidad de otro.
 
 **Casos de uso (HEX-4)**
 - Un caso de uso = `{Verb}{Noun}UseCase` en `ports/inbound`, con un único `execute`.
@@ -53,10 +57,22 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 - `Command`/`Query`, `Response` y `Error` junto al handler, como tipos de
   primer nivel. **El contrato no expone tipos de `domain`.**
 - El adaptador *driving* inyecta el `UseCase`, nunca el `Handler`.
+- Reacción a un evento: `{Verb}{Noun}Subscriber` en `application/subscribers/`,
+  nombrado por lo que hace, que implementa `{Concepto}EventSubscriber` (en
+  `ports/inbound`, solo `on(evento)`). Lo invoca el despachador de
+  infraestructura, así que sí recibe el evento de dominio.
+- Pasos que comparten varios handlers: `{Verb}{Noun}Workflow` en
+  `application/workflows/{verb_noun}/`, con su `{Verb}{Noun}WorkflowError` de hojas
+  compartidas. No es caso de uso: sin puerto entrante, `api` nunca lo ve, y cada
+  handler traduce su error con `match` exhaustivo. Nunca un handler que llama a otro.
 
 **Puertos salientes (HEX-5)**
 - Sufijo por rol: `Repository`, `Cache`, `Gateway` (tercero), `Client` (servicio
-  propio), `Synchronizer`, `Service` (último recurso). **Prohibido `Port`.**
+  propio), `Synchronizer`, `Publisher` (eventos de dominio en el proceso),
+  `Service` (último recurso). **Prohibido `Port`.**
+- Nombres propios, sin sufijo: `UnitOfWork`, la frontera transaccional. La
+  declara `application`; nunca una anotación del framework en el handler.
+  Adaptador `{Tecnología}UnitOfWorkAdapter`.
 - Adaptadores: `{Tecnología}{Concepto}Adapter`, con el Concepto **sin** el sufijo
   de rol: `CommunityRepository` → `PostgresCommunityAdapter`, `InMemoryCommunityAdapter`.
   Nunca `PostgresCommunityRepositoryAdapter`.
@@ -79,11 +95,22 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   transición de estado en el handler: **detente** y muévelo a un método del
   agregado que devuelva `Result`.
 - Agregados inmutables, con comportamiento.
+- **Eventos:** la transición del agregado registra el evento en el estado nuevo.
+  El handler los toma (`take_events`), guarda el agregado sin eventos y, solo si
+  guardó, publica por `{Concepto}EventPublisher` (rol `Publisher`), dentro del
+  `UnitOfWork` si existe. El despachador es un adaptador de infraestructura.
+- Una regla que no es de un solo agregado va en un **servicio de dominio**: sin
+  estado, sin puertos ni E/S (el handler le pasa los datos), nombrado por la
+  regla (`PasswordPolicy`), **nunca `…Service`**. `Service` solo es un rol de
+  puerto saliente, de último recurso.
 
 **Kernel compartido (HEX-8)**
-- Solo primitivas y solo el lenguaje estándar: `Result`, marcadores
-  (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`), marcadores de error
-  y de evento, y las capacidades técnicas transversales.
+- Solo primitivas y solo el lenguaje estándar: `Result`, los tipos de los dos
+  árboles de error, los marcadores (`ValueObject`, `Entity`, `AggregateRoot`,
+  `Identifier`, `DomainEvent`; `DomainError`/`ApplicationError` solo si el
+  lenguaje los necesita para cerrar jerarquías entre módulos, como en Java) y las
+  capacidades técnicas transversales. Un
+  evento con instante lo recibe de `Clock`, nunca de una librería de fechas.
 - Capacidades: lista **cerrada**, `Clock`, `IdGenerator`, `FaultReporter`.
   Técnicas, sin vocabulario de negocio, usadas por más de un contexto y con
   firma solo de tipos estándar y del kernel. Sin sufijo de rol: es la única

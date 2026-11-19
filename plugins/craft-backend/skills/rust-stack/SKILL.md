@@ -12,7 +12,8 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
 - `references/rust.md`: guía completa (decisiones RS-1 a RS-4, tablas de traducción).
 - `references/template/`: workspace de referencia que compila y pasa todos los tests.
   **Antes de crear algo nuevo, copia la forma del archivo equivalente en
-  `contexts/communities/`.**
+  `contexts/communities/`** (o `contexts/iam/` para una query, un puerto sin errores
+  declarados o un middleware).
 
 ## Decisiones del stack
 
@@ -46,13 +47,18 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
    Rojo primero.
 3. `application/src/ports/inbound/{caso}.rs`: `trait {Verb}{Noun}UseCase` con `execute`.
 4. `handler.rs`: `{Verb}{Noun}Handler` con `Arc<dyn Puerto>`. Errores de dominio
-   → `Failure::expected(Hoja { … })`, nunca envueltos.
+   → `Failure::expected(Hoja { … })`, nunca envueltos. Si el agregado registra
+   eventos: `let (agregado, events) = ….take_events();`, guarda y después
+   `self.events.publish(&events).await?` (como `CreateCommunityHandler`).
 5. Puertos salientes nuevos en `ports/outbound/` + su fake en `testing.rs`.
 6. Adaptador en `infrastructure` (`{Tecnología}{Concepto}Adapter`) + su test.
 7. `contexts/{ctx}/api`: `{Caso}HttpRequest`/`{Caso}HttpResponse`, `match`
    exhaustivo hacia un helper por hoja que devuelve `edge_http::Problem` con su
    `code` (`src/codes.rs`), y el test con `oneshot` y un `UseCase` stub.
-8. Agrega el campo al `{Ctx}Api` y haz el wiring en el composition root.
+8. Agrega el campo al `{Ctx}Api` y haz el wiring en `apps/server/src/contexts/{ctx}.rs`.
+   Si la ruta exige identidad, va en `protected()`, y `main.rs` la envuelve con
+   `iam.protect(…)`. El handler lee `edge_http::AuthenticatedAccount`, nunca un tipo
+   de `iam`.
 
 ## Antes de terminar
 

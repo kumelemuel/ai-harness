@@ -29,6 +29,7 @@ cambiaron de mecanismo.
 | ID | Aspecto | Mecanismo | Detalle |
 |----|---------|-----------|---------|
 | HEX-1 | Dependencias hacia adentro, `api` solo ve su `application` y `edge`, sin cruces entre contextos | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` |
+| HEX-1 | Autenticación: ningún contexto depende del de identidad; la cuenta cruza como tipo del borde | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` (un `{ctx}-api` que declara `iam-application` falla) |
 | HEX-2 | Núcleo solo con el estándar y el kernel | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | HEX-2 | Frameworks de servidor solo en el borde | `test` | `tests/dependencies.rs::hex_2_server_frameworks_only_at_the_edge` |
 | HEX-3 | El dominio no usa las primitivas de E/S del kernel | `test` | `tests/ports.rs::hex_3_domain_does_not_use_kernel_io_primitives` |
@@ -37,11 +38,16 @@ cambiaron de mecanismo.
 | HEX-4 | Las implementaciones se llaman `*Handler` | `test` | `tests/naming.rs::hex_4_use_case_implementations_are_handlers` |
 | HEX-4 | `api` depende del `UseCase`, nunca del `Handler` | `test` | `tests/naming.rs::hex_4_api_depends_on_use_cases_never_on_handlers` |
 | HEX-4 | El contrato no expone tipos de `domain` | `test` | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` |
-| HEX-5 | Puertos salientes con sufijo de rol, nunca `Port` | `test` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` |
+| HEX-4 | Suscriptores: `*EventSubscriber` con solo `on`; `*Subscriber` en `subscribers/`, sin `UseCase` | `test` | `tests/naming.rs::hex_4_event_subscribers_are_named_and_placed` y `hex_4_inbound_ports_are_single_method_use_cases` |
+| HEX-4 | Workflows en `workflows/`, sin `UseCase`, invisibles para `api` | `test` | `tests/naming.rs::hex_4_workflows_are_internal_to_application` |
+| HEX-5 | Puertos salientes con sufijo de rol o nombre propio de la lista (`UnitOfWork`), nunca `Port` | `test` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` |
 | HEX-5 | Adaptadores `{Tecnología}{Concepto}Adapter` en infraestructura, sin prefijos de doble | `test` | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` |
 | HEX-6 | DTOs de puerto saliente sin `Command`, `Query`, `Response` ni `Result` | `test` | `tests/naming.rs::hex_6_outbound_dtos_do_not_use_reserved_vocabulary` |
 | HEX-6 | Tipos de transporte con el nombre del transporte | `test` | `tests/naming.rs::hex_6_transport_types_carry_the_transport_name` |
 | HEX-7 | Lógica de negocio fuera del dominio | `revisor:architecture-reviewer` | Prioridad 1 del revisor: `if` de negocio, cálculos y transiciones en handlers o adaptadores |
+| HEX-7 | Eventos: los registra el agregado; el handler publica después de guardar y no los persiste | `revisor:architecture-reviewer` | Prioridad 1 del revisor; el despachador fuera de `application` lo cubre `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` |
+| HEX-7 | Servicio de dominio sin estado, sin puertos ni E/S | `revisor:architecture-reviewer` | Prioridad 1 del revisor |
+| HEX-7 | Ningún tipo de `domain` ni de `application` (fuera de `ports/outbound`) se llama `…Service` | `test` | `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role` |
 | HEX-8 | El kernel no tiene dependencias | `test` | `tests/kernel.rs::hex_8_kernel_depends_only_on_std` |
 | HEX-8 | Traits del kernel: marcadores o capacidades de la lista cerrada | `test` | `tests/kernel.rs::hex_8_kernel_traits_are_model_markers_or_listed_capabilities` |
 | ERR-1 | Los errores de `domain` no implementan `std::error::Error` | `test` | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` |
@@ -49,11 +55,14 @@ cambiaron de mecanismo.
 | ERR-1 | Excepciones para fallos de negocio, conversiones amplias entre árboles | `revisor:architecture-reviewer` | Prioridad 3 del revisor |
 | ERR-2 | Exhaustividad del contrato en el borde | `herramienta` | Compilador: `match` exhaustivo sobre `{Verb}{Noun}Error` en `api` |
 | ERR-2 | Un test por variante admitida del contrato | `revisor:architecture-reviewer` | Prioridad 3 del revisor: por cada variante de `{Verb}{Noun}Error`, un test del handler que la produce y uno del endpoint que la traduce |
+| ERR-2 | Corte: un estado de negocio persistido con éxito no es una hoja de error | `revisor:architecture-reviewer` | Prioridad 3 del revisor |
 | ERR-3 | Un caso por resultado en la batería de contrato, uno por variante declarada | `herramienta` | Compilador: `scenario_of` hace un `match` exhaustivo sobre `ModerationError`, y `moderation_gateway_contract!` exige un campo por caso. `cargo test` corre la batería contra el doble y cada adaptador. Sus casos los genera una macro: el verificador no puede citarlos |
 | ERR-3 | Semántica: rechazo como éxito, sin errores pensados para el transporte | `revisor:architecture-reviewer` | Prioridad 2 del revisor |
+| ERR-3 | Éxito degradado: un colaborador posterior a la confirmación no revierte el caso de uso | `revisor:architecture-reviewer` | Prioridad 2 del revisor |
 | ERR-4 | El núcleo no escribe en la salida | `test` | `tests/output.rs::err_4_core_does_not_write_to_output` |
 | ERR-4 | El núcleo no importa transporte ni logging | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | ERR-4 | Sin datos sensibles en errores, mensajes ni registros | `revisor:architecture-reviewer` | Prioridad 4 del revisor |
+| ERR-4 | El registro de negocio va por un puerto; el `FaultReporter` solo desde el manejador global | `revisor:architecture-reviewer` | Prioridad 4 del revisor |
 | TDD-1 | Test antes o junto a la producción (backend) | `revisor:architecture-reviewer` | Diff separado en producción y test, y orden de los commits |
 | TDD-1 | Test antes o junto a la producción (sitios) | `revisor:site-auditor` | Paso 8 del auditor |
 | TDD-2 | Los tests del núcleo no levantan runtime ni framework | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` (lee `[dev-dependencies]`) |

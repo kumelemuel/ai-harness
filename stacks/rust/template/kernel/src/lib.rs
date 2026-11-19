@@ -14,4 +14,4 @@ pub use failure::Failure;
 pub use fault::{Fault, FaultReporter};
 pub use future::BoxFuture;
 pub use id::IdGenerator;
-pub use model::{AggregateRoot, ValueObject};
+pub use model::{AggregateRoot, DomainEvent, ValueObject};

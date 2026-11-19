@@ -1,0 +1,17 @@
+[package]
+name = "iam-application"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# Dobles de puertos salientes, baterías de contrato y `block_on` para tests de
+# otras capas (TDD-2).
+testing = []
+
+[dependencies]
+kernel.workspace = true
+iam-domain.workspace = true
+
+[lints]
+workspace = true
