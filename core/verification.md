@@ -29,6 +29,7 @@ cambiaron de mecanismo.
 | ID | Aspecto | Mecanismo | Detalle |
 |----|---------|-----------|---------|
 | HEX-1 | Dependencias hacia adentro, `api` solo ve su `application` y `edge`, sin cruces entre contextos | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` |
+| HEX-1 | Autenticación: ningún contexto depende del de identidad; la cuenta cruza como tipo del borde | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` (un `{ctx}-api` que declara `iam-application` falla) |
 | HEX-2 | Núcleo solo con el estándar y el kernel | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | HEX-2 | Frameworks de servidor solo en el borde | `test` | `tests/dependencies.rs::hex_2_server_frameworks_only_at_the_edge` |
 | HEX-3 | El dominio no usa las primitivas de E/S del kernel | `test` | `tests/ports.rs::hex_3_domain_does_not_use_kernel_io_primitives` |

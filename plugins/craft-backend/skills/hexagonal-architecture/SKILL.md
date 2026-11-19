@@ -45,6 +45,10 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   Evans a propósito (sigue a Cockburn); no lo "corrijas".
 - El cableado ocurre solo en el composition root, que expone el contrato y no
   la implementación.
+- Autenticación: caso de uso del contexto de identidad, con su middleware en el
+  `api` de ese contexto. El composition root lo aplica a las rutas de los demás,
+  y la cuenta cruza como tipo del borde (`AuthenticatedAccount`). Nunca un
+  `TokenVerifier` compartido ni un contexto que importe la identidad de otro.
 
 **Casos de uso (HEX-4)**
 - Un caso de uso = `{Verb}{Noun}UseCase` en `ports/inbound`, con un único `execute`.

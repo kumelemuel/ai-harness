@@ -12,7 +12,8 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
 - `references/rust.md`: guía completa (decisiones RS-1 a RS-4, tablas de traducción).
 - `references/template/`: workspace de referencia que compila y pasa todos los tests.
   **Antes de crear algo nuevo, copia la forma del archivo equivalente en
-  `contexts/communities/`.**
+  `contexts/communities/`** (o `contexts/iam/` para una query, un puerto sin errores
+  declarados o un middleware).
 
 ## Decisiones del stack
 
@@ -52,7 +53,10 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
 7. `contexts/{ctx}/api`: `{Caso}HttpRequest`/`{Caso}HttpResponse`, `match`
    exhaustivo hacia un helper por hoja que devuelve `edge_http::Problem` con su
    `code` (`src/codes.rs`), y el test con `oneshot` y un `UseCase` stub.
-8. Agrega el campo al `{Ctx}Api` y haz el wiring en el composition root.
+8. Agrega el campo al `{Ctx}Api` y haz el wiring en `apps/server/src/contexts/{ctx}.rs`.
+   Si la ruta exige identidad, va en `protected()`, y `main.rs` la envuelve con
+   `iam.protect(…)`. El handler lee `edge_http::AuthenticatedAccount`, nunca un tipo
+   de `iam`.
 
 ## Antes de terminar
 

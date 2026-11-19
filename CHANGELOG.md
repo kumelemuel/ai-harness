@@ -3,18 +3,33 @@
 ## Sin publicar
 
 ### Agregado
+- **Autenticación real en la plantilla Rust** (HEX-1, ERR-3): contexto `iam`
+  mínimo con `VerifyAccessTokenUseCase`, el puerto `AccessTokenService`,
+  `JwtAccessTokenAdapter` (HS256) y el middleware `IamApi::protect`. Reemplaza
+  el `authenticate` de ejemplo, que confiaba en `x-account-id`. En kumenity, el
+  `TokenVerifier` vivía en `shared`, que ven todos los contextos.
+- **Composition root por contexto** (`stacks/rust`): `config.rs` (`JWT_SECRET`
+  obligatorio, sin `Debug`) y `contexts/{ctx}.rs`, que devuelve el `{Ctx}Api`.
+  Lo toma de los `containers/` de kumenity.
 - **Servicios de dominio** (HEX-7, HEX-5): una regla que no es de un solo
   agregado vive en `domain`, sin estado ni E/S, y se nombra por la regla
   (`PasswordPolicy`). Cierra la decisión abierta sobre `Service`: solo es un rol
   de puerto saliente, y `hex_7_service_suffix_is_only_an_outbound_role` lo
   impide en `domain` y `application`. Viene de kumenity (`PasswordPolicy`).
-
 - **Crear o reconstituir un agregado** (`stacks/rust`): `create` y `restore`
   como funciones asociadas, en lugar de un `AccountFactory` como el de
   kumenity. Es solo un ejemplo, sin regla nueva.
 
+### Cambiado
+- **Aceptación de las katas Rust:** firma un JWT y arranca el servidor con
+  `JWT_SECRET`, en lugar de enviar `x-account-id`. Las katas no se corrieron
+  aún: la plantilla creció con `iam`, así que su costo no es comparable con las
+  mediciones anteriores.
+
 ### Filas que cambiaron de mecanismo
 - HEX-7 (nombre de los servicios de dominio): de sin verificar a `test`.
+- HEX-1 (autenticación sin dependencias entre contextos): de sin regla a
+  `test`, con `hex_1_dependencies_point_inward`.
 
 ### Corregido
 - **ERR-1 clasificaba como error de puerto el contrato de una query** (ERR-1):

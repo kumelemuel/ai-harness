@@ -45,7 +45,11 @@ contexts/{ctx}/
 ├── infrastructure/             → kernel, {ctx}-domain, {ctx}-application (+ uuid, sqlx…)
 └── api/                        → kernel, {ctx}-application, edge-http (+ axum, serde). Nunca domain.
     └── src/                    {Ctx}Api { use cases, faults }.protected()/public() → Router
-apps/server/  (o app/)          composition root: construye contextos, compone rutas, autentica
+apps/server/  (o app/)          composition root: cablea, no implementa
+└── src/
+    ├── main.rs                 lee la configuración, compone las rutas: iam.protect(ctx.protected())
+    ├── config.rs               variables de entorno, una vez al arrancar (JWT_SECRET obligatorio)
+    └── contexts/{ctx}.rs       construye adaptadores y handlers del contexto, devuelve su {Ctx}Api
 tools/architecture/             tests de arquitectura (VER-1)
 ```
 
@@ -105,12 +109,12 @@ Las versiones de crates externos se declaran una sola vez en
 | Adaptador (HEX-5) | `InMemoryCommunityAdapter`, `PostgresCommunityAdapter`, `NoOpModerationAdapter` |
 | DTOs de puerto saliente (HEX-6) | `ports/outbound/dtos/moderation_payloads.rs`: `ReviewContentRequest` (entrada), `ModerationVerdict` (salida, `Approved` o `Rejected { reason }`) y `ModerationError` (error declarado). Rust no tiene un tipo contenedor: el módulo `{concepto}_payloads` hace de `{Contrato}Payloads`, y `dtos/mod.rs` reexporta sus tipos |
 | Transporte (HEX-6) | `CreateCommunityHttpRequest` (`Deserialize`), `CreateCommunityHttpResponse` (`Serialize`) en `{ctx}-api` |
-| Identidad autenticada | El middleware del composition root inserta `edge_http::AuthenticatedAccount` como `Extension`; el handler la lee con `Option<Extension<…>>` y responde 401 si falta |
+| Identidad autenticada (HEX-1) | El contexto `iam` declara `VerifyAccessTokenUseCase` (en `queries/`) y el puerto `AccessTokenService`, que implementa `JwtAccessTokenAdapter`. Un token inválido es `AccessTokenVerdict::Invalid`, un veredicto y no un error (ERR-3). `IamApi::protect(routes)`, en `iam-api`, es el middleware: lee `Authorization: Bearer …`, ejecuta el caso de uso, inserta `edge_http::AuthenticatedAccount` como `Extension` y, si no hay identidad, responde 401 sin llegar a la ruta. El handler de otro contexto la lee con `Option<Extension<…>>` y responde 401 si falta, por si la ruta quedó sin proteger |
 | Agregado inmutable (HEX-7) | Campos privados, getters, comportamiento `fn rename(&self, …) -> Result<Self, NotCommunityOwner>` |
 | Crear o reconstituir | Dos funciones asociadas del agregado, no un tipo `…Factory`. `create(…)` aplica lo que solo vale al nacer: el estado inicial y las reglas de alta (`Account::create` deja la cuenta pendiente de verificación). `restore(…)` rearma el agregado con los value objects ya leídos de la persistencia, en cualquier estado y sin las reglas de alta. Si un dato persistido ya no pasa su value object, el adaptador lo convierte en `Fault` (dato corrupto, ver Errores). Un `…Factory` solo se justifica si la creación coordina varios agregados |
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
 | Servicio de dominio (HEX-7) | Tipo sin campos con funciones asociadas: `pub struct PasswordPolicy;` con `pub fn validate(password: &str) -> Result<(), WeakPassword>`. Sin `Arc<dyn …>` ni `BoxFuture`: los datos los carga el handler |
-| Composition root (HEX-2) | `apps/server/src/main.rs`: construye adaptadores y handlers, arma cada `{Ctx}Api { … }` y compone sus `Router` |
+| Composition root (HEX-2) | `apps/server/src/contexts/{ctx}.rs`: construye adaptadores y handlers y devuelve el `{Ctx}Api { … }` armado. `main.rs` solo compone los `Router`. `config.rs` lee el entorno una vez; un secreto obligatorio que falta detiene el arranque, nunca tiene un valor por defecto, y `Config` no deriva `Debug` |
 | Capacidades del kernel (HEX-8) | `kernel::IdGenerator` y `kernel::FaultReporter` (traits; `Clock` es la tercera de la lista, aún sin uso en la plantilla). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en `communities-infrastructure`, `StderrFaultReporterAdapter` en `infrastructure-stderr`. `uuid` nunca en el núcleo. |
 
 ---
@@ -276,6 +280,14 @@ communities_application::moderation_gateway_contract! {
   muestra como `ignored, motivo`, y `--include-ignored` lo corre y muestra por qué no pasa.
   Un `supported` que el adaptador no cumple falla como cualquier caso.
 
+**Puerto sin errores declarados cuyo resultado depende de la entrada.** Con un verificador
+de tokens, el escenario no lo fija la fábrica sino el token. `access_token_service_contract!`
+recibe, además de `new_adapter`, un `issue: |adapter, subject| …` que emite un token válido
+con la misma clave. Los casos lo usan para el válido y para el alterado. El doble emite tokens
+propios (`FakeAccessTokenAdapter::issue`); el adaptador JWT los firma con `jsonwebtoken` en su
+test. Lo propio de la tecnología (vencido, otra clave) va en el test del adaptador, no en la
+batería.
+
 **Puerto nuevo:**
 
 1. Escribe `testing/contracts/{puerto}.rs`, con un caso por comportamiento del que dependan
@@ -363,6 +375,9 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 | `uuid`, `serde`, `chrono` en `domain`/`application` | Solo `std` + kernel; la implementación va en infraestructura |
 | `trait CommunityRepositoryPort` | `trait CommunityRepository` |
 | `PasswordService` en el dominio | `PasswordPolicy` (HEX-7) |
+| `trait TokenVerifier` en un `shared` que ven todos los contextos | `VerifyAccessTokenUseCase` en `iam` y su middleware en `iam-api`, que el composition root aplica (HEX-1) |
+| `JWT_SECRET` con valor por defecto, o `#[derive(Debug)]` en la configuración | Obligatorio al arrancar; `Config` sin `Debug` (ERR-4) |
+| Todo el cableado en un `main.rs` que crece con cada contexto | Un `contexts/{ctx}.rs` por contexto que devuelve su `{Ctx}Api` |
 | `AccountFactory::create` / `::reconstitute`, que reciben `String` | `Account::create` / `Account::restore`, que reciben value objects; el adaptador traduce los `String` persistidos |
 | `PostgresCommunityRepositoryAdapter`, `UuidIdGenerator` | `PostgresCommunityAdapter`, `UuidIdGeneratorAdapter` (HEX-5) |
 | Un trait de negocio en el kernel porque dos contextos lo usan (`CommunityLookup`) | Un puerto en el `application` de cada contexto, o un `Client`. El kernel solo admite las capacidades de HEX-8 |

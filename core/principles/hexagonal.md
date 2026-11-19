@@ -40,10 +40,11 @@ nombres de capa y la dirección de dependencias no.
 - `infrastructure` (adaptadores *driven*) puede depender de `application` y de `domain`.
 - `api` e `infrastructure` son pares del mismo anillo y **no se importan entre sí**.
 - El punto de arranque (`bootstrap`) puede verlo todo, pero nadie depende de él.
+- **Autenticación.** Verificar una credencial es un caso de uso del contexto de identidad (`VerifyAccessTokenUseCase`), con su puerto saliente y su adaptador como cualquier otro. Su adaptador *driving* (el middleware) vive en el `api` de ese contexto, y el composition root lo aplica a las rutas protegidas de los demás. La identidad cruza hacia los otros contextos como un tipo del borde compartido (`AuthenticatedAccount`), nunca como un tipo del contexto de identidad: ningún contexto depende de él.
 
 **Fundamento.** La dirección de dependencias es lo que hace sustituibles los adaptadores. Si HTTP conoce la persistencia, o viceversa, el anillo exterior se acopla consigo mismo y cambiar uno arrastra al otro. `api` no ve `domain` porque el contrato del caso de uso (HEX-4) es la única superficie que el transporte debe conocer: si el controller puede tocar el modelo, termina serializando agregados o duplicando reglas. `infrastructure` sí lo ve porque persistir o sincronizar un agregado exige conocer su forma.
 
-**Violaciones típicas.** Un controller que inyecta un repositorio para "ahorrarse" un caso de uso. Un adaptador de persistencia que devuelve un DTO HTTP. Un controller que importa un value object del dominio para construir el `Command`.
+**Violaciones típicas.** Un controller que inyecta un repositorio para "ahorrarse" un caso de uso. Un `TokenVerifier` en un módulo compartido que ven todos los contextos, o un contexto que importa la identidad de otro para leer la cuenta autenticada. Un adaptador de persistencia que devuelve un DTO HTTP. Un controller que importa un value object del dominio para construir el `Command`.
 
 **Verificación.** Test de arquitectura que falla el build (`VER-1`): `api` no importa `domain` ni `infrastructure`; `infrastructure` no importa `api`.
 
