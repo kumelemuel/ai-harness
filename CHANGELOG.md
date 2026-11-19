@@ -9,6 +9,10 @@
   de puerto saliente, y `hex_7_service_suffix_is_only_an_outbound_role` lo
   impide en `domain` y `application`. Viene de kumenity (`PasswordPolicy`).
 
+- **Crear o reconstituir un agregado** (`stacks/rust`): `create` y `restore`
+  como funciones asociadas, en lugar de un `AccountFactory` como el de
+  kumenity. Es solo un ejemplo, sin regla nueva.
+
 ### Filas que cambiaron de mecanismo
 - HEX-7 (nombre de los servicios de dominio): de sin verificar a `test`.
 

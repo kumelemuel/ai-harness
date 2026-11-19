@@ -107,6 +107,7 @@ Las versiones de crates externos se declaran una sola vez en
 | Transporte (HEX-6) | `CreateCommunityHttpRequest` (`Deserialize`), `CreateCommunityHttpResponse` (`Serialize`) en `{ctx}-api` |
 | Identidad autenticada | El middleware del composition root inserta `edge_http::AuthenticatedAccount` como `Extension`; el handler la lee con `Option<Extension<…>>` y responde 401 si falta |
 | Agregado inmutable (HEX-7) | Campos privados, getters, comportamiento `fn rename(&self, …) -> Result<Self, NotCommunityOwner>` |
+| Crear o reconstituir | Dos funciones asociadas del agregado, no un tipo `…Factory`. `create(…)` aplica lo que solo vale al nacer: el estado inicial y las reglas de alta (`Account::create` deja la cuenta pendiente de verificación). `restore(…)` rearma el agregado con los value objects ya leídos de la persistencia, en cualquier estado y sin las reglas de alta. Si un dato persistido ya no pasa su value object, el adaptador lo convierte en `Fault` (dato corrupto, ver Errores). Un `…Factory` solo se justifica si la creación coordina varios agregados |
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
 | Servicio de dominio (HEX-7) | Tipo sin campos con funciones asociadas: `pub struct PasswordPolicy;` con `pub fn validate(password: &str) -> Result<(), WeakPassword>`. Sin `Arc<dyn …>` ni `BoxFuture`: los datos los carga el handler |
 | Composition root (HEX-2) | `apps/server/src/main.rs`: construye adaptadores y handlers, arma cada `{Ctx}Api { … }` y compone sus `Router` |
@@ -362,6 +363,7 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 | `uuid`, `serde`, `chrono` en `domain`/`application` | Solo `std` + kernel; la implementación va en infraestructura |
 | `trait CommunityRepositoryPort` | `trait CommunityRepository` |
 | `PasswordService` en el dominio | `PasswordPolicy` (HEX-7) |
+| `AccountFactory::create` / `::reconstitute`, que reciben `String` | `Account::create` / `Account::restore`, que reciben value objects; el adaptador traduce los `String` persistidos |
 | `PostgresCommunityRepositoryAdapter`, `UuidIdGenerator` | `PostgresCommunityAdapter`, `UuidIdGeneratorAdapter` (HEX-5) |
 | Un trait de negocio en el kernel porque dos contextos lo usan (`CommunityLookup`) | Un puerto en el `application` de cada contexto, o un `Client`. El kernel solo admite las capacidades de HEX-8 |
 | Inbound `CommunityCreationPort` + impl `CreateCommunityUseCase` | Inbound `CreateCommunityUseCase` + impl `CreateCommunityHandler` |
