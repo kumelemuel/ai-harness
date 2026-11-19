@@ -20,13 +20,13 @@ use tower::ServiceExt;
 
 type Outcome = Result<VerifyAccessTokenResponse, Failure<VerifyAccessTokenError>>;
 
-/// Responde fijo y registra los tokens que recibió.
-struct StubUseCase {
+/// Spy: registra los tokens que recibió (y responde fijo).
+struct SpyVerifyAccessTokenUseCase {
     outcome: fn() -> Outcome,
     tokens: Mutex<Vec<String>>,
 }
 
-impl VerifyAccessTokenUseCase for StubUseCase {
+impl VerifyAccessTokenUseCase for SpyVerifyAccessTokenUseCase {
     fn execute(&self, query: VerifyAccessTokenQuery) -> BoxFuture<'_, Outcome> {
         self.tokens.lock().unwrap().push(query.token);
         let outcome = (self.outcome)();
@@ -53,7 +53,7 @@ struct Sent {
 
 /// Una ruta protegida que devuelve la cuenta que le entregó el middleware.
 async fn get_protected(outcome: fn() -> Outcome, authorization: Option<&str>) -> Sent {
-    let use_case = Arc::new(StubUseCase {
+    let use_case = Arc::new(SpyVerifyAccessTokenUseCase {
         outcome,
         tokens: Mutex::new(Vec::new()),
     });

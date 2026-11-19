@@ -949,3 +949,57 @@ fn hex_4_event_subscribers_are_named_and_placed() {
         violations,
     );
 }
+
+#[test]
+fn tdd_2_inbound_doubles_are_named_by_prefix_and_port() {
+    let all = crates();
+    let ports: Vec<String> = all
+        .iter()
+        .filter(|c| c.layer == Layer::Application)
+        .flat_map(|app| scan(&[app.dir.join("src/ports/inbound")], None))
+        .flat_map(|(_, items)| items.traits.into_iter().map(|t| t.ident.to_string()))
+        .collect();
+    let mut violations = Vec::new();
+    let mut doubles = 0;
+
+    for krate in &all {
+        for (path, imp, test) in trait_impls(krate) {
+            if !test {
+                continue;
+            }
+            let Some((_, trait_path, _)) = &imp.trait_ else {
+                continue;
+            };
+            let contract = last_segment(trait_path);
+            if !ports.contains(&contract) {
+                continue;
+            }
+            let syn::Type::Path(self_ty) = &*imp.self_ty else {
+                continue;
+            };
+            doubles += 1;
+            let name = last_segment(&self_ty.path);
+            let prefix = name.strip_suffix(contract.as_str());
+            if !prefix.is_some_and(|p| DOUBLE_PREFIXES.contains(&p)) {
+                let line = self_ty
+                    .path
+                    .segments
+                    .last()
+                    .map_or(0, |s| s.ident.span().start().line);
+                violations.push(format!(
+                    "{}:{line}: `{name}` es un doble de `{contract}` y debe llamarse \
+                     {{{}}}{contract} (TDD-2)",
+                    relative(&path),
+                    DOUBLE_PREFIXES.join("|")
+                ));
+            }
+        }
+    }
+
+    assert_no_violations(
+        "TDD-2: un doble de un puerto entrante (UseCase, EventSubscriber) se llama \
+         {Fake|Fixed|Stub|Spy}{Puerto}, sin `Adapter`: no es un adaptador",
+        &[("dobles de puertos entrantes", doubles)],
+        violations,
+    );
+}
