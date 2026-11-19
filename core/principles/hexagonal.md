@@ -176,7 +176,7 @@ Agregados inmutables con comportamiento en sus métodos. Las reglas se evalúan 
 
 ## HEX-8 — Kernel compartido delgado
 
-**Regla.** Un módulo de kernel compartido contiene **solo primitivas**: `Result`, marcadores de modelo (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`), marcadores de error y de evento, y las **capacidades técnicas transversales** de la lista de abajo. Nunca agregados de un contexto, puertos de un caso de uso ni datos sensibles. Sin framework ni dependencias: solo el lenguaje estándar. Si el kernel se divide en capas, HEX-1 rige dentro de él.
+**Regla.** Un módulo de kernel compartido contiene **solo primitivas**: `Result`, los tipos de los dos árboles de error (`ERR-1`), los marcadores de modelo (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`, `DomainEvent`) y las **capacidades técnicas transversales** de la lista de abajo. Los únicos traits son esos marcadores y esas capacidades. Un marcador no lleva dependencias: si un evento necesita su instante, lo recibe de `Clock` al crearse, no de una librería de fechas. Nunca agregados de un contexto, puertos de un caso de uso ni datos sensibles. Sin framework ni dependencias: solo el lenguaje estándar. Si el kernel se divide en capas, HEX-1 rige dentro de él.
 
 Las jerarquías cerradas de cada contexto viven en el contexto, no en el kernel (los marcadores del kernel son abiertos).
 
@@ -228,3 +228,4 @@ Agregar una exige cambiar esta lista y el test del kernel en el mismo commit.
 ## Decisiones abiertas
 
 1. **Criterio para el sufijo `Service`.** Definir cuándo se permite, para que no se vuelva cajón de sastre.
+2. **Publicación de eventos de dominio.** El kernel admite el marcador `DomainEvent`, pero no está decidido cómo emite eventos un agregado inmutable (HEX-7) ni quién los publica. Se decide con el primer contexto que los necesite.

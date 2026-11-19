@@ -81,9 +81,10 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 - Agregados inmutables, con comportamiento.
 
 **Kernel compartido (HEX-8)**
-- Solo primitivas y solo el lenguaje estándar: `Result`, marcadores
-  (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`), marcadores de error
-  y de evento, y las capacidades técnicas transversales.
+- Solo primitivas y solo el lenguaje estándar: `Result`, los tipos de los dos
+  árboles de error, los marcadores (`ValueObject`, `Entity`, `AggregateRoot`,
+  `Identifier`, `DomainEvent`) y las capacidades técnicas transversales. Un
+  evento con instante lo recibe de `Clock`, nunca de una librería de fechas.
 - Capacidades: lista **cerrada**, `Clock`, `IdGenerator`, `FaultReporter`.
   Técnicas, sin vocabulario de negocio, usadas por más de un contexto y con
   firma solo de tipos estándar y del kernel. Sin sufijo de rol: es la única

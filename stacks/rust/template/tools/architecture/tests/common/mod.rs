@@ -4,7 +4,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Marcadores de modelo del kernel (HEX-8): abiertos, sin vocabulario de un contexto.
-pub const MODEL_MARKERS: &[&str] = &["ValueObject", "Entity", "AggregateRoot", "Identifier"];
+/// La misma lista está en HEX-8 (`core/principles/hexagonal.md`).
+pub const MODEL_MARKERS: &[&str] = &[
+    "ValueObject",
+    "Entity",
+    "AggregateRoot",
+    "Identifier",
+    "DomainEvent",
+];
 
 /// Capacidades técnicas transversales del kernel: lista cerrada de HEX-8.
 /// Agregar una exige cambiar HEX-8 (`core/principles/hexagonal.md`) y este test

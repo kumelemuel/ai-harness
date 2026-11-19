@@ -1,5 +1,15 @@
 # Changelog
 
+## Sin publicar
+
+### Corregido
+- **`DomainEvent` es un marcador del kernel** (HEX-8): el texto admitía
+  "marcadores de error y de evento", pero `hex_8_*` rechazaba todo trait fuera
+  de `ValueObject`, `Entity`, `AggregateRoot` e `Identifier`. Se agrega
+  `DomainEvent` a la lista, y la regla nombra los marcadores en lugar de
+  "marcadores de error", que no existen: los errores del kernel son tipos
+  (`Fault`, `Failure`). La publicación de eventos queda como decisión abierta.
+
 ## 0.13.0 — 2026-11-13
 
 Plugins: `craft-backend` 0.10.0 y `craft-web` 0.5.0, porque cambia el formato del
