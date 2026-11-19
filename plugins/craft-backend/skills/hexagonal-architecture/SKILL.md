@@ -57,6 +57,10 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 - `Command`/`Query`, `Response` y `Error` junto al handler, como tipos de
   primer nivel. **El contrato no expone tipos de `domain`.**
 - El adaptador *driving* inyecta el `UseCase`, nunca el `Handler`.
+- Reacción a un evento: `{Verb}{Noun}Subscriber` en `application/subscribers/`,
+  nombrado por lo que hace, que implementa `{Concepto}EventSubscriber` (en
+  `ports/inbound`, solo `on(evento)`). Lo invoca el despachador de
+  infraestructura, así que sí recibe el evento de dominio.
 - Pasos que comparten varios handlers: `{Verb}{Noun}Workflow` en
   `application/workflows/{verb_noun}/`, con su `{Verb}{Noun}WorkflowError` de hojas
   compartidas. No es caso de uso: sin puerto entrante, `api` nunca lo ve, y cada

@@ -8,8 +8,10 @@
 //! tests de este crate y, con la feature `testing`, para los de otras capas.
 
 use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
-use crate::ports::outbound::{CommunityEventPublisher, CommunityRepository, ModerationGateway};
-use communities_domain::value_objects::CommunitySlug;
+use crate::ports::outbound::{
+    CommunityEventPublisher, CommunityHistoryRepository, CommunityRepository, ModerationGateway,
+};
+use communities_domain::value_objects::{CommunityId, CommunitySlug};
 use communities_domain::{Community, CommunityEvent};
 use contracts::moderation_gateway::Scenario;
 use kernel::{BoxFuture, Failure, Fault, IdGenerator};
@@ -155,6 +157,63 @@ impl ModerationGateway for FakeModerationAdapter {
     }
 }
 
+/// Doble de `CommunityHistoryRepository`: guarda en memoria, o falla siempre.
+pub struct FakeCommunityHistoryAdapter {
+    events: Mutex<Vec<CommunityEvent>>,
+    failing: bool,
+}
+
+impl FakeCommunityHistoryAdapter {
+    pub fn empty() -> Self {
+        Self {
+            events: Mutex::new(Vec::new()),
+            failing: false,
+        }
+    }
+
+    /// Simula una falla técnica no declarada (árbol B).
+    pub fn failing() -> Self {
+        Self {
+            events: Mutex::new(Vec::new()),
+            failing: true,
+        }
+    }
+}
+
+impl CommunityHistoryRepository for FakeCommunityHistoryAdapter {
+    fn append<'a>(&'a self, event: &'a CommunityEvent) -> BoxFuture<'a, Result<(), Fault>> {
+        let result = if self.failing {
+            Err(Fault::new("fake history outage"))
+        } else {
+            self.events
+                .lock()
+                .expect("invariante: fake sin envenenar")
+                .push(event.clone());
+            Ok(())
+        };
+        Box::pin(ready(result))
+    }
+
+    fn history_of<'a>(
+        &'a self,
+        community_id: &'a CommunityId,
+    ) -> BoxFuture<'a, Result<Vec<CommunityEvent>, Fault>> {
+        let result = if self.failing {
+            Err(Fault::new("fake history outage"))
+        } else {
+            Ok(self
+                .events
+                .lock()
+                .expect("invariante: fake sin envenenar")
+                .iter()
+                .filter(|event| event.community_id() == community_id)
+                .cloned()
+                .collect())
+        };
+        Box::pin(ready(result))
+    }
+}
+
 /// Doble de `CommunityEventPublisher`: registra lo que se publicó, en orden.
 #[derive(Default)]
 pub struct SpyCommunityEventAdapter {
@@ -194,6 +253,11 @@ mod tests {
 
     crate::community_repository_contract! {
         new_adapter: FakeCommunityAdapter::empty(),
+        run: block_on,
+    }
+
+    crate::community_history_repository_contract! {
+        new_adapter: FakeCommunityHistoryAdapter::empty(),
         run: block_on,
     }
 

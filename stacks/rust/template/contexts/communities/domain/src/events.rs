@@ -16,4 +16,13 @@ pub enum CommunityEvent {
     },
 }
 
+impl CommunityEvent {
+    /// La comunidad a la que le ocurrió.
+    pub fn community_id(&self) -> &CommunityId {
+        match self {
+            Self::Created { community_id, .. } | Self::Renamed { community_id, .. } => community_id,
+        }
+    }
+}
+
 impl DomainEvent for CommunityEvent {}

@@ -20,6 +20,8 @@ const OUTBOUND_SUFFIXES: &[&str] = &[
 /// Puertos salientes con nombre propio, sin sufijo de rol (HEX-5): patrones
 /// conocidos cuyo nombre ya dice el rol. Su Concepto es el nombre completo.
 const NAMED_OUTBOUND_PORTS: &[&str] = &["UnitOfWork"];
+/// Puertos entrantes (HEX-4): sufijo del trait y su único método.
+const INBOUND_KINDS: &[(&str, &str)] = &[("UseCase", "execute"), ("EventSubscriber", "on")];
 const RESERVED_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Result"];
 /// Tipos del contrato de un caso de uso (HEX-4).
 const CONTRACT_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Error"];
@@ -91,11 +93,18 @@ fn hex_4_inbound_ports_are_single_method_use_cases() {
         for t in &items.traits {
             traits += 1;
             let name = t.ident.to_string();
-            if !name.ends_with("UseCase") {
+            // Dos tipos de puerto entrante: el caso de uso, que invoca un cliente,
+            // y el suscriptor, que invoca el despachador de eventos (HEX-7).
+            let Some((_, method)) = INBOUND_KINDS
+                .iter()
+                .find(|(suffix, _)| name.ends_with(suffix) && name != *suffix)
+            else {
                 violations.push(format!(
-                    "{file}: `{name}` debe llamarse {{Verb}}{{Noun}}UseCase"
+                    "{file}: `{name}` debe llamarse {{Verb}}{{Noun}}UseCase \
+                     o {{Concepto}}EventSubscriber"
                 ));
-            }
+                continue;
+            };
             let methods: Vec<String> = t
                 .items
                 .iter()
@@ -104,16 +113,17 @@ fn hex_4_inbound_ports_are_single_method_use_cases() {
                     _ => None,
                 })
                 .collect();
-            if methods != ["execute"] {
+            if methods != [*method] {
                 violations.push(format!(
-                    "{file}: `{name}` debe declarar solo `execute`, tiene {methods:?}"
+                    "{file}: `{name}` debe declarar solo `{method}`, tiene {methods:?}"
                 ));
             }
         }
     }
 
     assert_no_violations(
-        "HEX-4: un puerto entrante = un `UseCase` con un único `execute`",
+        "HEX-4: un puerto entrante es un `UseCase` con un único `execute` \
+         o un `EventSubscriber` con un único `on`",
         &[("traits de ports/inbound", traits)],
         violations,
     );
@@ -423,7 +433,12 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
                             }
                         }
                     }
-                    syn::Item::Trait(t) if in_inbound => {
+                    // Un `EventSubscriber` lo invoca el despachador de eventos, que
+                    // vive en infraestructura y ve `domain` (HEX-1): recibe el evento
+                    // de dominio. Solo el `UseCase` es contrato de `api`.
+                    syn::Item::Trait(t)
+                        if in_inbound && !t.ident.to_string().ends_with("EventSubscriber") =>
+                    {
                         contract_in_file = true;
                         contracts += 1;
                         let mut found = domain_paths(&names, |v| {
@@ -873,6 +888,64 @@ fn hex_4_workflows_are_internal_to_application() {
             ("archivos de api (src/ y tests/)", api_scanned),
             ("archivos de application", application_scanned),
         ],
+        violations,
+    );
+}
+
+#[test]
+fn hex_4_event_subscribers_are_named_and_placed() {
+    let mut violations = Vec::new();
+    let mut implementations = 0;
+
+    for krate in crates()
+        .into_iter()
+        .filter(|c| c.layer == Layer::Application)
+    {
+        for path in rust_files(&krate.dir.join("src")) {
+            let file = relative(&path);
+            let in_subscribers = file.contains("/src/subscribers/");
+            for item in items_of(&parse(&path).items) {
+                let syn::Item::Impl(imp) = item else {
+                    continue;
+                };
+                let Some((_, trait_path, _)) = &imp.trait_ else {
+                    continue;
+                };
+                let contract = last_segment(trait_path);
+                let syn::Type::Path(self_ty) = &*imp.self_ty else {
+                    continue;
+                };
+                let name = last_segment(&self_ty.path);
+                if contract.ends_with("EventSubscriber") && contract != "EventSubscriber" {
+                    implementations += 1;
+                    if !name.ends_with("Subscriber") || name.ends_with("EventSubscriber") {
+                        violations.push(format!(
+                            "{file}: `{name}` implementa `{contract}` y debe llamarse \
+                             {{Verb}}{{Noun}}Subscriber (la reacción, no el evento)"
+                        ));
+                    }
+                    if !in_subscribers {
+                        violations.push(format!(
+                            "{file}: `{name}` debe vivir en application/src/subscribers/"
+                        ));
+                    }
+                } else if in_subscribers && contract.ends_with("UseCase") {
+                    violations.push(format!(
+                        "{file}: `{name}` implementa `{contract}` en subscribers/: un caso \
+                         de uso es un Handler en commands/ o queries/"
+                    ));
+                }
+            }
+        }
+    }
+
+    assert_no_violations(
+        "HEX-4: la reacción a un evento es un `{Verb}{Noun}Subscriber` en \
+         application/src/subscribers/ que implementa un `{Concepto}EventSubscriber`",
+        &[(
+            "implementaciones de un EventSubscriber en application (fuera de tests)",
+            implementations,
+        )],
         violations,
     );
 }

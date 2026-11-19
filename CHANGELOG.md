@@ -7,9 +7,14 @@
   evento; el handler los toma, guarda sin eventos y publica por
   `{Concepto}EventPublisher`, con el despachador en infraestructura. Viene de un
   proyecto Java de referencia. La plantilla lo implementa en `communities`
-  (`Created`, `Renamed`, `NoOpCommunityEventAdapter`), y `kernel` declara
-  `DomainEvent`. Cierra la decisión abierta sobre la publicación y abre otra:
-  los suscriptores dentro del proceso.
+  (`Created`, `Renamed`), y `kernel` declara
+  `DomainEvent`. Cierra la decisión abierta sobre la publicación.
+- **Suscriptores de eventos** (HEX-4): segundo tipo de puerto entrante,
+  `{Concepto}EventSubscriber`, con solo `on`. Lo invoca el despachador de
+  infraestructura y puede recibir el evento de dominio. Las reacciones son
+  `{Verb}{Noun}Subscriber`, en `application/subscribers/`. En la plantilla,
+  `InProcessCommunityEventAdapter` reemplaza al NoOp y
+  `RecordCommunityHistorySubscriber` registra el historial.
 - **Workflows** (HEX-4, ERR-1): pasos que comparten varios handlers, como
   `{Verb}{Noun}Workflow` en `application/workflows/`, con un error cerrado de
   hojas compartidas. No es caso de uso, y `api` nunca lo ve. Lo verifica
@@ -52,6 +57,7 @@
 
 ### Filas que cambiaron de mecanismo
 - HEX-4 (workflows): de sin regla a `test`.
+- HEX-4 (suscriptores de eventos): de sin regla a `test`.
 - HEX-7 (nombre de los servicios de dominio): de sin verificar a `test`.
 - HEX-1 (autenticación sin dependencias entre contextos): de sin regla a
   `test`, con `hex_1_dependencies_point_inward`.

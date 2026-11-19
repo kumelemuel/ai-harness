@@ -88,13 +88,14 @@ nombres de capa y la dirección de dependencias no.
 - Los DTOs del contrato son tipos de primer nivel junto al handler, no anidados en la interfaz.
 - El contrato (`Command`, `Query`, `Response`, `Error`) no expone tipos de `domain`: como `api` no ve `domain` (HEX-1), el contrato se expresa con tipos del lenguaje o de `application`.
 - El adaptador *driving* depende del `UseCase`, nunca del `Handler`.
+- **Suscriptores de eventos.** El segundo tipo de puerto entrante: `{Concepto}EventSubscriber`, en `application/ports/inbound`, con un único método `on(evento)`. No lo invoca un cliente sino el despachador de eventos de infraestructura (HEX-7), que ve `domain` (HEX-1); por eso recibe el evento de dominio, y es la única excepción a "el contrato no expone tipos de `domain`". Cada reacción es un `{Verb}{Noun}Subscriber` en `application/subscribers/`, nombrado por lo que hace (`RecordCommunityHistorySubscriber`), nunca por el evento. Orquesta como un handler. Corre dentro de la publicación, así que su falla es la del handler, en el árbol B.
 - **Workflows.** Cuando varios handlers comparten la misma secuencia de pasos (reclamar un recurso, llamar a un colaborador, revertir si falla), esa secuencia es un `{Verb}{Noun}Workflow` en `application/workflows/{verb_noun}/`. No es un caso de uso: no tiene puerto entrante, el adaptador *driving* nunca lo ve, y los handlers lo reciben por constructor. Su error es un `{Verb}{Noun}WorkflowError` cerrado, hecho de las mismas hojas compartidas (`ERR-2`), que cada handler traduce con un `match` exhaustivo a las hojas que admite su contrato. Orquesta como un handler: las reglas siguen en el dominio (HEX-7).
 
 **Fundamento.** Un caso de uso es la unidad de cambio y de prueba. Interfaces de un solo método evitan "servicios de aplicación" que crecen sin límite. El adaptador depende de una abstracción, así que se puede sustituir o probar sin la clase concreta.
 
-**Violaciones típicas.** Un `CommunityService` con diez métodos. Un controller que inyecta el handler. Un `Response` que expone el agregado tal cual. Un handler que invoca a otro handler para reutilizar sus pasos (va en un workflow). Un controller que llama a un workflow.
+**Violaciones típicas.** Un `CommunityService` con diez métodos. Un controller que inyecta el handler. Un `Response` que expone el agregado tal cual. Un handler que invoca a otro handler para reutilizar sus pasos (va en un workflow). Un controller que llama a un workflow. Un suscriptor nombrado por el evento (`CommunityCreatedSubscriber`), o una reacción escrita en el despachador en lugar de en un suscriptor.
 
-**Verificación.** Test de arquitectura: `api` no depende de `*Handler` y cada `*UseCase` declara un solo método. Tampoco expone tipos de `domain`: ni en los campos públicos y variantes de `Command`, `Query`, `Response` y `Error`, ni en las firmas del `UseCase`, ni en una reexportación pública desde `application`. Las conversiones (`From<&Agregado> for Response`) y los `use` del handler no son contrato. Que `api` no declare `domain` no basta: un valor de dominio que llega por un campo público se puede usar sin importar el crate. Los workflows viven solo en `workflows/`, no implementan un `UseCase` y `api` no los nombra. En Rust: `tests/naming.rs::hex_4_*`.
+**Verificación.** Test de arquitectura: `api` no depende de `*Handler` y cada `*UseCase` declara un solo método. Tampoco expone tipos de `domain`: ni en los campos públicos y variantes de `Command`, `Query`, `Response` y `Error`, ni en las firmas del `UseCase`, ni en una reexportación pública desde `application`. Las conversiones (`From<&Agregado> for Response`) y los `use` del handler no son contrato. Que `api` no declare `domain` no basta: un valor de dominio que llega por un campo público se puede usar sin importar el crate. Los workflows viven solo en `workflows/`, no implementan un `UseCase` y `api` no los nombra. Un puerto entrante es un `UseCase` con solo `execute`, o un `EventSubscriber` con solo `on`. Sus implementaciones se llaman `*Subscriber`, viven en `subscribers/` y no implementan un `UseCase`. En Rust: `tests/naming.rs::hex_4_*`.
 
 ---
 
@@ -183,7 +184,7 @@ Agregados inmutables con comportamiento en sus métodos. Las reglas se evalúan 
 
 1. Toma los eventos pendientes (`take_events`). El agregado que guarda no tiene ninguno, porque los eventos no se persisten con él.
 2. Guarda y publica por un puerto saliente `{Concepto}EventPublisher` (rol `Publisher`, HEX-5), **solo si guardó**. Con un `UnitOfWork`, las dos cosas van en la misma transacción.
-3. El despachador es un adaptador de infraestructura (`InProcess{Concepto}EventAdapter`), no código de `application`.
+3. El despachador es un adaptador de infraestructura (`InProcess{Concepto}EventAdapter`), no código de `application`. Entrega cada evento, en orden, a los suscriptores (`{Concepto}EventSubscriber`, HEX-4) que le cablea el composition root, y la primera falla corta la publicación.
 
 Reconstituir un agregado no emite eventos. Publicar hacia otro sistema no es esto: es un `Synchronizer`, que se llama después de confirmar el estado (éxito degradado, ERR-3).
 
@@ -253,4 +254,4 @@ Agregar una exige cambiar esta lista y el test del kernel en el mismo commit.
 
 ## Decisiones abiertas
 
-1. **Suscriptores de eventos dentro del proceso.** El despachador (`InProcess{Concepto}EventAdapter`, infraestructura) entrega cada evento a reacciones que viven en `application`, como registrar una auditoría. Ese contrato de suscriptor lo invoca un adaptador, así que es un puerto entrante, y HEX-4 solo admite `{Verb}{Noun}UseCase`. Falta decidir si una reacción es un caso de uso más o un contrato propio (`{Concepto}EventSubscriber`), y cómo se nombra y se verifica.
+Ninguna por ahora. Una decisión nueva se anota aquí hasta que tenga regla.
