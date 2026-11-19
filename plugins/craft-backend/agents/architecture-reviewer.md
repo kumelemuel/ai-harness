@@ -28,9 +28,13 @@ arquitectura:
    Un servicio de dominio con estado, que recibe un puerto o que hace E/S.
 2. **ERR-3: semántica de adaptadores.** Rechazos de negocio convertidos en error
    o excepción; adaptadores que devuelven errores pensados para el transporte.
+   Un caso de uso que falla o revierte por un colaborador llamado después de
+   confirmar el estado (éxito degradado: se registra en el estado).
 3. **ERR-1 / ERR-2: árboles de errores.** Excepciones para fallos de negocio,
    `catch` amplios que convierten fallos técnicos en errores de negocio, errores
-   envueltos en vez de hojas planas, variantes imposibles en el contrato.
+   envueltos en vez de hojas planas, variantes imposibles en el contrato. Una
+   hoja para un rechazo que el caso de uso ya persistió como estado (corte de
+   ERR-2: eso va en el `Response`).
    - **ERR-2: un test por variante admitida.** El compilador garantiza que el
      `match` del borde sea exhaustivo, no que cada variante esté probada. Por
      cada contrato `{Verb}{Noun}Error` que el diff crea o modifica, lista sus
@@ -39,7 +43,8 @@ arquitectura:
      la traduzca a su respuesta. Reporta cada variante sin uno de los dos, con
      el nombre del test que falta.
 4. **ERR-4: fugas de transporte o logging** hacia el núcleo; datos sensibles en
-   mensajes.
+   mensajes. Un handler que invoca el `FaultReporter`, o que registra un
+   resultado de negocio sin un puerto `{Concepto}LogService`.
 5. **TDD-1 / TDD-2: tests.** TDD-1 no es automatizable de forma fiable: los
    hooks garantizan verde, no rojo primero. Te toca a ti:
    - Lista los archivos tocados (`git diff --name-only`, `--staged` o el rango) y

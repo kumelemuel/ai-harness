@@ -37,10 +37,11 @@ Formato de cada principio: ver [README](README.md).
 - No existe un error global del contexto en la firma de los casos de uso.
 - El handler traduce errores de dominio y de puertos a **una hoja plana** que su contrato admite. No se envuelven (`FromDomain`, `FromVault`).
 - La semántica de un mismo fallo **la decide el producto, por caso de uso**: el mismo rechazo puede ser un estado de éxito en un caso de uso y un error en otro.
+- **Criterio de corte:** si el caso de uso **persiste un estado de negocio** (rechazado, fallido) y responde con éxito, ese resultado **no es error**: viaja en el `Response`. Es error (una hoja del contrato) si el caso de uso **aborta**: no deja estado nuevo, o revierte el que había tomado, y el cliente tiene que corregir o reintentar.
 
 **Fundamento.** Exhaustividad real: el `match` de cada caso de uso no incluye variantes imposibles. Envolver reabre el catálogo del dominio o del puerto en la frontera. Hojas compartidas evitan duplicar tipos sin perder el acotamiento.
 
-**Violaciones típicas.** Un `AppError` con veinte variantes en todas las firmas. Asumir que un fallo significa lo mismo en todos los flujos. Exponer un error de dominio directamente en el contrato del caso de uso.
+**Violaciones típicas.** Un `AppError` con veinte variantes en todas las firmas. Asumir que un fallo significa lo mismo en todos los flujos. Una hoja de error para un rechazo que el caso de uso ya guardó como estado del agregado. Exponer un error de dominio directamente en el contrato del caso de uso.
 
 **Verificación.** Compilador (exhaustividad) + tests por variante admitida.
 
@@ -53,12 +54,13 @@ Formato de cada principio: ver [README](README.md).
 - Si el colaborador **respondió** (aprobó, rechazó, evaluó), eso es **éxito** del puerto, aunque la respuesta sea negativa para el negocio. El rechazo viaja en el DTO.
 - Si el colaborador **no pudo completar** (no encontrado, timeout, caída), eso es un error **declarado** en la firma del puerto (`{Contrato}Error`).
 - El adaptador cumple la firma: lo declarado → `err`; cualquier otra falla técnica → árbol B. **El adaptador no decide qué ramificará el caso de uso.**
+- **Éxito degradado.** Un colaborador que el caso de uso llama **después** de confirmar su estado (sincronizar con otro sistema, notificar) no revierte el caso de uso si falla. Su puerto declara el error, y el caso de uso lo registra en el estado (`synced = false`) para reintentarlo o conciliarlo después. No es una hoja del contrato ni un `Fault`: el caso de uso ya cumplió.
 
 Ejemplo: al crear una comunidad, el caso de uso le pide a un `ModerationGateway` que revise el nombre (`ReviewContentRequest`). Si el servicio de moderación responde que no es aceptable, el puerto devuelve `ok` con un `ModerationVerdict` de rechazo (`Rejected`, con su motivo), y el caso de uso decide qué hacer: en `CreateCommunity`, la hoja `ContentRejected`. Si el servicio no responde a tiempo, devuelve `err(ModerationError.Unavailable)`, declarado en la firma, y el caso de uso lo traduce a la hoja `DependencyUnavailable`.
 
 **Fundamento.** Separa la respuesta de negocio de la disponibilidad técnica y mantiene la decisión de negocio en el núcleo.
 
-**Violaciones típicas.** Un adaptador que convierte un rechazo de negocio en excepción. Un adaptador que "ayuda" al caso de uso devolviendo un error ya pensado para HTTP.
+**Violaciones típicas.** Un adaptador que convierte un rechazo de negocio en excepción. Un adaptador que "ayuda" al caso de uso devolviendo un error ya pensado para HTTP. Un caso de uso que falla, o revierte un estado ya confirmado, porque no respondió un sistema al que solo había que avisar.
 
 **Verificación.** Un caso por resultado en la batería de contrato del puerto (`TDD-2`): uno por cada respuesta (aprobar, rechazar) y uno por cada variante declarada. La forma de provocar cada resultado es un parámetro de la fábrica del adaptador (el escenario), así que la ejecutan el doble y todos los adaptadores reales. Un adaptador que no puede producir un escenario (un `NoOp` no rechaza ni falla) lo declara de forma explícita, con su motivo; nunca se salta el caso en silencio.
 
@@ -72,11 +74,12 @@ Ejemplo: al crear una comunidad, el caso de uso le pide a un `ModerationGateway`
 - El adaptador *driving* hace `fold` exhaustivo del error del caso de uso hacia el formato de transporte (para HTTP: RFC 9457 *Problem Details*), con helpers por hoja.
 - Para clientes que ramifican por error, el Problem Details lleva un `code` estable como miembro de extensión (`COMMUNITIES_SLUG_ALREADY_EXISTS`). El código es vocabulario de transporte: lo asigna el adaptador *driving*, no el núcleo.
 - El árbol B termina en un manejador global: respuesta genérica sin detalles internos, y registro a través de `FaultReporter`, capacidad técnica transversal del kernel (`HEX-8`).
-- El núcleo no hace logging. Ningún error, mensaje ni registro lleva datos sensibles ni secretos.
+- El núcleo no hace logging: no usa librerías de registro ni escribe en la salida. Ningún error, mensaje ni registro lleva datos sensibles ni secretos.
+- **Registro de negocio.** Si el producto necesita dejar constancia de un resultado de negocio (una operación quedó rechazada o fallida), es un **puerto saliente** más que el handler invoca con un DTO propio y sin datos sensibles (`{Concepto}LogService`, rol `Service`). No es el `FaultReporter`: ese solo lo invoca el manejador global, y solo para el árbol B.
 
 **Fundamento.** El núcleo sirve a cualquier transporte. Un manejador global es la red de seguridad del árbol B, no el mecanismo del árbol A.
 
-**Violaciones típicas.** Un `if (error) return 404` dentro del handler. Mensajes de excepción con el payload del request.
+**Violaciones típicas.** Un `if (error) return 404` dentro del handler. Mensajes de excepción con el payload del request. Un handler que invoca el `FaultReporter`, o que registra un resultado de negocio con un logger en lugar de un puerto.
 
 **Verificación.** Test de arquitectura: el núcleo no importa tipos de transporte ni de logging, y fuera de los tests no escribe en la salida estándar ni de error con las primitivas del lenguaje.
 

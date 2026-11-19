@@ -23,6 +23,13 @@
   público, como en los `record` de Java. El id viene de `IdGenerator`.
 
 ### Cambiado
+- **Corte de ERR-2:** si el caso de uso persiste un estado de negocio y
+  responde con éxito, no es error; es una hoja solo si aborta.
+- **Éxito degradado** (ERR-3): un colaborador llamado después de confirmar el
+  estado no revierte el caso de uso. Su error queda registrado en el estado.
+- **Registro de negocio** (ERR-4): el resultado de negocio que el producto
+  necesita registrar va por un puerto saliente `{Concepto}LogService`. El
+  `FaultReporter` sigue siendo solo del manejador global.
 - **Aceptación de las katas Rust:** firma un JWT y arranca el servidor con
   `JWT_SECRET`, en lugar de enviar `x-account-id`. Las katas no se corrieron
   aún: la plantilla creció con `iam`, así que su costo no es comparable con las

@@ -52,11 +52,14 @@ cambiaron de mecanismo.
 | ERR-1 | Excepciones para fallos de negocio, conversiones amplias entre árboles | `revisor:architecture-reviewer` | Prioridad 3 del revisor |
 | ERR-2 | Exhaustividad del contrato en el borde | `herramienta` | Compilador: `match` exhaustivo sobre `{Verb}{Noun}Error` en `api` |
 | ERR-2 | Un test por variante admitida del contrato | `revisor:architecture-reviewer` | Prioridad 3 del revisor: por cada variante de `{Verb}{Noun}Error`, un test del handler que la produce y uno del endpoint que la traduce |
+| ERR-2 | Corte: un estado de negocio persistido con éxito no es una hoja de error | `revisor:architecture-reviewer` | Prioridad 3 del revisor |
 | ERR-3 | Un caso por resultado en la batería de contrato, uno por variante declarada | `herramienta` | Compilador: `scenario_of` hace un `match` exhaustivo sobre `ModerationError`, y `moderation_gateway_contract!` exige un campo por caso. `cargo test` corre la batería contra el doble y cada adaptador. Sus casos los genera una macro: el verificador no puede citarlos |
 | ERR-3 | Semántica: rechazo como éxito, sin errores pensados para el transporte | `revisor:architecture-reviewer` | Prioridad 2 del revisor |
+| ERR-3 | Éxito degradado: un colaborador posterior a la confirmación no revierte el caso de uso | `revisor:architecture-reviewer` | Prioridad 2 del revisor |
 | ERR-4 | El núcleo no escribe en la salida | `test` | `tests/output.rs::err_4_core_does_not_write_to_output` |
 | ERR-4 | El núcleo no importa transporte ni logging | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | ERR-4 | Sin datos sensibles en errores, mensajes ni registros | `revisor:architecture-reviewer` | Prioridad 4 del revisor |
+| ERR-4 | El registro de negocio va por un puerto; el `FaultReporter` solo desde el manejador global | `revisor:architecture-reviewer` | Prioridad 4 del revisor |
 | TDD-1 | Test antes o junto a la producción (backend) | `revisor:architecture-reviewer` | Diff separado en producción y test, y orden de los commits |
 | TDD-1 | Test antes o junto a la producción (sitios) | `revisor:site-auditor` | Paso 8 del auditor |
 | TDD-2 | Los tests del núcleo no levantan runtime ni framework | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` (lee `[dev-dependencies]`) |
