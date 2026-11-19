@@ -1,0 +1,768 @@
+{
+  "katas": {
+    "rust-rename-community-revision": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 124,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.6179828100000001,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 737,
+            "cache_read": 28251,
+            "cache_write": 13783
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 737,
+              "cacheReadInputTokens": 28251,
+              "cacheCreationInputTokens": 13783,
+              "costUSD": 0.0034080100000000004
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 26,
+              "outputTokens": 9375,
+              "cacheReadInputTokens": 499529,
+              "cacheCreationInputTokens": 65413,
+              "costUSD": 0.6145748000000001
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/command.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/ports/inbound/rename_community.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/application/src/testing/contracts/community_repository.rs",
+            "contexts/communities/domain/src/community.rs",
+            "edge/http/src/problem.rs",
+            "tools/architecture/tests/errors.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 2,
+            "Read": 18,
+            "Grep": 4,
+            "Glob": 2
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 14,
+          "tool_result_chars": {
+            "Bash": 14813,
+            "Read": 85561,
+            "Grep": 4908,
+            "Glob": 228,
+            "Agent": 6078
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/rename_community.rs:25",
+              "text": "`StubRenameUseCase` registra los comandos que recibe (`received: Mutex<Vec<RenameCommunityCommand>>`, línea 32) y el test `the_command_carries_the_path_id_the_caller_and_the_new_name` los afirma: es un `Spy` con nombre de `Stub`.\nPor qué importa: el prefijo dice que el doble solo responde fijo. Quien lo lea o lo reutilice no sabe que sirve para afirmar sobre las llamadas, y el test de nombres no lo detecta porque solo mira el prefijo.\nCorrección: renombrarlo a `SpyRenameCommunityUseCase` (o `SpyRenameCommunityAdapter`, si se adopta la forma `{Prefijo}{Concepto}Adapter` para todos los dobles)."
+            },
+            {
+              "id": "TDD-1",
+              "path": "contexts/communities/application/src/commands/rename_community/handler.rs:129",
+              "text": "Ningún test exige el orden \"guardar y, solo si guardó, publicar\" (líneas 54-55): `publishes_renamed_after_saving` solo afirma que se publicó, y `repository_failure_is_unexpected_not_a_business_error` (línea 206) falla ya en `find_by_id`, así que nunca llega a `save`.\nPor qué importa: si se invierten las líneas 54 y 55, o se publica aunque `save` falle, toda la batería sigue en verde. Se podrían publicar `Renamed` de un cambio que no se persistió.\nCorrección: añadir al `FakeCommunityAdapter` un modo que falle solo en `save`, o tomar el patrón `publishing(...)` de `create_community/handler.rs:195`. Con eso, un test `save_failure_publishes_nothing` que afirme `Failure::Unexpected` y `events.published().is_empty()`."
+            },
+            {
+              "id": "VER-1",
+              "path": "tools/architecture/tests/naming.rs:680",
+              "text": "`hex_5_adapters_are_named_by_technology_and_concept` revisa los nombres de dobles solo para puertos salientes y capacidades del kernel, no para dobles de puertos entrantes (`*UseCase`).\nPor qué importa: los dobles nuevos `UnusedRenameUseCase` (`contexts/communities/api/tests/create_community.rs:33`) y `StubCreateUseCase` (`contexts/communities/api/tests/rename_community.rs:38`) no siguen `{Fake|Fixed|Stub|Spy}{Concepto}Adapter`. `Unused` ni siquiera está en la lista cerrada de prefijos, y ninguna regla automática lo detecta.\nCorrección: extender el filtro de `contract` a los traits de `src/ports/inbound`, con Concepto = el nombre del trait sin `UseCase`. Luego renombrar esos dobles, por ejemplo `StubRenameCommunityAdapter` / `StubCreateCommunityAdapter`.\n```\n**Lo que revisé sin encontrar problemas**\n- **HEX-7:** el handler solo valida `CommunityName` (un value object), carga con `find_by_id`, convierte `None` en `NotFound` y delega la regla de ownership a `Community::rename` (dominio, `community.rs:45`). Luego toma los eventos con `take_events`, guarda el agregado sin eventos y después publica. El evento `Renamed` lo registra el agregado.\n- **ERR-2, contrato `RenameCommunityError`:** solo tiene variantes que el caso de uso puede producir, como hojas planas sin envolver.\n| Variante | Test del handler | Test del endpoint |\n|---|---|---|\n| `Validation` | `invalid_name_is_a_validation_error` | `validation_returns_400_problem_details` |\n| `NotFound` | `unknown_community_is_not_found` | `not_found_returns_404_problem_details` |\n| `Forbidden` | `non_owner_is_forbidden_and_nothing_changes` | `forbidden_returns_403_problem_details` |\n- **ERR-1 y ERR-3:** `find_by_id` devuelve `Option` y sus fallos son `Fault`. La batería de contrato tiene casos nuevos (`finds_a_saved_community_by_id`, `unknown_id_is_none_not_an_error`), registrados para el fake y para `InMemoryCommunityAdapter`.\n- **ERR-4:** el `match` del borde cubre todas las variantes, con un helper por hoja. Solo el borde llama al `FaultReporter`. No hay datos sensibles en los mensajes.\n- **TDD-1, resto de la producción:**\n- `InMemoryCommunityAdapter::find_by_id` lo cubre la batería de contrato.\n- `Problem::forbidden` lo cubre `forbidden_returns_403_problem_details`.\n- `codes.rs` lo cubren los tests del endpoint.\n- El README es solo documentación.\n- `apps/server/src/contexts/communities.rs` es cableado y no necesita test propio.\n- **RS-2:** el código de producción del diff no tiene `panic!`, `expect`, `unreachable!` ni `todo!`. Los que aparecen están en tests o en `testing`, que están exentos.\n- **HEX-1 a HEX-6 y HEX-8:**\n- `api` solo importa `application`.\n- El puerto entrante tiene un único `execute`.\n- `RenameCommunityResponse` no expone tipos de dominio.\n- Los tipos de transporte se llaman `RenameCommunityHttpRequest` / `RenameCommunityHttpResponse`.\n- **Fuera del alcance de este diff:** si `publish` falla después de `save`, el caso de uso responde 500 con el estado ya confirmado, porque no hay `UnitOfWork`. Es el mismo comportamiento que ya tiene `create_community` (`handler.rs:94-95`), así que no lo cuento como hallazgo de este cambio."
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-rename-community-revision@claude-opus-5-5-1-20261119-135555",
+          "source": "0.14.0-sonnet.json#1"
+        },
+        {
+          "index": 2,
+          "duration_s": 119,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.55241865,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 570,
+            "cache_read": 28245,
+            "cache_write": 14602
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 570,
+              "cacheReadInputTokens": 28245,
+              "cacheCreationInputTokens": 14602,
+              "costUSD": 0.00348825
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 18,
+              "outputTokens": 10233,
+              "cacheReadInputTokens": 246192,
+              "cacheCreationInputTokens": 58992,
+              "costUSD": 0.5489303999999999
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "apps/server/src/contexts/communities.rs",
+            "contexts/communities/api/src/codes.rs",
+            "contexts/communities/api/src/lib.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/command.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/errors.rs",
+            "contexts/communities/application/src/ports/inbound/rename_community.rs",
+            "contexts/communities/application/src/ports/outbound/community_repository.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/application/src/testing/contracts/community_repository.rs",
+            "contexts/communities/domain/src/community.rs",
+            "contexts/communities/infrastructure/src/in_memory_community.rs",
+            "edge/http/src/problem.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 1,
+            "Glob": 1,
+            "Read": 21,
+            "Grep": 1
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 10,
+          "tool_result_chars": {
+            "Bash": 727,
+            "Glob": 3403,
+            "Read": 79906,
+            "Grep": 4110,
+            "Agent": 8223
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/rename_community.rs:26",
+              "text": "`StubUseCase` guarda cada comando que recibe en `received` y el test `the_command_carries_path_id_caller_and_new_name` lo afirma: es un Spy con nombre de Stub.\nPor qué importa: quien lea `Stub` espera una respuesta fija sin efectos. No sabrá que el doble se usa para afirmar interacciones, y lo puede \"simplificar\" quitando `received`, con lo que el test del comando deja de probar algo.\nCorrección: renombrarlo a `SpyRenameCommunityUseCaseAdapter`, siguiendo `{Prefijo}{Concepto}Adapter`, y ajustar el comentario de la línea 25. Si se quiere separar las dos funciones, usar un `Stub…` sin registro para los tests de traducción de errores y el `Spy…` solo para el test del comando."
+            },
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/rename_community.rs:39",
+              "text": "`UnusedCreateUseCase` es un doble con un prefijo fuera de la lista cerrada (`Fake|Fixed|Stub|Spy`) y sin el sufijo `Adapter`.\nPor qué importa: la lista cerrada existe para que el nombre diga qué hace el doble. `Unused` crea una quinta categoría que ninguna regla reconoce.\nCorrección: `StubCreateCommunityUseCaseAdapter`, que responde con `unreachable!`. Basta con un comentario que diga que no debe invocarse."
+            },
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/create_community.rs:34",
+              "text": "`UnusedRenameUseCase`, nuevo en este diff, tiene el mismo problema de prefijo que el anterior.\nPor qué importa: igual que el hallazgo anterior.\nCorrección: `StubRenameCommunityUseCaseAdapter`."
+            },
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/application/src/commands/rename_community/handler.rs:206",
+              "text": "El test nuevo afirma sobre `moderation.reviewed()`, o sea, usa `FakeModerationAdapter` como Spy de las llamadas.\nPor qué importa: el doble mezcla dos funciones: responde según un escenario fijo (eso es un Stub, no tiene estado de dominio) y registra llamadas (eso es un Spy). El prefijo `Fake` no describe ninguna de las dos. No sé si `reviewed` es nuevo en este diff (no tengo los hunks): `create_community/handler.rs:268` ya lo usaba, así que puede venir de antes.\nCorrección: renombrarlo a `SpyModerationAdapter` en `contexts/communities/application/src/testing.rs:118`, porque registra lo revisado y el test lo afirma."
+            },
+            {
+              "id": "VER-1",
+              "path": "tools/architecture/tests/naming.rs:680",
+              "text": "`hex_5_adapters_are_named_by_technology_and_concept` solo revisa los dobles de puertos salientes y de capacidades del kernel. Los dobles de puertos entrantes (`*UseCase`) quedan fuera.\nPor qué importa: por eso los tres hallazgos anteriores (`StubUseCase`, `UnusedCreateUseCase`, `UnusedRenameUseCase`) pasan el test. También pasa el `StubUseCase` que ya existía en `contexts/iam/api/tests/authenticate.rs:24`.\nCorrección: agregar a `ports` los traits de `src/ports/inbound` (con el Concepto igual al nombre completo del trait), o crear un test hermano que aplique el prefijo de doble a todo `impl …UseCase` en `tests/`.\n```\n## Lo que revisé y no tiene hallazgos\n- **HEX-7.** El handler (`contexts/communities/application/src/commands/rename_community/handler.rs`) solo valida el value object, carga el agregado, invoca `Community::rename` y mapea el resultado. La regla \"solo el dueño renombra\" vive en el agregado. El evento `Renamed` lo registra la transición. El handler llama a `take_events`, guarda y después publica, y el agregado se persiste sin eventos (lo afirma la línea 168). La moderación se consulta después de la regla local, en el mismo orden que `CreateCommunity`.\n- **ERR-3.** El rechazo de moderación llega como `Ok(Rejected)` y el handler lo traduce a la hoja `ContentRejected`. `Unavailable` se traduce a `DependencyUnavailable`. Los `Fault` del repositorio se propagan con `?`. No hay éxito degradado en juego.\n- **ERR-1 / ERR-2.** `RenameCommunityError` es cerrado, con 5 hojas planas sin envolver. Este caso de uso no persiste ningún estado de rechazo. `find_by_id` devuelve `Option`. La hoja `Forbidden` nueva en `errors.rs` está bien ubicada.\n- **ERR-4.** El `match` del endpoint es exhaustivo y tiene un helper por hoja. `dependency_unavailable` no expone el nombre de la dependencia. El `FaultReporter` solo se usa en `unexpected`, y hay un test de que el 502 no se reporta.\n- **RS-2.** No hay `panic!`, `expect` ni `unreachable!` en el código de producción nuevo. Los que aparecen en `testing.rs` y `tests/` están exentos, y los de `testing.rs` igual llevan el prefijo `invariante:`.\n- **HEX-1 a HEX-6.** `api` importa solo `application`. `RenameCommunityResponse` no expone tipos de dominio. `CommunitiesApi` inyecta `Arc<dyn RenameCommunityUseCase>`. El vocabulario `RenameCommunityHttpRequest` / `HttpResponse` es correcto. El cableado está solo en `apps/server/src/contexts/communities.rs`.\n- **Batería de contrato.** Se agregaron `finds_a_saved_community_by_id`, `unknown_id_is_none_not_an_error` y `save_replaces_the_community_with_the_same_id`. Las corren el Fake (`testing.rs:266`) y `InMemoryCommunityAdapter` (`in_memory_community.rs:56`).\n## ERR-2: un test por variante de `RenameCommunityError`\nNo falta ningún test.\n| Variante | Test del handler | Test del endpoint |\n|---|---|---|\n| `Validation` | `invalid_name_is_a_validation_error` | `invalid_name_returns_400_problem_details` |\n| `NotFound` | `unknown_community_is_not_found` | `unknown_community_returns_404_problem_details` |\n| `Forbidden` | `non_owner_is_forbidden_and_nothing_changes` | `non_owner_returns_403_problem_details` |\n| `ContentRejected` | `rejected_name_is_content_rejected_and_not_saved` | `content_rejected_returns_422_problem_details` |\n| `DependencyUnavailable` | `unavailable_moderation_is_dependency_unavailable_and_not_saved` | `dependency_unavailable_returns_502_without_reporting` |\n## TDD-1: cada cambio de producción y el test que lo exige\n| Cambio de producción | Test que lo exige |\n|---|---|\n| `rename_community/{command,error,handler,response}.rs`, `ports/inbound/rename_community.rs` | tests del módulo `handler.rs` |\n| `api/src/rename_community.rs`, `api/src/lib.rs`, `api/src/codes.rs` | `api/tests/rename_community.rs` |\n| `application/src/errors.rs` (`Forbidden`) | tests de `Forbidden` en el handler y en el endpoint |\n| `edge/http/src/problem.rs` (`forbidden()`) | `non_owner_returns_403_problem_details`; no tiene test propio en `edge/http` |\n| `ports/outbound/community_repository.rs` (`find_by_id`), `infrastructure/src/in_memory_community.rs` | casos nuevos de la batería de contrato |\n| `apps/server/src/contexts/communities.rs` | composition root, solo cablea; no requiere test |\n## Lo que no pude comprobar\n- **Orden rojo antes que verde (TDD-1).** Todo está sin commit y no tuve acceso a `git log` ni a los hunks. Desde el diff no hay forma de saber si los tests se vieron fallar primero.\n- **Tests modificados para pasar.** Sin `git diff` no puedo saber si cambiaron aserciones que ya existían, por ejemplo en `api/tests/create_community.rs` o en la batería de contrato.\n- **Tests de arquitectura (VER-1).** Hay que correrlos en `tools/architecture` (por ejemplo, `cargo test -p` con el nombre del crate) antes de subir el cambio."
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-rename-community-revision@claude-opus-5-5-2-20261119-135555",
+          "source": "0.14.0-sonnet.json#2"
+        },
+        {
+          "index": 3,
+          "duration_s": 104,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.5600378500000001,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 466,
+            "cache_read": 28245,
+            "cache_write": 13376
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 466,
+              "cacheReadInputTokens": 28245,
+              "cacheCreationInputTokens": 13376,
+              "costUSD": 0.00319105
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 22,
+              "outputTokens": 8345,
+              "cacheReadInputTokens": 371419,
+              "cacheCreationInputTokens": 63115,
+              "costUSD": 0.5568468
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/rename_community.rs",
+            "contexts/communities/api/tests/rename_community.rs",
+            "contexts/communities/application/src/commands/create_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/command.rs",
+            "contexts/communities/application/src/commands/rename_community/error.rs",
+            "contexts/communities/application/src/commands/rename_community/handler.rs",
+            "contexts/communities/application/src/commands/rename_community/mod.rs",
+            "contexts/communities/application/src/commands/rename_community/response.rs",
+            "contexts/communities/application/src/ports/inbound/rename_community.rs",
+            "contexts/communities/application/src/testing.rs",
+            "contexts/communities/domain/src/community.rs",
+            "contexts/communities/infrastructure/src/in_memory_community.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 3,
+            "Read": 14,
+            "Grep": 3,
+            "Glob": 2
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 12,
+          "tool_result_chars": {
+            "Bash": 17332,
+            "Read": 81302,
+            "Grep": 1501,
+            "Glob": 378,
+            "Agent": 5720
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/rename_community.rs:25",
+              "text": "`StubUseCase` guarda cada comando que recibe (`received: Mutex<Vec<RenameCommunityCommand>>`) y `passes_path_id_authenticated_account_and_name_to_the_use_case` lo comprueba: es un `Spy` con nombre de `Stub`.\nPor qué importa: quien lea `Stub` espera un doble que solo responde fijo. Así no se ve que hay tests que dependen de qué llamadas recibió.\nCorrección: renombrarlo con el prefijo `Spy` (p. ej. `SpyRenameCommunityUseCase`), o separar en un `Stub` que solo responde y un `Spy` que solo registra para el test del mapeo."
+            },
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/rename_community.rs:38",
+              "text": "El doble `UnusedCreateUseCase` no usa ningún prefijo de la lista cerrada (Fake/Fixed/Stub/Spy).\nPor qué importa: \"Unused\" no es parte del vocabulario de dobles, así que el nombre no dice qué hace (aquí, entrar en pánico si se le llama).\nCorrección: darle un prefijo de la lista, p. ej. `StubCreateCommunityUseCase`, y que el `unreachable!` siga siendo la respuesta fija."
+            },
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/create_community.rs:33",
+              "text": "El doble nuevo `UnusedRenameUseCase` tampoco usa un prefijo de la lista cerrada.\nPor qué importa: es el mismo caso que el anterior, y en este archivo la convención ya existente es `StubUseCase`.\nCorrección: renombrarlo a `StubRenameCommunityUseCase`."
+            },
+            {
+              "id": "VER-1",
+              "path": "tools/architecture/tests/naming.rs:680",
+              "text": "`hex_5_adapters_are_named_by_technology_and_concept` solo revisa los dobles de puertos salientes y de capacidades del kernel. Los dobles de puertos entrantes (`*UseCase`) en `api/tests` quedan sin revisar.\nPor qué importa: por eso los tests pasan con los tres nombres de arriba. TDD-2 pide prefijo para todos los dobles, y esta regla se puede expresar como test.\nCorrección: extender el test para que cualquier `impl {X}UseCase` en código de test exija un prefijo de `DOUBLE_PREFIXES`.\n```\n**Lo que revisé y no tiene hallazgos**\n- **HEX-7:**\n- La regla \"solo el dueño\" vive en `Community::rename` (`contexts/communities/domain/src/community.rs:45`), que devuelve `Result` y registra `Renamed` en el estado nuevo.\n- El handler valida, carga y llama a `take_events`. Después guarda y solo entonces publica (`handler.rs:47-53`). Los tests comprueban que no se guardan eventos y que no se publica nada si falla.\n- **ERR-1 / ERR-2:**\n- `find_by_id` devuelve `Option`, y `NotFound` solo aparece en el handler.\n- `RenameCommunityError` es cerrado, con hojas planas (`Validation`, `NotFound`, `Forbidden`). `NotCommunityOwner` se traduce a `Forbidden` sin envolverlo.\n- Una falla del repositorio llega como `Failure::Unexpected`.\n- **Un test por variante (ERR-2):**\n| Variante | Test del handler | Test del endpoint |\n|---|---|---|\n| `Validation` | `invalid_name_is_a_validation_error` | `validation_returns_400_problem_details` |\n| `NotFound` | `unknown_community_is_not_found` | `not_found_returns_404_problem_details` |\n| `Forbidden` | `non_owner_is_forbidden_and_nothing_changes` | `forbidden_returns_403_problem_details` |\n- **ERR-3:** no se agregan puertos con errores declarados. `find_by_id` tiene batería de contrato (`finds_a_saved_community_by_id`, `unknown_id_is_none_not_an_error`), y la corren tanto `FakeCommunityAdapter` como `InMemoryCommunityAdapter`.\n- **ERR-4:**\n- El match del borde es exhaustivo, con un helper por hoja.\n- `Problem::forbidden` queda en `edge/http`.\n- El handler no registra nada ni llama a `FaultReporter`, y los mensajes no llevan datos sensibles.\n- **TDD-1:**\n- Cada cambio de producción tiene un test que lo exige: handler, contrato del repositorio, fake, adaptador en memoria, endpoint y `Problem::forbidden` (este último por `forbidden_returns_403_problem_details`).\n- El composition root (`apps/server/src/contexts/communities.rs`) solo cablea.\n- El cambio en `tests/create_community.rs` solo agrega el campo que ahora exige `CommunitiesApi`, así que está justificado.\n- Los cambios no están en commits, así que no pude comprobar el orden rojo→verde.\n- **RS-2:** el código de producción del diff no tiene `expect`, `panic!` ni `unreachable!`. Los que hay están en tests.\n- **HEX-1 a HEX-6 y HEX-8:** están cubiertos por los tests de arquitectura, que pasan.\n**Para decidir (no es un hallazgo de principio):** `CreateCommunity` manda el nombre a `ModerationGateway`, pero `RenameCommunity` no. Renombrando se puede poner un nombre que la moderación habría rechazado al crear. Si eso no es lo que quiere el producto, el handler necesita el gateway y las hojas `ContentRejected` y `DependencyUnavailable` en su contrato, cada una con sus dos tests."
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-rename-community-revision@claude-opus-5-5-3-20261119-135555",
+          "source": "0.14.0-sonnet.json#3"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 0.5600378500000001,
+          "min": 0.55241865,
+          "max": 0.6179828100000001
+        },
+        "turns": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        },
+        "requests": {
+          "median": 12,
+          "min": 10,
+          "max": 14
+        },
+        "tool_result_chars": {
+          "median": 106233,
+          "min": 96369,
+          "max": 111588
+        },
+        "tool_result_chars_by_tool": {
+          "Agent": {
+            "median": 6078,
+            "min": 5720,
+            "max": 8223
+          },
+          "Bash": {
+            "median": 14813,
+            "min": 727,
+            "max": 17332
+          },
+          "Glob": {
+            "median": 378,
+            "min": 228,
+            "max": 3403
+          },
+          "Grep": {
+            "median": 4110,
+            "min": 1501,
+            "max": 4908
+          },
+          "Read": {
+            "median": 81302,
+            "min": 79906,
+            "max": 85561
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 4,
+            "min": 4,
+            "max": 4
+          },
+          "output": {
+            "median": 570,
+            "min": 466,
+            "max": 737
+          },
+          "cache_read": {
+            "median": 28245,
+            "min": 28245,
+            "max": 28251
+          },
+          "cache_write": {
+            "median": 13783,
+            "min": 13376,
+            "max": 14602
+          }
+        },
+        "files_read": {
+          "median": 16,
+          "min": 14,
+          "max": 21
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "acceptance": "3/3",
+        "checks": {
+          "reporte": "3/3"
+        }
+      }
+    },
+    "rust-community-by-slug-revision": {
+      "runs": [
+        {
+          "index": 1,
+          "duration_s": 125,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.46682714,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 756,
+            "cache_read": 28134,
+            "cache_write": 13804
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 756,
+              "cacheReadInputTokens": 28134,
+              "cacheCreationInputTokens": 13804,
+              "costUSD": 0.00342054
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 30,
+              "outputTokens": 9404,
+              "cacheReadInputTokens": 458158,
+              "cacheCreationInputTokens": 36715,
+              "costUSD": 0.4634066
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-community-by-slug-revision@claude-opus-5-5-1-20261119-135749/plugin/craft-backend/skills/rust-stack/SKILL.md",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/get_community_by_slug.rs",
+            "contexts/communities/api/tests/get_community_by_slug.rs",
+            "contexts/communities/application/src/ports/inbound/get_community_by_slug.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/error.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/handler.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/mod.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/query.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/response.rs",
+            "contexts/communities/application/src/queries/mod.rs",
+            "contexts/communities/application/src/testing.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 5,
+            "Read": 13,
+            "Grep": 4,
+            "Glob": 3
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 16,
+          "tool_result_chars": {
+            "Bash": 13895,
+            "Read": 28761,
+            "Grep": 3274,
+            "Glob": 213,
+            "Agent": 6210
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-community-by-slug-revision@claude-opus-5-5-1-20261119-135749",
+          "source": "0.14.0-sonnet.json#1"
+        },
+        {
+          "index": 2,
+          "duration_s": 106,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.4958475200000001,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 416,
+            "cache_read": 28132,
+            "cache_write": 13423
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 416,
+              "cacheReadInputTokens": 28132,
+              "cacheCreationInputTokens": 13423,
+              "costUSD": 0.0031743200000000004
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 22,
+              "outputTokens": 8126,
+              "cacheReadInputTokens": 372401,
+              "cacheCreationInputTokens": 51117,
+              "costUSD": 0.49267320000000003
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-community-by-slug-revision@claude-opus-5-5-2-20261119-135804/plugin/craft-backend/skills/rust-stack/SKILL.md",
+            "contexts/communities/api/src/create_community.rs",
+            "contexts/communities/api/src/get_community_by_slug.rs",
+            "contexts/communities/api/tests/create_community.rs",
+            "contexts/communities/api/tests/get_community_by_slug.rs",
+            "contexts/communities/application/src/ports/inbound/get_community_by_slug.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/error.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/handler.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/mod.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/query.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/response.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 4,
+            "Read": 12,
+            "Glob": 1,
+            "Grep": 4
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 12,
+          "tool_result_chars": {
+            "Bash": 13928,
+            "Read": 68091,
+            "Glob": 752,
+            "Grep": 4670,
+            "Agent": 6187
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/create_community.rs:35",
+              "text": "El doble `UnusedGetCommunityBySlug` no lleva ninguno de los prefijos permitidos (Fake/Fixed/Stub/Spy).\nPor qué importa: el nombre no dice qué hace el doble y crea un prefijo nuevo (`Unused`) fuera de la lista cerrada. El test de nombres no lo detecta, así que la convención se va perdiendo sin que nadie lo note.\nCorrección: llamarlo con prefijo de la lista, por ejemplo `StubGetCommunityBySlugUseCase`, en la línea de `StubUseCase`, que ya existe en el mismo archivo."
+            },
+            {
+              "id": "TDD-2",
+              "path": "contexts/communities/api/tests/get_community_by_slug.rs:33",
+              "text": "El doble `UnusedCreateCommunity` no lleva ninguno de los prefijos permitidos.\nPor qué importa: lo mismo que arriba. Además, el mismo patrón aparece con dos nombres distintos en dos archivos.\nCorrección: `StubCreateCommunityUseCase`, o el nombre que se elija para el anterior, igual en los dos archivos."
+            },
+            {
+              "id": "VER-1",
+              "path": "tools/architecture/tests/naming.rs:675",
+              "text": "`hex_5_adapters_are_named_by_technology_and_concept` revisa los nombres de los dobles solo para puertos salientes y capacidades del kernel, no para los dobles de puertos `UseCase` en `api/tests`.\nPor qué importa: por eso los dos hallazgos anteriores pasan en verde, aunque la regla dice que todos los dobles llevan prefijo.\nCorrección: incluir las implementaciones de un trait `*UseCase` en `tests/` dentro del chequeo de prefijo."
+            },
+            {
+              "id": "VER-1",
+              "path": "tools/architecture/tests/errors.rs:1",
+              "text": "No hay un test que exija, por cada variante de `{Verb}{Noun}Error`, un test del handler y uno del endpoint.\nPor qué importa: hoy esa cobertura solo se comprueba en revisión manual. El compilador obliga a cubrir todas las variantes en el `match` del borde, pero no obliga a que cada una tenga su test.\nCorrección: un test que lea las variantes del enum y busque `Failure::Expected(...::Variante` en el `#[cfg(test)]` del handler y un `Failure::expected(Hoja` en `api/tests/{caso}.rs`.\n```\n### Lo que revisé sin hallazgos\n- **HEX-7 (lógica de negocio fuera del dominio):** `GetCommunityBySlugHandler` hace solo cuatro cosas: arma el `CommunitySlug`, carga con `find_by_slug`, convierte el `None` en `NotFound` y mapea a `Response`. No toma decisiones de negocio, no maneja eventos ni estado.\n- **ERR-1 y ERR-2 (árboles de errores):**\n- `GetCommunityBySlugError` es un enum cerrado con hojas planas, sin envoltorios de errores de dominio.\n- `find_by_slug` devuelve un `Option`, y el caso de uso decide que no existir es `NotFound`.\n- Los fallos técnicos (`Fault`) se propagan con `?` como `Failure::Unexpected`, y hay un test que lo comprueba.\n- **ERR-3:** no aplica; el diff no tiene adaptadores ni colaboradores externos.\n- **ERR-4 (borde):**\n- El endpoint traduce cada variante del error a Problem Details, con una función auxiliar por hoja.\n- Solo el borde invoca el `FaultReporter`, y el test del 500 comprueba que el detalle técnico no llega al cliente.\n- **RS-2:** los únicos `unreachable!` están en tests. No hay `expect` ni `panic!` en código de producción.\n- **HEX-1 a HEX-6 y HEX-8:**\n- El contrato del caso de uso no expone tipos de dominio. `From<&Community>` es el mismo patrón que ya usa `CreateCommunityResponse`.\n- `api` depende del `UseCase`, no del `Handler`, y la ruta queda dentro de `protected()`, que `main.rs` envuelve con `iam.protect`.\n- **Tests de arquitectura:** `cargo test -p architecture` pasa (20 tests), y los tests de `communities-application` y `communities-api` también.\n### Cada variante del error tiene sus dos tests (ERR-2)\n| Variante | Test del handler | Test del endpoint |\n|---|---|---|\n| `Validation` | `invalid_slug_is_a_validation_error` | `invalid_slug_returns_400_problem_details` |\n| `NotFound` | `unknown_slug_is_not_found` | `not_found_returns_404_problem_details` |\n### Cada cambio de producción tiene su test (TDD-1)\n| Cambio de producción | Test que lo exige |\n|---|---|\n| `application/src/errors.rs` (`NotFound`) | `queries/get_community_by_slug/handler.rs`, dentro de `#[cfg(test)]` |\n| `queries/get_community_by_slug/{query,response,error,handler,mod}.rs` | el mismo módulo de test del handler |\n| `application/src/ports/inbound/get_community_by_slug.rs`, `ports/inbound/mod.rs`, `application/src/lib.rs` | el mismo test del handler y `api/tests/get_community_by_slug.rs` |\n| `api/src/get_community_by_slug.rs`, `api/src/codes.rs`, `api/src/lib.rs` | `api/tests/get_community_by_slug.rs` |\n| `apps/server/src/contexts/communities.rs` | solo cablea; no lleva test unitario propio |\n- La modificación de `api/tests/create_community.rs` está justificada: `CommunitiesApi` tiene un campo nuevo obligatorio. Ninguna afirmación se tocó para que el test pase.\n- No puedo verificar que los tests se escribieron antes que la producción: todo está sin commit en un solo bloque. Lo que no tiene que esperar es el renombrado de los dos dobles.\n### Pregunta abierta de producto (no es un hallazgo)\nCualquier cuenta autenticada puede leer una comunidad con `is_public: false`. Si el producto quiere restringir el acceso a comunidades privadas, esa regla va en el agregado `Community` (HEX-7), no en el handler ni en el endpoint."
+            }
+          ],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-community-by-slug-revision@claude-opus-5-5-2-20261119-135804",
+          "source": "0.14.0-sonnet.json#2"
+        },
+        {
+          "index": 3,
+          "duration_s": 113,
+          "timed_out": false,
+          "is_error": false,
+          "cost_usd": 0.45388884999999995,
+          "turns": 2,
+          "tokens": {
+            "input": 4,
+            "output": 437,
+            "cache_read": 28135,
+            "cache_write": 13009
+          },
+          "models": {
+            "claude-haiku-5-5": {
+              "inputTokens": 4,
+              "outputTokens": 437,
+              "cacheReadInputTokens": 28135,
+              "cacheCreationInputTokens": 13009,
+              "costUSD": 0.0031020500000000003
+            },
+            "claude-opus-5-5": {
+              "inputTokens": 28,
+              "outputTokens": 8093,
+              "cacheReadInputTokens": 418174,
+              "cacheCreationInputTokens": 41036,
+              "costUSD": 0.45078679999999993
+            }
+          },
+          "skills": [],
+          "subagents": [
+            "craft-backend:architecture-reviewer"
+          ],
+          "files_read": [
+            "contexts/communities/api/src/get_community_by_slug.rs",
+            "contexts/communities/api/tests/get_community_by_slug.rs",
+            "contexts/communities/application/src/ports/inbound/get_community_by_slug.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/error.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/handler.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/mod.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/query.rs",
+            "contexts/communities/application/src/queries/get_community_by_slug/response.rs",
+            "tools/architecture/tests/naming.rs"
+          ],
+          "harness_files_read": 0,
+          "tools": {
+            "Agent": 1,
+            "Bash": 5,
+            "Read": 9,
+            "Grep": 7
+          },
+          "permission_denials": 1,
+          "api_error_status": null,
+          "requests": 15,
+          "tool_result_chars": {
+            "Bash": 17889,
+            "Read": 23055,
+            "Grep": 16903,
+            "Agent": 5193
+          },
+          "hook_blocks": {},
+          "acceptance": {
+            "passed": true,
+            "checks": {
+              "reporte": true
+            }
+          },
+          "findings": [],
+          "subagent_model": "claude-opus-5-5",
+          "invalid": null,
+          "raw": "/home/kumelemuel/.cache/ai-harness-evals/runs/0.14.1-revision-de-sonnet/rust-community-by-slug-revision@claude-opus-5-5-3-20261119-135809",
+          "source": "0.14.0-sonnet.json#3"
+        }
+      ],
+      "summary": {
+        "runs": 3,
+        "invalid": 0,
+        "cost_usd": {
+          "median": 0.46682714,
+          "min": 0.45388884999999995,
+          "max": 0.4958475200000001
+        },
+        "turns": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        },
+        "requests": {
+          "median": 15,
+          "min": 12,
+          "max": 16
+        },
+        "tool_result_chars": {
+          "median": 63040,
+          "min": 52353,
+          "max": 93628
+        },
+        "tool_result_chars_by_tool": {
+          "Agent": {
+            "median": 6187,
+            "min": 5193,
+            "max": 6210
+          },
+          "Bash": {
+            "median": 13928,
+            "min": 13895,
+            "max": 17889
+          },
+          "Glob": {
+            "median": 213,
+            "min": 0,
+            "max": 752
+          },
+          "Grep": {
+            "median": 4670,
+            "min": 3274,
+            "max": 16903
+          },
+          "Read": {
+            "median": 28761,
+            "min": 23055,
+            "max": 68091
+          }
+        },
+        "tokens": {
+          "input": {
+            "median": 4,
+            "min": 4,
+            "max": 4
+          },
+          "output": {
+            "median": 437,
+            "min": 416,
+            "max": 756
+          },
+          "cache_read": {
+            "median": 28134,
+            "min": 28132,
+            "max": 28135
+          },
+          "cache_write": {
+            "median": 13423,
+            "min": 13009,
+            "max": 13804
+          }
+        },
+        "files_read": {
+          "median": 12,
+          "min": 9,
+          "max": 13
+        },
+        "harness_files_read": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "hook_blocks": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "acceptance": "3/3",
+        "checks": {
+          "reporte": "3/3"
+        }
+      }
+    }
+  },
+  "version": "0.14.1",
+  "label": "revision-de-sonnet",
+  "model": "claude-haiku-5-5",
+  "plugins": {
+    "craft-backend": "0.11.0",
+    "craft-web": "0.5.0"
+  },
+  "claude": "2.1.316 (Claude Code)",
+  "date": "2026-11-19"
+}

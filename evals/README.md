@@ -337,6 +337,50 @@ llevó a asignar la semántica de los prefijos de dobles al revisor
 (`core/verification.md`): el test de nombres ve el prefijo, no lo que hace el
 doble.
 
+### Línea base de 0.14 (plantilla con `iam`, eventos y suscriptores)
+
+0.14.0 (implementación) y 0.14.1 (revisión; solo cambia `planted.diff`),
+`craft-backend` 0.11.0, Claude Code 2.1.316. Flujo adoptado: Sonnet
+implementa y Opus revisa como subagente, con sus skills.
+
+| Kata | Configuración | Modelo | Aceptación | Costo | Turnos | Peticiones | Entrada | Salida | Caché leída | Caché escrita | Resultados de herramientas (caracteres) | Archivos leídos | Del harness | Bloqueos de hooks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rust-community-by-slug | 0.14.0-sonnet | claude-sonnet-5-5 | 3/3 | $0.42 ($0.40–$0.44) | 49 (49–58) | 11 (10–11) | 22 (20–22) | 15k (15k–18k) | 410k (374k–416k) | 56k (52k–57k) | 58k (56k–60k) | 20 (19–24) | 0 | 0 |
+| rust-rename-community | 0.14.0-sonnet | claude-sonnet-5-5 | 3/3 | $0.68 ($0.64–$0.73) | 60 (49–75) | 18 (17–22) | 36 (34–44) | 26k (23k–28k) | 1055k (929k–1336k) | 80k (79k–80k) | 84k (78k–89k) | 13 (1–24) | 0 | 0 |
+| review-planted-subagent@claude-opus-5-5 | 0.14.1-subagente | claude-haiku-5-5 | 3/3 | $0.25 ($0.24–$0.26) | 2 | 9 (8–10) | 4 | 1k (0k–1k) | 28k | 14k (13k–14k) | 38k (30k–41k) | 0 (0–1) | 0 | 0 |
+| rust-community-by-slug-revision | 0.14.1-revision-de-sonnet | claude-haiku-5-5 | 3/3 | $0.47 ($0.45–$0.50) | 2 | 15 (12–16) | 4 | 0k (0k–1k) | 28k (28k–28k) | 13k (13k–14k) | 63k (52k–94k) | 12 (9–13) | 0 | 0 |
+| rust-rename-community-revision | 0.14.1-revision-de-sonnet | claude-haiku-5-5 | 3/3 | $0.56 ($0.55–$0.62) | 2 | 12 (10–14) | 4 | 1k (0k–1k) | 28k (28k–28k) | 14k (13k–15k) | 106k (96k–112k) | 16 (14–21) | 0 | 0 |
+
+- **No es comparable con la línea base de 0.11.0:** cambiaron a la vez las
+  reglas y la plantilla (dos variables), y el runner carga los plugins desde el
+  clon, así que no pudo correr 0.13.0 como control en la misma ventana. Es una
+  línea base nueva: pasan la implementación (3/3 y 3/3), el revisor sobre el
+  diff plantado (las 4 violaciones en las 3 corridas) y la revisión cruzada.
+- **Costo combinado (medianas):** renombrar $1.24 (Sonnet $0.68 + Opus
+  $0.56); buscar por slug $0.89 ($0.42 + $0.47).
+- **Corridas inválidas:** el límite de 5 horas cortó con 429 las primeras
+  corridas de `0.14.1-subagente` (el revisor ya había reportado, pero la sesión
+  principal recibió el 429) y todas las de `0.14.1-revision-de-sonnet`, a $0 y
+  sin subagente. Se repitieron con la misma etiqueta.
+
+Hallazgos de la revisión cruzada, clasificados a mano y aprobados por el
+usuario. Por corrida: renombrar 3, 5 y 3; buscar por slug 0, 4 y 0.
+
+| Hallazgo | Veces | Clasificación | Justificación |
+|---|---|---|---|
+| TDD-1: ningún test exige "publicar solo si guardó" en `RenameCommunityHandler` | 1 | válido | La plantilla tiene ese test en `CreateCommunityHandler`; el agente no lo replicó |
+| TDD-2: `StubUseCase` registra lo que recibe y el test lo afirma | 3 | válido | Es un `Spy` con nombre de `Stub`. La plantilla tenía el mismo caso en el middleware de `iam` |
+| TDD-2: dobles `Unused…UseCase` sin prefijo de la lista cerrada | 6 | válido (hueco del harness) | TDD-2 decía "todos los dobles", pero no daba forma a los de puertos entrantes, y la plantilla usaba `StubUseCase` |
+| VER-1: `hex_5_adapters_*` no revisa los dobles de puertos entrantes | 4 | válido sobre el harness, no sobre el diff | El mismo hueco, visto desde el test |
+| TDD-2: `FakeModerationAdapter` usado como `Spy` (`reviewed()`) | 1 | falso positivo | Un `Fake` puede exponer lo que recibió: es parte de su estado |
+| VER-1: no hay un test que exija un test por variante del error | 1 | falso positivo | Es una decisión documentada: lo verifica el revisor (ERR-2) |
+
+**Consecuencia en 0.15.0:** TDD-2 da forma a los dobles de puertos entrantes
+(`{Fake|Fixed|Stub|Spy}{Puerto}`, sin `Adapter`) con el test
+`tdd_2_inbound_doubles_are_named_by_prefix_and_port`, y la plantilla renombra
+sus dos `StubUseCase`. Aclara además que un `Fake` puede exponer lo que
+recibió.
+
 ### Índice de ejemplos (archivado)
 
 `references/exemplars.md` en `rust-stack` y `astro-stack`, con los `SKILL.md`
