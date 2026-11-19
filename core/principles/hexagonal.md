@@ -179,7 +179,9 @@ Agregados inmutables con comportamiento en sus métodos. Las reglas se evalúan 
 
 ## HEX-8 — Kernel compartido delgado
 
-**Regla.** Un módulo de kernel compartido contiene **solo primitivas**: `Result`, los tipos de los dos árboles de error (`ERR-1`), los marcadores de modelo (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`, `DomainEvent`) y las **capacidades técnicas transversales** de la lista de abajo. Los únicos traits son esos marcadores y esas capacidades. Un marcador no lleva dependencias: si un evento necesita su instante, lo recibe de `Clock` al crearse, no de una librería de fechas. Nunca agregados de un contexto, puertos de un caso de uso ni datos sensibles. Sin framework ni dependencias: solo el lenguaje estándar. Si el kernel se divide en capas, HEX-1 rige dentro de él.
+**Regla.** Un módulo de kernel compartido contiene **solo primitivas**: `Result`, los tipos de los dos árboles de error (`ERR-1`), los marcadores de modelo (`ValueObject`, `Entity`, `AggregateRoot`, `Identifier`, `DomainEvent`), los marcadores de error (`DomainError`, `ApplicationError`) **solo si el lenguaje los necesita** y las **capacidades técnicas transversales** de la lista de abajo. Los únicos tipos abstractos (traits, interfaces) son esos marcadores y esas capacidades.
+
+Un marcador de error hace falta cuando el lenguaje acota las jerarquías cerradas por módulo: en Java, un `sealed` del kernel no puede admitir tipos de otro módulo, así que cada contexto sella su `{Bc}DomainError extends DomainError`. Donde el contrato se cierra con un `enum` del propio contexto, como en Rust, el marcador no aporta nada y el kernel no lo declara. Un marcador no lleva dependencias: si un evento necesita su instante, lo recibe de `Clock` al crearse, no de una librería de fechas. Nunca agregados de un contexto, puertos de un caso de uso ni datos sensibles. Sin framework ni dependencias: solo el lenguaje estándar. Si el kernel se divide en capas, HEX-1 rige dentro de él.
 
 Las jerarquías cerradas de cada contexto viven en el contexto, no en el kernel (los marcadores del kernel son abiertos).
 

@@ -372,6 +372,7 @@ solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 |-----------|------|
 | Un crate por contexto con capas como módulos | Un crate por capa (RS-1) |
 | Rutas HTTP dentro de `infrastructure` junto a la persistencia | Crate `{ctx}-api` separado; `api` e `infrastructure` no se ven (HEX-1) |
+| `trait DomainError` o `ApplicationError` en el kernel (marcadores de Java) | Nada: el `enum` `{Verb}{Noun}Error` ya cierra el contrato. En Rust el kernel no declara marcadores de error (HEX-8) |
 | `uuid`, `serde`, `chrono` en `domain`/`application` | Solo `std` + kernel; la implementación va en infraestructura |
 | `trait CommunityRepositoryPort` | `trait CommunityRepository` |
 | `PasswordService` en el dominio | `PasswordPolicy` (HEX-7) |

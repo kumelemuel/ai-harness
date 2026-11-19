@@ -4,7 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Marcadores de modelo del kernel (HEX-8): abiertos, sin vocabulario de un contexto.
-/// La misma lista está en HEX-8 (`core/principles/hexagonal.md`).
+/// La misma lista está en HEX-8 (`core/principles/hexagonal.md`). Sin marcadores de
+/// error: HEX-8 los admite solo si el lenguaje los necesita, y en Rust el `enum`
+/// del contrato ya cierra la jerarquía.
 pub const MODEL_MARKERS: &[&str] = &[
     "ValueObject",
     "Entity",

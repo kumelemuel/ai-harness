@@ -91,7 +91,9 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 **Kernel compartido (HEX-8)**
 - Solo primitivas y solo el lenguaje estándar: `Result`, los tipos de los dos
   árboles de error, los marcadores (`ValueObject`, `Entity`, `AggregateRoot`,
-  `Identifier`, `DomainEvent`) y las capacidades técnicas transversales. Un
+  `Identifier`, `DomainEvent`; `DomainError`/`ApplicationError` solo si el
+  lenguaje los necesita para cerrar jerarquías entre módulos, como en Java) y las
+  capacidades técnicas transversales. Un
   evento con instante lo recibe de `Clock`, nunca de una librería de fechas.
 - Capacidades: lista **cerrada**, `Clock`, `IdGenerator`, `FaultReporter`.
   Técnicas, sin vocabulario de negocio, usadas por más de un contexto y con
