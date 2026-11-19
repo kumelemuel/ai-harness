@@ -70,7 +70,7 @@ index f0d306c..fb49348 100644
 +    }
 +}
 diff --git a/contexts/communities/application/src/commands/create_community/handler.rs b/contexts/communities/application/src/commands/create_community/handler.rs
-index f457ef1..2c14a92 100644
+index d2338ff..9e0eb06 100644
 --- a/contexts/communities/application/src/commands/create_community/handler.rs
 +++ b/contexts/communities/application/src/commands/create_community/handler.rs
 @@ -1,5 +1,5 @@
@@ -79,8 +79,8 @@ index f457ef1..2c14a92 100644
 +use crate::errors::{Conflict, ContentRejected, DependencyUnavailable, Reserved, Validation};
  use crate::ports::inbound::CreateCommunityUseCase;
  use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
- use crate::ports::outbound::{CommunityRepository, ModerationGateway};
-@@ -43,6 +43,12 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
+ use crate::ports::outbound::{CommunityEventPublisher, CommunityRepository, ModerationGateway};
+@@ -48,6 +48,12 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
              let name = CommunityName::new(command.name)
                  .map_err(|_| Failure::expected(Validation { field: "name" }))?;
  

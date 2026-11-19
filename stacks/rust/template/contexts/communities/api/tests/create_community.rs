@@ -18,9 +18,9 @@ use tower::ServiceExt;
 
 type Outcome = Result<CreateCommunityResponse, Failure<CreateCommunityError>>;
 
-struct StubUseCase(fn() -> Outcome);
+struct StubCreateCommunityUseCase(fn() -> Outcome);
 
-impl CreateCommunityUseCase for StubUseCase {
+impl CreateCommunityUseCase for StubCreateCommunityUseCase {
     fn execute(&self, _: CreateCommunityCommand) -> BoxFuture<'_, Outcome> {
         let outcome = (self.0)();
         Box::pin(async move { outcome })
@@ -42,7 +42,7 @@ async fn post(
 ) -> (StatusCode, String, String, Arc<SpyFaultReporterAdapter>) {
     let reporter = Arc::new(SpyFaultReporterAdapter::default());
     let app = CommunitiesApi {
-        create_community: Arc::new(StubUseCase(outcome)),
+        create_community: Arc::new(StubCreateCommunityUseCase(outcome)),
         faults: reporter.clone(),
     }
     .protected();

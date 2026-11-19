@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.15.0 — 2026-11-19
+
+Plugins: `craft-backend` 0.12.0 y `craft-web` 0.5.0 (sin cambios).
+
+### Agregado
+- **Dobles de puertos entrantes** (TDD-2): un doble de un `UseCase` o de un
+  `EventSubscriber` se llama `{Fake|Fixed|Stub|Spy}{Puerto}`, sin `Adapter`
+  (`StubCreateCommunityUseCase`, `SpyVerifyAccessTokenUseCase`). Lo verifica
+  `tdd_2_inbound_doubles_are_named_by_prefix_and_port`. La plantilla renombra
+  sus dos `StubUseCase`; el de `iam` era un `Spy`. Un `Fake` puede exponer lo
+  que recibió. Viene de la revisión cruzada de las katas de 0.14.
+
+### Filas que cambiaron de mecanismo
+- TDD-2 (nombre de los dobles de puertos entrantes): de sin regla a `test`.
+
+### Katas
+- Línea base nueva de 0.14 (Sonnet implementa y Opus revisa como subagente),
+  sin comparación con 0.11.0 porque cambiaron las reglas y la plantilla:
+  - `rust-rename-community`: 3/3, $0.68, 60 turnos.
+  - `rust-community-by-slug`: 3/3, $0.42, 49 turnos.
+  - `review-planted-subagent`: 3/3, $0.25, con las 4 violaciones plantadas.
+  - Revisión cruzada: 3/3 y 3/3, por $0.56 y $0.47. 11 hallazgos válidos
+    (10 por el hueco de TDD-2) y 2 falsos positivos (`evals/README.md`).
+
+## 0.14.1 — 2026-11-19
+
+Plugins: `craft-backend` 0.11.0 y `craft-web` 0.5.0 (sin cambios).
+
+### Corregido
+- **`planted.diff` no aplicaba sobre la plantilla de 0.14.0**
+  (`review-planted`, `review-planted-subagent`): el `use` del handler cambió
+  con los eventos. Se regeneró con las mismas líneas agregadas y quitadas.
+  Un test nuevo del runner comprueba que cada diff plantado aplique sobre su
+  plantilla, en un repo nuevo. Dentro de un subdirectorio, `git apply --check`
+  daba un falso verde.
+
 ## 0.14.0 — 2026-11-19
 
 Plugins: `craft-backend` 0.11.0 y `craft-web` 0.5.0. `craft-backend` suma reglas

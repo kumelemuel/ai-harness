@@ -46,6 +46,11 @@ endpoint ni por la persistencia.
     fija), `Spy` (registra llamadas). `FakeCommunityAdapter`,
     `SpyFaultReporterAdapter`. **Todos** los dobles, también los locales a un
     solo archivo de test.
+  - Dobles de puertos **entrantes** (`UseCase`, `EventSubscriber`), como los de
+    los tests de `api`: prefijo más el nombre completo del puerto, sin `Adapter`.
+    `StubCreateCommunityUseCase`, `SpyVerifyAccessTokenUseCase`. Si registra lo
+    que recibe y el test lo afirma, es `Spy`, no `Stub`. Uno que no se invoca
+    también es `Stub` (nunca `Unused…`).
   - Ningún adaptador de producción usa esos prefijos.
   - Pasan la **batería de contrato** del puerto, la misma que sus adaptadores
     reales. Un puerto nuevo nace con su batería. Si el puerto declara errores,

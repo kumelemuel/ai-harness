@@ -182,6 +182,40 @@ class Copy(unittest.TestCase):
             self.assertGreater(copied.stat().st_mtime, before)
 
 
+class PlantedDiffs(unittest.TestCase):
+    """Un `git apply` del setup de una kata aplica sobre su plantilla actual.
+
+    El diff plantado se escribe contra un estado de la plantilla. Si la
+    plantilla cambia y nadie lo nota, la kata falla en el setup, después de
+    gastar el arranque. Se comprueba como lo hace el runner: la plantilla
+    copiada a un repo nuevo. Dentro de un subdirectorio del repo, `git apply
+    --check` ignora en silencio los paths de fuera y da un falso verde."""
+
+    def test_every_planted_diff_applies_to_its_template(self) -> None:
+        import shlex
+        import subprocess
+        import tempfile
+
+        checked = 0
+        for path in run_evals.discover_katas():
+            kata = run_evals.load_kata(path)
+            for command in kata.expanded_setup():
+                argv = shlex.split(command)
+                if argv[:2] != ["git", "apply"]:
+                    continue
+                checked += 1
+                with self.subTest(kata=path.name, diff=argv[-1]), tempfile.TemporaryDirectory() as work:
+                    target = Path(work)
+                    run_evals.copy_template(kata.template, target)
+                    subprocess.run(["git", "init", "-q"], cwd=target, check=True)
+                    result = subprocess.run(
+                        [*argv[:2], "--check", *argv[2:]],
+                        cwd=target, capture_output=True, text=True,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertGreater(checked, 0, "ninguna kata aplica un diff: el test no verificó nada")
+
+
 class Diff(unittest.TestCase):
     def test_saves_changes_and_new_files_against_the_initial_commit(self) -> None:
         import subprocess

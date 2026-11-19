@@ -194,7 +194,7 @@ genéricos en los caminos calientes sin cambiar los principios.
 | Caso de uso | `CreateCommunityHandler::new(Arc::new(FakeCommunityAdapter::empty()), …)` + `block_on` | `handler.rs` |
 | Contrato del puerto | `community_repository_contract! { new_adapter: …, run: … }` y `moderation_gateway_contract! { new_adapter: \|scenario\| …, run: …, approves: …, rejects: …, unavailable: … }` contra el doble y contra cada adaptador | `application/src/testing.rs` (doble) y el archivo de cada adaptador |
 | Adaptador | La batería de contrato, más lo propio de su tecnología (Postgres con testcontainers o similar) | crate de infraestructura |
-| Transporte | `{Ctx}Api { … }.protected().oneshot(request)` con un `UseCase` stub; la identidad se inyecta con `request.extension(AuthenticatedAccount { … })` | `contexts/{ctx}/api/tests/` |
+| Transporte | `{Ctx}Api { … }.protected().oneshot(request)` con un `Stub{Verb}{Noun}UseCase` (o `Spy…` si el test afirma lo que recibió); la identidad se inyecta con `request.extension(AuthenticatedAccount { … })` | `contexts/{ctx}/api/tests/` |
 | Arquitectura | `cargo test -p architecture` | `tools/architecture/tests/` |
 
 - **Dobles** en `application/src/testing.rs`, compilados con `cfg(any(test, feature = "testing"))`.
@@ -204,6 +204,9 @@ genéricos en los caminos calientes sin cambiar los principios.
   cerrada de TDD-2: `Fake` (con estado), `Fixed` o `Stub` (respuesta fija) y `Spy` (registra
   llamadas). Vale también para los locales a un archivo de test: `FakeCommunityAdapter`,
   `FixedIdGeneratorAdapter` y `SpyFaultReporterAdapter` (en `edge/http` y en los tests de `api`).
+  Los dobles de puertos entrantes llevan el prefijo más el nombre del puerto, sin `Adapter`:
+  `StubCreateCommunityUseCase` en `communities-api`, `SpyVerifyAccessTokenUseCase` en `iam-api`
+  y `SpyCommunityEventSubscriber` en el despachador (`tdd_2_inbound_doubles_*`).
   `hex_5_adapters_*` recorre `src/` y `tests/` de todos los crates. Es de test todo `tests/`,
   lo que está bajo un `cfg` que menciona `test` (incluido `testing`) y lo que está dentro de
   una función `#[test]`.
@@ -313,6 +316,7 @@ batería.
 | HEX-3 `domain` no ve `application` | Cargo (no está declarado) + `hex_1_*` | compilación |
 | HEX-3 `domain` no declara puertos: no nombra `BoxFuture`, `Fault` ni `Failure` del kernel (por ruta, por nombre importado o con alias, también dentro de macros; `use kernel::*` falla porque no se puede verificar). El criterio es semántico, no de nombres: un puerto implica E/S | `tests/ports.rs::hex_3_*` (`syn` + tokens) | `cargo test` |
 | HEX-4 `UseCase` de un solo `execute`; implementaciones `*Handler`; `api` nunca nombra un `*Handler` | `tests/naming.rs::hex_4_*` (`syn`) | `cargo test` |
+| TDD-2 dobles de puertos entrantes `{Fake\|Fixed\|Stub\|Spy}{Puerto}`, en código de test de todos los crates | `tests/naming.rs::tdd_2_inbound_doubles_are_named_by_prefix_and_port` (`syn`) | `cargo test` |
 | HEX-4 puerto entrante: `*UseCase` con solo `execute`, o `*EventSubscriber` con solo `on`; implementaciones `*Subscriber` (no `*EventSubscriber`) en `application/src/subscribers/`, sin implementar un `UseCase`. El `EventSubscriber` puede recibir el evento de dominio | `tests/naming.rs::hex_4_inbound_ports_are_single_method_use_cases`, `hex_4_event_subscribers_are_named_and_placed`, `hex_4_use_case_contracts_do_not_expose_domain_types` | `cargo test` |
 | HEX-4 `*Workflow`/`*WorkflowError` solo en `application/src/workflows/`, sin implementar un `UseCase`, y `api` nunca los nombra; ERR-1 los cubre también (`impl Error` prohibido) | `tests/naming.rs::hex_4_workflows_are_internal_to_application`, `tests/errors.rs::err_1_application_*` | `cargo test` |
 | HEX-4 el contrato no expone `domain`: campos públicos y variantes de `*Command`/`*Query`/`*Response`/`*Error`, firmas de `ports/inbound` y `pub use` del dominio en `application`, con ruta completa o con nombre importado | `tests/naming.rs::hex_4_use_case_contracts_do_not_expose_domain_types` (`syn`). Cargo no basta: `api` puede usar un valor de dominio que le llega por un campo público sin declarar el crate | `cargo test` |
