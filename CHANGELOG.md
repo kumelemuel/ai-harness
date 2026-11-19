@@ -3,6 +3,13 @@
 ## Sin publicar
 
 ### Agregado
+- **Eventos de dominio** (HEX-7, HEX-8): la transición del agregado registra el
+  evento; el handler los toma, guarda sin eventos y publica por
+  `{Concepto}EventPublisher`, con el despachador en infraestructura. Viene de un
+  proyecto Java de referencia. La plantilla lo implementa en `communities`
+  (`Created`, `Renamed`, `NoOpCommunityEventAdapter`), y `kernel` declara
+  `DomainEvent`. Cierra la decisión abierta sobre la publicación y abre otra:
+  los suscriptores dentro del proceso.
 - **Workflows** (HEX-4, ERR-1): pasos que comparten varios handlers, como
   `{Verb}{Noun}Workflow` en `application/workflows/`, con un error cerrado de
   hojas compartidas. No es caso de uso, y `api` nunca lo ve. Lo verifica

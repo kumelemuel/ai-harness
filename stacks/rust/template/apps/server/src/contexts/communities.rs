@@ -1,7 +1,8 @@
 use communities_api::CommunitiesApi;
 use communities_application::commands::create_community::CreateCommunityHandler;
 use communities_infrastructure::{
-    InMemoryCommunityAdapter, NoOpModerationAdapter, UuidIdGeneratorAdapter,
+    InMemoryCommunityAdapter, NoOpCommunityEventAdapter, NoOpModerationAdapter,
+    UuidIdGeneratorAdapter,
 };
 use kernel::FaultReporter;
 use std::sync::Arc;
@@ -11,9 +12,13 @@ pub fn api(faults: Arc<dyn FaultReporter>) -> CommunitiesApi {
     // Sin servicio de moderación real todavía: aprueba todo.
     let moderation = Arc::new(NoOpModerationAdapter);
     let ids = Arc::new(UuidIdGeneratorAdapter);
+    // Sin suscriptores todavía: los eventos se descartan.
+    let events = Arc::new(NoOpCommunityEventAdapter);
 
     CommunitiesApi {
-        create_community: Arc::new(CreateCommunityHandler::new(repository, moderation, ids)),
+        create_community: Arc::new(CreateCommunityHandler::new(
+            repository, moderation, ids, events,
+        )),
         faults,
     }
 }

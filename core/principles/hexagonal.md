@@ -179,11 +179,19 @@ Agregados inmutables con comportamiento en sus métodos. Las reglas se evalúan 
 
 **Crear y reconstituir.** Un agregado nace por una vía con nombre propio (`create`) que aplica lo que solo vale al nacer: el estado inicial, las reglas de alta y el evento inicial (`DomainEvent`). Reconstituirlo desde la persistencia es otra vía (`restore` o el constructor canónico), que acepta cualquier estado y no repite las reglas de alta ni emite eventos. La forma depende del lenguaje: funciones asociadas del agregado, o un `{Agregado}Factory` en el dominio si el constructor del lenguaje es público y no se puede reservar para la reconstitución (los `record` de Java). El identificador lo recibe de afuera (`IdGenerator`, HEX-8), no lo genera el dominio.
 
+**Eventos de dominio.** Una transición del agregado registra su evento (`DomainEvent`, HEX-8) en el estado nuevo que devuelve: el agregado sigue siendo inmutable y el evento viaja con él. El handler orquesta la publicación:
+
+1. Toma los eventos pendientes (`take_events`). El agregado que guarda no tiene ninguno, porque los eventos no se persisten con él.
+2. Guarda y publica por un puerto saliente `{Concepto}EventPublisher` (rol `Publisher`, HEX-5), **solo si guardó**. Con un `UnitOfWork`, las dos cosas van en la misma transacción.
+3. El despachador es un adaptador de infraestructura (`InProcess{Concepto}EventAdapter`), no código de `application`.
+
+Reconstituir un agregado no emite eventos. Publicar hacia otro sistema no es esto: es un `Synchronizer`, que se llama después de confirmar el estado (éxito degradado, ERR-3).
+
 **Servicio de dominio.** Una regla que no pertenece a un solo agregado (una política de contraseñas, una regla que compara dos agregados) va en un servicio de dominio: vive en `domain`, no tiene estado, recibe valores del dominio y devuelve `Result`. No recibe puertos ni hace E/S: si la regla necesita datos externos, el handler los carga y se los pasa. Se nombra por la regla que evalúa (`PasswordPolicy`, `MembershipEligibility`), **nunca `…Service`**. Un tipo que solo enumera opciones (`MembershipPolicy { Open, Closed }`) es un value object, no un servicio.
 
 **Fundamento.** Un handler con lógica de negocio es un modelo anémico disfrazado. Si la regla vive en el agregado, se prueba sin infraestructura y no se duplica entre casos de uso.
 
-**Violaciones típicas.** El handler calcula, valida longitudes o decide si una transición es válida. Es **la violación más frecuente de los agentes de IA**: tienden a escribir el `if` donde están editando. Un `PasswordService` en el dominio, o un servicio de dominio que recibe un repositorio.
+**Violaciones típicas.** El handler calcula, valida longitudes o decide si una transición es válida. El handler arma el evento en vez de tomarlo del agregado, publica antes de guardar o persiste los eventos con el agregado. El despachador de eventos como clase de `application`. Es **la violación más frecuente de los agentes de IA**: tienden a escribir el `if` donde están editando. Un `PasswordService` en el dominio, o un servicio de dominio que recibe un repositorio.
 
 **Verificación.** La lógica fuera del dominio y que un servicio de dominio no tenga estado ni E/S, por revisión (difícil de automatizar): el subagente `architecture-reviewer`. El nombre, por test de arquitectura: en `domain` y en `application` (fuera de `ports/outbound`) ningún tipo termina en `Service`. En Rust: `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role`.
 
@@ -245,4 +253,4 @@ Agregar una exige cambiar esta lista y el test del kernel en el mismo commit.
 
 ## Decisiones abiertas
 
-1. **Publicación de eventos de dominio.** El kernel admite el marcador `DomainEvent`, pero no está decidido cómo emite eventos un agregado inmutable (HEX-7) ni quién los publica. Se decide con el primer contexto que los necesite.
+1. **Suscriptores de eventos dentro del proceso.** El despachador (`InProcess{Concepto}EventAdapter`, infraestructura) entrega cada evento a reacciones que viven en `application`, como registrar una auditoría. Ese contrato de suscriptor lo invoca un adaptador, así que es un puerto entrante, y HEX-4 solo admite `{Verb}{Noun}UseCase`. Falta decidir si una reacción es un caso de uso más o un contrato propio (`{Concepto}EventSubscriber`), y cómo se nombra y se verifica.

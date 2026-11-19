@@ -47,7 +47,9 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
    Rojo primero.
 3. `application/src/ports/inbound/{caso}.rs`: `trait {Verb}{Noun}UseCase` con `execute`.
 4. `handler.rs`: `{Verb}{Noun}Handler` con `Arc<dyn Puerto>`. Errores de dominio
-   → `Failure::expected(Hoja { … })`, nunca envueltos.
+   → `Failure::expected(Hoja { … })`, nunca envueltos. Si el agregado registra
+   eventos: `let (agregado, events) = ….take_events();`, guarda y después
+   `self.events.publish(&events).await?` (como `CreateCommunityHandler`).
 5. Puertos salientes nuevos en `ports/outbound/` + su fake en `testing.rs`.
 6. Adaptador en `infrastructure` (`{Tecnología}{Concepto}Adapter`) + su test.
 7. `contexts/{ctx}/api`: `{Caso}HttpRequest`/`{Caso}HttpResponse`, `match`

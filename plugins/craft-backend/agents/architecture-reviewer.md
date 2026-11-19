@@ -25,7 +25,9 @@ arquitectura:
 
 1. **HEX-7: lógica de negocio fuera del dominio.** `if` de negocio, cálculos,
    validaciones de campos o transiciones de estado en handlers o adaptadores.
-   Un servicio de dominio con estado, que recibe un puerto o que hace E/S.
+   Un servicio de dominio con estado, que recibe un puerto o que hace E/S. Un
+   evento que arma el handler en vez de tomarlo del agregado, que se publica
+   antes de guardar o que se persiste con el agregado.
 2. **ERR-3: semántica de adaptadores.** Rechazos de negocio convertidos en error
    o excepción; adaptadores que devuelven errores pensados para el transporte.
    Un caso de uso que falla o revierte por un colaborador llamado después de

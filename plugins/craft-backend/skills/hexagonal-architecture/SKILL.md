@@ -91,6 +91,10 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   transición de estado en el handler: **detente** y muévelo a un método del
   agregado que devuelva `Result`.
 - Agregados inmutables, con comportamiento.
+- **Eventos:** la transición del agregado registra el evento en el estado nuevo.
+  El handler los toma (`take_events`), guarda el agregado sin eventos y, solo si
+  guardó, publica por `{Concepto}EventPublisher` (rol `Publisher`), dentro del
+  `UnitOfWork` si existe. El despachador es un adaptador de infraestructura.
 - Una regla que no es de un solo agregado va en un **servicio de dominio**: sin
   estado, sin puertos ni E/S (el handler le pasa los datos), nombrado por la
   regla (`PasswordPolicy`), **nunca `…Service`**. `Service` solo es un rol de

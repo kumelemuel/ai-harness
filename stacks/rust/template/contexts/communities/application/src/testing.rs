@@ -8,9 +8,9 @@
 //! tests de este crate y, con la feature `testing`, para los de otras capas.
 
 use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
-use crate::ports::outbound::{CommunityRepository, ModerationGateway};
-use communities_domain::Community;
+use crate::ports::outbound::{CommunityEventPublisher, CommunityRepository, ModerationGateway};
 use communities_domain::value_objects::CommunitySlug;
+use communities_domain::{Community, CommunityEvent};
 use contracts::moderation_gateway::Scenario;
 use kernel::{BoxFuture, Failure, Fault, IdGenerator};
 use std::future::{Future, ready};
@@ -155,6 +155,31 @@ impl ModerationGateway for FakeModerationAdapter {
     }
 }
 
+/// Doble de `CommunityEventPublisher`: registra lo que se publicó, en orden.
+#[derive(Default)]
+pub struct SpyCommunityEventAdapter {
+    published: Mutex<Vec<CommunityEvent>>,
+}
+
+impl SpyCommunityEventAdapter {
+    pub fn published(&self) -> Vec<CommunityEvent> {
+        self.published
+            .lock()
+            .expect("invariante: spy sin envenenar")
+            .clone()
+    }
+}
+
+impl CommunityEventPublisher for SpyCommunityEventAdapter {
+    fn publish<'a>(&'a self, events: &'a [CommunityEvent]) -> BoxFuture<'a, Result<(), Fault>> {
+        self.published
+            .lock()
+            .expect("invariante: spy sin envenenar")
+            .extend_from_slice(events);
+        Box::pin(ready(Ok(())))
+    }
+}
+
 pub struct FixedIdGeneratorAdapter(pub &'static str);
 
 impl IdGenerator for FixedIdGeneratorAdapter {
@@ -169,6 +194,11 @@ mod tests {
 
     crate::community_repository_contract! {
         new_adapter: FakeCommunityAdapter::empty(),
+        run: block_on,
+    }
+
+    crate::community_event_publisher_contract! {
+        new_adapter: SpyCommunityEventAdapter::default(),
         run: block_on,
     }
 

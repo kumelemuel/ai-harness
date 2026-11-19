@@ -2,7 +2,7 @@ use super::{CreateCommunityCommand, CreateCommunityError, CreateCommunityRespons
 use crate::errors::{Conflict, ContentRejected, DependencyUnavailable, Validation};
 use crate::ports::inbound::CreateCommunityUseCase;
 use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
-use crate::ports::outbound::{CommunityRepository, ModerationGateway};
+use crate::ports::outbound::{CommunityEventPublisher, CommunityRepository, ModerationGateway};
 use communities_domain::Community;
 use communities_domain::value_objects::{CommunityId, CommunityName, CommunitySlug, OwnerId};
 use kernel::{BoxFuture, Failure, IdGenerator};
@@ -10,12 +10,15 @@ use std::sync::Arc;
 
 /// Orquesta (HEX-7): lee el input, carga, invoca al dominio, persiste y mapea.
 ///
-/// Orden: value objects, conflicto de slug, moderación, guardado. La moderación
-/// es un tercero (lenta, falible): va después de lo local y barato.
+/// Orden: value objects, conflicto de slug, moderación, guardado y publicación.
+/// La moderación es un tercero (lenta, falible): va después de lo local y barato.
+/// Los eventos se publican después de guardar, y solo si se guardó; con un
+/// `UnitOfWork`, las dos cosas van en la misma transacción.
 pub struct CreateCommunityHandler {
     communities: Arc<dyn CommunityRepository>,
     moderation: Arc<dyn ModerationGateway>,
     ids: Arc<dyn IdGenerator>,
+    events: Arc<dyn CommunityEventPublisher>,
 }
 
 impl CreateCommunityHandler {
@@ -23,11 +26,13 @@ impl CreateCommunityHandler {
         communities: Arc<dyn CommunityRepository>,
         moderation: Arc<dyn ModerationGateway>,
         ids: Arc<dyn IdGenerator>,
+        events: Arc<dyn CommunityEventPublisher>,
     ) -> Self {
         Self {
             communities,
             moderation,
             ids,
+            events,
         }
     }
 }
@@ -75,15 +80,19 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
                 }));
             }
 
-            let community = Community::create(
+            // El agregado registra `Created`; se guarda sin eventos pendientes
+            // (no se persisten) y se publican después del guardado.
+            let (community, events) = Community::create(
                 CommunityId::new(self.ids.next_id()),
                 OwnerId::new(command.owner_id),
                 slug,
                 name,
                 command.is_public,
-            );
+            )
+            .take_events();
 
             self.communities.save(&community).await?;
+            self.events.publish(&events).await?;
 
             Ok(CreateCommunityResponse::from(&community))
         })
@@ -95,8 +104,10 @@ mod tests {
     use super::*;
     use crate::errors::{ContentRejected, DependencyUnavailable};
     use crate::testing::{
-        FakeCommunityAdapter, FakeModerationAdapter, FixedIdGeneratorAdapter, block_on,
+        FakeCommunityAdapter, FakeModerationAdapter, FixedIdGeneratorAdapter,
+        SpyCommunityEventAdapter, block_on,
     };
+    use communities_domain::CommunityEvent;
 
     fn command(slug: &str, name: &str) -> CreateCommunityCommand {
         CreateCommunityCommand {
@@ -115,10 +126,23 @@ mod tests {
         repository: &Arc<FakeCommunityAdapter>,
         moderation: &Arc<FakeModerationAdapter>,
     ) -> CreateCommunityHandler {
+        publishing(
+            repository,
+            moderation,
+            &Arc::new(SpyCommunityEventAdapter::default()),
+        )
+    }
+
+    fn publishing(
+        repository: &Arc<FakeCommunityAdapter>,
+        moderation: &Arc<FakeModerationAdapter>,
+        events: &Arc<SpyCommunityEventAdapter>,
+    ) -> CreateCommunityHandler {
         CreateCommunityHandler::new(
             repository.clone(),
             moderation.clone(),
             Arc::new(FixedIdGeneratorAdapter("c-1")),
+            events.clone(),
         )
     }
 
@@ -138,6 +162,46 @@ mod tests {
             }
         );
         assert_eq!(repository.saved().len(), 1);
+    }
+
+    #[test]
+    fn publishes_created_and_saves_without_pending_events() {
+        let repository = Arc::new(FakeCommunityAdapter::empty());
+        let events = Arc::new(SpyCommunityEventAdapter::default());
+        let handler = publishing(
+            &repository,
+            &Arc::new(FakeModerationAdapter::approving()),
+            &events,
+        );
+
+        block_on(handler.execute(command("rust-chile", "Rust Chile"))).unwrap();
+
+        assert!(matches!(
+            events.published().as_slice(),
+            [CommunityEvent::Created { community_id, owner }]
+                if community_id.as_str() == "c-1" && owner.as_str() == "alice"
+        ));
+        assert!(repository.saved()[0].events().is_empty(), "no se persisten");
+    }
+
+    #[test]
+    fn nothing_is_published_when_the_community_is_not_saved() {
+        let events = Arc::new(SpyCommunityEventAdapter::default());
+        let rejected = publishing(
+            &Arc::new(FakeCommunityAdapter::empty()),
+            &Arc::new(FakeModerationAdapter::rejecting()),
+            &events,
+        );
+        let failing = publishing(
+            &Arc::new(FakeCommunityAdapter::failing()),
+            &Arc::new(FakeModerationAdapter::approving()),
+            &events,
+        );
+
+        let _ = block_on(rejected.execute(command("rust-chile", "Rust Chile")));
+        let _ = block_on(failing.execute(command("rust-chile", "Rust Chile")));
+
+        assert!(events.published().is_empty());
     }
 
     #[test]

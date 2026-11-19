@@ -5,5 +5,6 @@
 //! por caso y recibe el `run` del caller: `block_on` para adaptadores que
 //! resuelven de inmediato (fakes, memoria) o un runtime real (Postgres).
 
+pub mod community_event_publisher;
 pub mod community_repository;
 pub mod moderation_gateway;
