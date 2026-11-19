@@ -17,6 +17,11 @@
 - HEX-7 (nombre de los servicios de dominio): de sin verificar a `test`.
 
 ### Corregido
+- **ERR-1 clasificaba como error de puerto el contrato de una query** (ERR-1):
+  el `Failure<E>` de `ports/inbound` registraba `{Verb}{Noun}Error` como error
+  de puerto, porque `ports/` se recorre antes que `queries/`. Con solo queries,
+  `ARCH_REQUIRE_MATERIAL=1` fallaría por 0 contratos. Ahora solo cuenta
+  `ports/outbound`.
 - **`DomainEvent` es un marcador del kernel** (HEX-8): el texto admitía
   "marcadores de error y de evento", pero `hex_8_*` rechazaba todo trait fuera
   de `ValueObject`, `Entity`, `AggregateRoot` e `Identifier`. Se agrega

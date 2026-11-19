@@ -186,7 +186,7 @@ const PORT: &str = "error declarado de un puerto";
 ///
 /// - Hojas: todo `struct`/`enum` de `errors.rs` (o `errors/`).
 /// - Contratos: los `*Error` de `commands/` y `queries/` (`{Verb}{Noun}Error`).
-/// - Puertos: los `*Error` de `ports/` y todo `E` de un `Failure<E>` en `ports/`.
+/// - Puertos: los `*Error` de `ports/` y todo `E` de un `Failure<E>` en `ports/outbound/`.
 #[derive(Default)]
 struct DeclaredErrors {
     names: BTreeMap<String, &'static str>,
@@ -225,7 +225,13 @@ impl DeclaredErrors {
                 "errors" => Some(LEAF),
                 "commands" | "queries" => Some(CONTRACT),
                 "ports" => {
-                    FailureArgs(&mut declared.names).visit_file(&syntax);
+                    // Solo los salientes: el `Failure<E>` de un puerto entrante es
+                    // el contrato del caso de uso, que se clasifica en `commands/`
+                    // o `queries/`. Si se registrara aquí, el orden de recorrido
+                    // decidiría el motivo (`ports/` va antes que `queries/`).
+                    if rel.starts_with("ports/outbound") {
+                        FailureArgs(&mut declared.names).visit_file(&syntax);
+                    }
                     Some(PORT)
                 }
                 _ => None,
