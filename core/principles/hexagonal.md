@@ -108,6 +108,7 @@ nombres de capa y la dirección de dependencias no.
 | `Gateway` | Servicio de un tercero |
 | `Client` | Otro servicio del mismo sistema |
 | `Synchronizer` | Publicar o sincronizar estado hacia otro sistema |
+| `Publisher` | Despachar eventos de dominio dentro del proceso, a los suscriptores del contexto (HEX-7) |
 | `Service` | Utilidad técnica que no encaja en lo anterior (último recurso). Es el único uso del sufijo: nunca en `domain` ni en `application` fuera de `ports/outbound` (HEX-7) |
 
 Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es el sustantivo del puerto sin el sufijo de rol** (`Postgres…`, `InMemory…`, `Http…`, `NoOp…`):
@@ -117,16 +118,24 @@ Los adaptadores se nombran `{Tecnología}{Concepto}Adapter`, donde **Concepto es
 | `CommunityRepository` | `PostgresCommunityAdapter`, `InMemoryCommunityAdapter` |
 | `ModerationGateway` | `HttpModerationAdapter`, `NoOpModerationAdapter` |
 
-Única excepción: las capacidades técnicas transversales del kernel (HEX-8) no llevan sufijo de rol. Sus adaptadores sí siguen esta regla, con el nombre completo de la capacidad como Concepto: `UuidIdGeneratorAdapter`, `SystemClockAdapter`, `StderrFaultReporterAdapter`.
+**Puertos con nombre propio.** Una lista cerrada de patrones conocidos se nombra sin sufijo, porque el nombre ya dice el rol. Su Concepto es el nombre completo:
+
+| Puerto | Rol | Adaptador |
+|--------|-----|-----------|
+| `UnitOfWork` | Frontera transaccional: lo que corre dentro se confirma o se revierte junto | `PostgresUnitOfWorkAdapter`, `InMemoryUnitOfWorkAdapter` |
+
+La transacción la declara `application`, porque decidir qué escrituras son atómicas es orquestación del caso de uso. Ni el handler ni el dominio conocen la tecnología que la implementa. Agregar un nombre a esta lista exige cambiarla junto con su test, en el mismo commit.
+
+La otra excepción: las capacidades técnicas transversales del kernel (HEX-8) no llevan sufijo de rol. Sus adaptadores sí siguen esta regla, con el nombre completo de la capacidad como Concepto: `UuidIdGeneratorAdapter`, `SystemClockAdapter`, `StderrFaultReporterAdapter`.
 
 - **Prefijos reservados.** `Fake`, `Fixed`, `Stub` y `Spy` son de los dobles de test (`TDD-2`). Ningún adaptador de producción los usa: un `FakeClockAdapter` en producción es un doble que se coló, o un adaptador mal nombrado.
 - **Ubicación.** Los adaptadores de producción viven en el anillo de infraestructura, también los de las capacidades del kernel. Uno que no pertenece a ningún contexto va en una infraestructura compartida que solo ve el kernel, nunca en el composition root, que cablea pero no implementa.
 
 **Fundamento.** Al leer la firma de un handler se sabe qué toca: una base de datos, un tercero, un servicio propio. `Port` es uniforme pero opaco. En el adaptador, el rol ya está implícito en la tecnología (`Postgres` es persistencia, `Http` es remoto); repetirlo solo alarga el nombre.
 
-**Violaciones típicas.** `Service` usado como cajón de sastre. Un `Gateway` para un servicio propio. `PostgresCommunityRepositoryAdapter` (repite el rol).
+**Violaciones típicas.** `Service` usado como cajón de sastre. Un `Gateway` para un servicio propio. `PostgresCommunityRepositoryAdapter` (repite el rol). Una anotación transaccional del framework sobre el handler, en vez del puerto `UnitOfWork`. Un `TransactionService` o un `CommunityUnitOfWork`, que esconden el patrón detrás de otro nombre.
 
-**Verificación.** Tests de arquitectura, uno por mitad de la regla. Los puertos de `ports/outbound` llevan un sufijo de rol y nunca `Port`. En todo el código, de producción y de test, todo tipo que implementa un puerto saliente o una capacidad del kernel se llama `{Prefijo}{Concepto}Adapter`. Así falla `PostgresCommunityRepositoryAdapter`, que repite el rol. En código de test, el prefijo es uno de los dobles (`TDD-2`). En producción, el prefijo no está vacío, no es de un doble, y el adaptador vive en infraestructura. En Rust: `tests/naming.rs::hex_5_*`.
+**Verificación.** Tests de arquitectura, uno por mitad de la regla. Los puertos de `ports/outbound` llevan un sufijo de rol, o uno de los nombres propios de la lista, y nunca `Port`. En todo el código, de producción y de test, todo tipo que implementa un puerto saliente o una capacidad del kernel se llama `{Prefijo}{Concepto}Adapter`. Así falla `PostgresCommunityRepositoryAdapter`, que repite el rol. En código de test, el prefijo es uno de los dobles (`TDD-2`). En producción, el prefijo no está vacío, no es de un doble, y el adaptador vive en infraestructura. En Rust: `tests/naming.rs::hex_5_*`.
 
 ---
 

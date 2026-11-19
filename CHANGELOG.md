@@ -3,6 +3,10 @@
 ## Sin publicar
 
 ### Agregado
+- **Rol `Publisher` y puerto `UnitOfWork`** (HEX-5): `Publisher` despacha eventos
+  de dominio dentro del proceso. `UnitOfWork` es la frontera transaccional que
+  declara `application`, y es el único puerto con nombre propio (sin sufijo de
+  rol). Sus adaptadores son `{Tecnología}UnitOfWorkAdapter`.
 - **Autenticación real en la plantilla Rust** (HEX-1, ERR-3): contexto `iam`
   mínimo con `VerifyAccessTokenUseCase`, el puerto `AccessTokenService`,
   `JwtAccessTokenAdapter` (HS256) y el middleware `IamApi::protect`. Reemplaza

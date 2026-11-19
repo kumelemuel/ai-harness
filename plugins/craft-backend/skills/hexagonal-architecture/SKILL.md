@@ -60,7 +60,11 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 
 **Puertos salientes (HEX-5)**
 - Sufijo por rol: `Repository`, `Cache`, `Gateway` (tercero), `Client` (servicio
-  propio), `Synchronizer`, `Service` (último recurso). **Prohibido `Port`.**
+  propio), `Synchronizer`, `Publisher` (eventos de dominio en el proceso),
+  `Service` (último recurso). **Prohibido `Port`.**
+- Nombres propios, sin sufijo: `UnitOfWork`, la frontera transaccional. La
+  declara `application`; nunca una anotación del framework en el handler.
+  Adaptador `{Tecnología}UnitOfWorkAdapter`.
 - Adaptadores: `{Tecnología}{Concepto}Adapter`, con el Concepto **sin** el sufijo
   de rol: `CommunityRepository` → `PostgresCommunityAdapter`, `InMemoryCommunityAdapter`.
   Nunca `PostgresCommunityRepositoryAdapter`.

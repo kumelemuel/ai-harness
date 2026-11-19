@@ -14,8 +14,12 @@ const OUTBOUND_SUFFIXES: &[&str] = &[
     "Gateway",
     "Client",
     "Synchronizer",
+    "Publisher",
     "Service",
 ];
+/// Puertos salientes con nombre propio, sin sufijo de rol (HEX-5): patrones
+/// conocidos cuyo nombre ya dice el rol. Su Concepto es el nombre completo.
+const NAMED_OUTBOUND_PORTS: &[&str] = &["UnitOfWork"];
 const RESERVED_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Result"];
 /// Tipos del contrato de un caso de uso (HEX-4).
 const CONTRACT_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Error"];
@@ -478,16 +482,20 @@ fn hex_5_outbound_ports_are_named_by_role() {
         for t in &items.traits {
             ports += 1;
             let name = t.ident.to_string();
-            if name.ends_with("Port") || !OUTBOUND_SUFFIXES.iter().any(|s| name.ends_with(s)) {
+            let named = NAMED_OUTBOUND_PORTS.contains(&name.as_str());
+            if !named
+                && (name.ends_with("Port") || !OUTBOUND_SUFFIXES.iter().any(|s| name.ends_with(s)))
+            {
                 violations.push(format!(
-                    "{file}: `{name}` debe terminar en uno de {OUTBOUND_SUFFIXES:?}"
+                    "{file}: `{name}` debe terminar en uno de {OUTBOUND_SUFFIXES:?} \
+                     o ser uno de {NAMED_OUTBOUND_PORTS:?}"
                 ));
             }
         }
     }
 
     assert_no_violations(
-        "HEX-5: puertos salientes con sufijo de rol, nunca `Port`",
+        "HEX-5: puertos salientes con sufijo de rol o nombre propio de la lista, nunca `Port`",
         &[("traits de ports/outbound", ports)],
         violations,
     );
@@ -496,7 +504,7 @@ fn hex_5_outbound_ports_are_named_by_role() {
 /// Concepto del adaptador: el puerto sin su sufijo de rol (HEX-5) o, si es una
 /// capacidad del kernel, su nombre completo (HEX-8).
 fn concept_of(contract: &str) -> &str {
-    if CAPABILITIES.contains(&contract) {
+    if CAPABILITIES.contains(&contract) || NAMED_OUTBOUND_PORTS.contains(&contract) {
         return contract;
     }
     OUTBOUND_SUFFIXES
