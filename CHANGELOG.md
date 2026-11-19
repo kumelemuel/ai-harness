@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.1 — 2026-11-19
+
+Plugins: `craft-backend` 0.11.0 y `craft-web` 0.5.0 (sin cambios).
+
+### Corregido
+- **`planted.diff` no aplicaba sobre la plantilla de 0.14.0**
+  (`review-planted`, `review-planted-subagent`): el `use` del handler cambió
+  con los eventos. Se regeneró con las mismas líneas agregadas y quitadas.
+  Un test nuevo del runner comprueba que cada diff plantado aplique sobre su
+  plantilla, en un repo nuevo. Dentro de un subdirectorio, `git apply --check`
+  daba un falso verde.
+
 ## 0.14.0 — 2026-11-19
 
 Plugins: `craft-backend` 0.11.0 y `craft-web` 0.5.0. `craft-backend` suma reglas
