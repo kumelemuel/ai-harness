@@ -1,6 +1,11 @@
 # Changelog
 
-## Sin publicar
+## 0.14.0 — 2026-11-19
+
+Plugins: `craft-backend` 0.11.0 y `craft-web` 0.5.0. `craft-backend` suma reglas
+de kumenity y de un proyecto Java de referencia: eventos de dominio y sus
+suscriptores, workflows, `UnitOfWork`, servicios de dominio, autenticación con
+`iam` y criterios de error.
 
 ### Agregado
 - **Eventos de dominio** (HEX-7, HEX-8): la transición del agregado registra el
