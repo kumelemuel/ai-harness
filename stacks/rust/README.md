@@ -125,7 +125,7 @@ Los tests de dependencias (HEX-1, HEX-2) resuelven los renombres
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
 | Servicio de dominio (HEX-7) | Tipo sin campos con funciones asociadas: `pub struct PasswordPolicy;` con `pub fn validate(password: &str) -> Result<(), WeakPassword>`. Sin `Arc<dyn …>` ni `BoxFuture`: los datos los carga el handler |
 | Composition root (HEX-2) | `apps/server/src/contexts/{ctx}.rs`: construye adaptadores y handlers y devuelve el `{Ctx}Api { … }` armado. `main.rs` solo compone los `Router`. `config.rs` lee el entorno una vez; un secreto obligatorio que falta detiene el arranque, nunca tiene un valor por defecto, y `Config` no deriva `Debug` |
-| Capacidades del kernel (HEX-8) | `kernel::IdGenerator` y `kernel::FaultReporter` (traits; `Clock` es la tercera de la lista, aún sin uso en la plantilla). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en `communities-infrastructure`, `StderrFaultReporterAdapter` en `infrastructure-stderr`. `uuid` nunca en el núcleo. |
+| Capacidades del kernel (HEX-8) | `kernel::Clock`, `kernel::IdGenerator` y `kernel::FaultReporter` (traits). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en `communities-infrastructure`, `StderrFaultReporterAdapter` en `infrastructure-stderr` (registra toda la cadena de `source()`), `SystemClockAdapter` en `infrastructure-system`. `Clock` todavía no lo usa ningún contexto de la plantilla: el composition root lo cablea con el primero que lo necesite. `uuid` y `chrono` nunca en el núcleo. |
 
 ---
 
@@ -367,6 +367,15 @@ cargo test --workspace
 ---
 
 ## Migración incremental
+
+### Formato al copiar de la plantilla
+
+La plantilla publica `rustfmt.toml` (`style_edition = "2024"`, estable). En un
+proyecto nuevo, copiar un archivo tal cual da un archivo idéntico. Si el
+proyecto ya tiene su `rustfmt.toml` (por ejemplo, con opciones de nightly como
+`imports_granularity`), se conserva el del proyecto: después de copiar, `cargo
+fmt` deja la copia distinta solo en formato (orden y agrupación de `use`), no en
+contenido. Al comparar con la plantilla, se compara después de `cargo fmt`.
 
 ### Trinquete: `tools/architecture/baseline.txt`
 
