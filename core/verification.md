@@ -74,6 +74,7 @@ cambiaron de mecanismo.
 | VER-1 | Los tests de arquitectura corren en CI y no pasan en vacío | `herramienta` | `.github/workflows/harness.yml`, job `rust`, con `ARCH_REQUIRE_MATERIAL=1` |
 | VER-1 | Lo citado existe y cada regla tiene mecanismo | `herramienta` | `scripts/check_harness.py` (`MISSING-TEST` y `VERIF-*`), job `consistency` |
 | RS-1 | Un crate por capa; Cargo hace cumplir las dependencias | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` |
+| RS-1 | Las dependencias de cada miembro heredan del workspace (`workspace = true`) | `test` | `tests/dependencies.rs::rs_1_dependencies_inherit_from_the_workspace` |
 | RS-2 | `unwrap` prohibido | `herramienta` | Clippy, `unwrap_used = "deny"` en `[workspace.lints]` |
 | RS-2 | `panic!` y `expect` solo para invariantes rotos | `revisor:architecture-reviewer` | Prioridad 6 del revisor |
 | RS-3 | Puertos async con `BoxFuture`, sin `async-trait` en el núcleo | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |

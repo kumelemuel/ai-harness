@@ -15,7 +15,7 @@ principios no cambian; aquí se decide **cómo se expresan**.
 
 | ID | Decisión | Motivo |
 |----|----------|--------|
-| RS-1 | **Un crate por capa, agrupados en carpetas por contexto**, incluido el `api` (driving) de cada contexto | Cargo hace cumplir HEX-1/2/3 al compilar: lo que no está declarado no se puede importar. Cada contexto expone sus rutas; el composition root solo las compone. |
+| RS-1 | **Un crate por capa, agrupados en carpetas por contexto**, incluido el `api` (driving) de cada contexto. Las versiones viven en `[workspace.dependencies]` y cada miembro las hereda | Cargo hace cumplir HEX-1/2/3 al compilar: lo que no está declarado no se puede importar. Cada contexto expone sus rutas; el composition root solo las compone. Una versión por dependencia evita que dos capas diverjan. |
 | RS-2 | **Árbol B = `Fault` opaco + `panic!` solo para invariantes** | Rust no tiene excepciones. `Fault` viaja por `?` hasta el borde; `panic!` queda para bugs y lo captura `CatchPanicLayer`. |
 | RS-3 | **Puertos async con `BoxFuture` del kernel** | `async fn` en traits no es compatible con `dyn`. `BoxFuture` es solo `std`, permite `Arc<dyn Puerto>` y no rompe HEX-2. |
 | RS-4 | **Tests de arquitectura con `toml` + `syn`** en `tools/architecture` | Los tests de dependencias impiden *declarar* lo prohibido; los de nombres cubren lo que el compilador no ve (HEX-4/5/6). |
@@ -90,8 +90,13 @@ kernel.workspace = true
 workspace = true
 ```
 
-Las versiones de crates externos se declaran una sola vez en
-`[workspace.dependencies]`.
+Las versiones de los crates se declaran una sola vez en
+`[workspace.dependencies]`, y cada miembro las hereda con `dep.workspace = true`
+(puede agregar `features`). Lo exige `rs_1_dependencies_inherit_from_the_workspace`
+en cada miembro de `[workspace] members` (contextos legacy y raíz con `[package]`
+incluidos), también en `[dev-dependencies]`, `[build-dependencies]` y `[target.'cfg(…)'.*]`.
+Los tests de dependencias (HEX-1, HEX-2) resuelven los renombres
+(`foo = { package = "axum" }`, también en la raíz): cuenta el paquete, no la clave.
 
 **Sin dependencias entre contextos.** Un contexto no importa el dominio de otro
 (p. ej. `AccountId` de `iam` dentro de `communities`): modela su propia vista
