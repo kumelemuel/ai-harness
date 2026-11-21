@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 0.19.0 — 2026-11-20
+
+Plugins: `craft-backend` 0.16.0 y `craft-web` 0.5.0 (sin cambios).
 
 ### Agregado
 - **`Clock` en el kernel** (HEX-8): estaba en la lista cerrada de capacidades y
