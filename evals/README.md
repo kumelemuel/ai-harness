@@ -36,6 +36,18 @@ python3 scripts/run_evals.py run --model claude-opus-5-5 --label base --kata ast
 python3 scripts/run_evals.py table evals/results/*.json
 ```
 
+**Control de otra versión del harness.** `--harness-ref REF` carga los plugins
+de la kata desde `REF` (extraído con `git archive` a la caché), con los del
+marketplace deshabilitados. La plantilla sigue saliendo del clon, así que la
+única variable es el plugin. Las dos configuraciones corren en paralelo, en la
+misma ventana:
+
+```sh
+python3 scripts/run_evals.py run --model claude-sonnet-5-5 --label rama --kata rust-rename-community &
+python3 scripts/run_evals.py run --model claude-sonnet-5-5 --label control --harness-ref main --kata rust-rename-community &
+wait
+```
+
 Cada kata corre 3 veces por configuración (`--runs`), por la variabilidad del
 modelo; se informa la mediana y el rango. El modelo se fija siempre con
 `--model`. `--parallel N` corre varias ejecuciones a la vez (cada ejecución

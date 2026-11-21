@@ -358,9 +358,38 @@ class Subagent(unittest.TestCase):
 
     def test_command_loads_the_plugin_copy(self) -> None:
         kata = run_evals.load_kata(FIXTURES / "kata_subagent")
-        command = run_evals.claude_command(kata, "claude-haiku-5-5", 1.0, plugin_dir=Path("/p/craft-backend"))
+        command = run_evals.claude_command(kata, "claude-haiku-5-5", 1.0, plugin_dirs=[Path("/p/craft-backend")])
         self.assertEqual("/p/craft-backend", command[command.index("--plugin-dir") + 1])
         self.assertNotIn("--agent", command)
+
+    def test_command_loads_every_plugin_dir(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_valid")
+        command = run_evals.claude_command(kata, "m", 1.0, plugin_dirs=[Path("/a"), Path("/b")])
+        dirs = [command[i + 1] for i, arg in enumerate(command) if arg == "--plugin-dir"]
+        self.assertEqual(["/a", "/b"], dirs)
+
+    def test_harness_snapshot_holds_the_plugins_at_that_ref(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = run_evals.harness_snapshot("HEAD", Path(tmp))
+            self.assertTrue((root / "plugins" / "craft-backend" / ".claude-plugin" / "plugin.json").is_file())
+            # Los symlinks del plugin resuelven dentro de la copia, no en el clon.
+            template = root / "plugins" / "craft-backend" / "skills" / "rust-stack" / "references" / "template"
+            self.assertTrue((template / "Cargo.toml").is_file())
+            self.assertTrue(template.resolve().is_relative_to(root.resolve()))
+            # La segunda vez reutiliza la copia.
+            self.assertEqual(root, run_evals.harness_snapshot("HEAD", Path(tmp)))
+
+    def test_plugins_of_a_harness_ref_replace_the_marketplace(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_valid")
+        dirs, overridden = run_evals.kata_plugins(kata, Path("/snap"), None, Path("/run"))
+        self.assertEqual([Path("/snap/plugins") / p for p in kata.plugins], dirs)
+        self.assertEqual(kata.plugins, overridden)
+
+    def test_without_a_harness_ref_the_marketplace_is_used(self) -> None:
+        kata = run_evals.load_kata(FIXTURES / "kata_valid")
+        self.assertEqual(([], []), run_evals.kata_plugins(kata, None, None, Path("/run")))
 
     def test_subagent_models_are_interleaved(self) -> None:
         jobs = run_evals.interleave(["k"], ["opus", "sonnet"], [1, 2, 3])
