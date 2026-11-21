@@ -99,12 +99,13 @@ Datos verificados que condicionan el plan:
 
 - **Trinquete.** `baseline.txt` solo se achica. Si un archivo que se mueve o
   renombra figura en la línea base, la violación se corrige en el lugar y la
-  entrada se borra antes de mover. Antes de abrir cada PR: `cargo test -p architecture`.
+  entrada se borra antes de mover. Antes de abrir cada PR: <comando de los
+  tests de arquitectura del stack; en Rust, `cargo test -p architecture`>.
 - **Red de seguridad.** <Qué tests no se modifican, salvo los cambios de
   contrato de §5.5.>
-- **TDD.** El rojo de un refactor de arquitectura es la entrada de la línea
-  base: al corregir, el test pide `borrar de baseline.txt` (o bajar el conteo) y
-  el PR lo hace.
+- **TDD.** Rojo primero también en un refactor de arquitectura: se borra o
+  baja la entrada de la línea base, se confirma que el test falla con esa
+  violación y se corrige hasta verde.
 - <Verificación manual mientras haya algo que los tests no ven.>
 
 ### 5.2 <Decisión de orden: qué se corrige en el lugar y qué espera a la separación>
@@ -122,7 +123,7 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 - **Toca:** <archivos>.
 - **Línea base:** <−k (qué entradas)> o sin cambios.
 - **Rojo:** <tests que fallan antes del cambio>.
-- **Contrato HTTP:** <sin cambios, o qué cambia (§5.5)>.
+- **Contrato externo** (HTTP u otro transporte): <sin cambios, o qué cambia (§5.5)>.
 - **Riesgo:** <qué puede romperse>.
 - **Tamaño:** <XS | S | M | L>.
 - **Resultado:** <al terminar: commits, rojo visto, lo que señaló el revisor
@@ -137,7 +138,7 @@ R1 ─┬─ R2
     └─ R3 ─ …
 ```
 
-### 5.5 Cambios de contrato HTTP (todos explícitos)
+### 5.5 Cambios del contrato externo (todos explícitos)
 
 | Rebanada | Cambio | Tests de caracterización que cambian |
 |---|---|---|
@@ -159,7 +160,9 @@ Abiertas:
 
 ### 5.8 Registro de rebanadas
 
-Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
+Una fila por rebanada. La fila y el `resuelto (…)` del inventario se escriben en
+el mismo PR, con el número de PR; el commit de `main` (que cambia con un squash)
+se completa en el PR de documentación siguiente. **Tokens** es el consumo de la sesión que hizo
 la rebanada (lo que informa `/cost` al cerrarla). **Revisor** dice si se corrió
 `craft-backend:architecture-reviewer` y, si no, por qué.
 
@@ -171,7 +174,7 @@ la rebanada (lo que informa `/cost` al cerrarla). **Revisor** dice si se corrió
 En cada uno, antes de abrir la rebanada siguiente:
 
 1. Auditoría completa con `architecture-reviewer` y actualización de la cabecera.
-2. `cargo test -p architecture`, y comparar las entradas de `baseline.txt` con
+2. Los tests de arquitectura del stack, y comparar las entradas de `baseline.txt` con
    §5.6 menos lo ya cerrado. Si no coinciden, explicar la diferencia.
 3. Revisar las decisiones abiertas de §5.7 que bloquean lo que sigue.
 4. Comparar tamaño y tokens reales de §5.8 con lo estimado, y partir lo que

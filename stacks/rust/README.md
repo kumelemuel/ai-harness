@@ -395,8 +395,9 @@ registra y el trinquete impide que crezcan:
 2. **Solo se achica.** El test falla si aparece una clave que no está en la
    línea base o si una clave supera su `n`. También falla si una entrada ya no
    viola (`borrar de baseline.txt: …`) o viola menos (`actualizar en
-   baseline.txt: … n`). Ese es el rojo de un refactor que corrige una
-   violación, y el PR borra o actualiza la línea. Que nadie *agregue* una línea
+   baseline.txt: … n`). En un refactor que corrige una violación, el rojo va
+   primero: se borra o baja la entrada, se ve fallar el test con esa violación
+   y se corrige hasta verde. Que nadie *agregue* una línea
    lo bloquea el hook `PreToolUse` de craft-backend en las ediciones del
    agente; el llenado inicial se hace con `CRAFT_BACKEND_BASELINE_INIT=1`. Una
    edición por shell o a mano la ve el revisor del PR.

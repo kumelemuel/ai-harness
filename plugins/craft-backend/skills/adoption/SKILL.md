@@ -1,6 +1,8 @@
 ---
 name: adoption
-description: Adopción de craft-backend en un backend existente que todavía no cumple los principios. Cubre la auditoría inicial con su documento de estado (inventario con IDs estables, plan de rebanadas, decisiones, fricciones y registro de tokens), la línea base del trinquete y el ritual de cada rebanada, con su regla de ramas. Usar al empezar a adoptar el harness en un repo existente, al implementar una rebanada del plan (`/craft-backend:adoption R7`) o al replanificar. No aplica a un proyecto que nace de la plantilla.
+description: Ritual de adopción de craft-backend en un backend existente (auditoría, documento de estado, línea base y rebanadas). Se invoca a mano con /craft-backend:adoption.
+argument-hint: "[empezar | R<n> | replanificar]"
+disable-model-invocation: true
 ---
 
 # Adopción de craft-backend
@@ -17,15 +19,19 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
 ## 1. Empezar (una vez)
 
 1. Auditoría completa con `craft-backend:architecture-reviewer`, en solo
-   lectura. Copia la plantilla y llena §1 a §4: un ID estable por hallazgo
+   lectura. Dile en el encargo que el alcance es el repo entero, no un diff. Copia la plantilla y llena §1 a §4: un ID estable por hallazgo
    (`HEX-1.3`), con `archivo:línea` verificado.
-2. Agrega `tools/architecture` desde la plantilla del stack. En Rust, con el
+2. **Red de seguridad.** Identifica los tests que fijan el contrato externo
+   (HTTP u otro). Si no hay, la primera rebanada los escribe, antes de
+   cualquier refactor: TDD-1 solo cubre un refactor con tests en verde que
+   fijen el comportamiento. Anótalos en el documento (cabecera y §5.1).
+3. Agrega `tools/architecture` desde la plantilla del stack. En Rust, con el
    modo legacy si hay un crate por contexto o un `shared/` como kernel.
-3. Llena la línea base **una sola vez**, con lo que los tests de arquitectura
-   reportan hoy. El hook bloquea las ediciones que la agrandan: abre esa sesión
-   con `CRAFT_BACKEND_BASELINE_INIT=1` y ciérrala al terminar. Cada entrada se
+4. Llena la línea base **una sola vez**, con lo que los tests de arquitectura
+   reportan hoy. El hook bloquea las ediciones que la agrandan: el usuario abre
+   esa sesión con `CRAFT_BACKEND_BASELINE_INIT=1` y la cierra al terminar. Cada entrada se
    concilia con un hallazgo del inventario.
-4. Escribe el plan (§5): rebanadas chicas, orden por dependencias, puntos de
+5. Escribe el plan (§5): rebanadas chicas, orden por dependencias, puntos de
    replanificación, y qué decisiones son del usuario (§5.7). Por defecto,
    **corregir en el lugar antes de mover**: el trinquete no sigue los
    movimientos.
@@ -46,13 +52,12 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
 - Solo el alcance de la rebanada (§5.3) y las instrucciones del usuario. No
   adelantes trabajo de otras.
 - TDD: cada cambio de comportamiento empieza con un test en rojo, visto antes
-  de implementar. En un refactor puro, el rojo es el trinquete (`borrar de
-  baseline.txt` o `actualizar en baseline.txt`).
+  de implementar. En un refactor de arquitectura, borra o baja su entrada de la línea base, confirma que el test falla con esa violación y corrige hasta verde.
 - La línea base **solo se achica**. Si un archivo que mueves tiene entradas, o
   aparece una violación nueva, detente y avisa. Nunca agregues líneas.
 - La red de seguridad (tests de caracterización) no se modifica, salvo los
   cambios de contrato de §5.5 para esta rebanada.
-- Commits en inglés con Conventional Commits.
+- Sigue la convención de commits del proyecto.
 
 ### Al terminar
 1. El CI local del stack en verde (en Rust: `cargo fmt --check`, `cargo clippy
@@ -61,11 +66,13 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
    si cambió un contrato, §5.5.
 3. `architecture-reviewer` sobre el diff. Aplica lo de esta rebanada; lo demás
    se anota en su resultado de §5.3.
-4. PR con resumen, tests nuevos con su rojo, entradas borradas de la línea base
-   y cambios de contrato.
-5. `gh pr view --json baseRefName` debe decir `main`. Si dice otra rama, corrige
-   la base antes de seguir.
-6. Fila en §5.8 con `Tokens: pendiente` hasta que el usuario pase el `/cost`.
+4. Push y PR solo si el usuario lo pidió. Si no, deja la rama con sus commits
+   y pon el texto del PR en el reporte: resumen, tests nuevos con su rojo,
+   entradas borradas de la línea base y cambios de contrato.
+5. Si hay PR, su base debe ser `main` (en GitHub, `gh pr view --json
+   baseRefName`). Si es otra rama, corrige la base antes de seguir.
+6. Fila en §5.8 con el número de PR y `Tokens: pendiente` hasta que el usuario
+   pase el `/cost`.
 7. Fricciones con el harness, en §6.
 8. Reporta: comprobaciones previas, commits, rojo y verde, revisor y
    desviaciones respecto de lo pedido.

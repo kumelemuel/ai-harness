@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -204,9 +205,14 @@ def baseline_entries(text: str) -> dict[tuple[str, str], int]:
         parts = line.split()
         if len(parts) < 2 or parts[0].startswith("#"):
             continue
-        count = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
-        entries[(parts[0], parts[1])] = count
+        entries[(parts[0], parts[1])] = baseline_count(parts[2] if len(parts) > 2 else "")
     return entries
+
+
+def baseline_count(text: str) -> int:
+    """El conteo como lo lee el trinquete en Rust (`parse::<usize>()`, 1 si
+    falla): dígitos ASCII con un `+` opcional."""
+    return int(text) if re.fullmatch(r"\+?[0-9]+", text) else 1
 
 
 def baseline_growth(old: str, new: str) -> list[str]:
@@ -237,14 +243,23 @@ def pre_edit(payload: dict) -> int:
     """Bloquea una edición que agrande `tools/architecture/baseline.txt` (VER-1)."""
     tool_input = payload.get("tool_input") or {}
     path = Path(tool_input.get("file_path") or "")
-    if path.name != BASELINE_NAME or path.parent.name != ARCH_PACKAGE:
+    if not path.is_absolute():
+        path = Path(payload.get("cwd") or ".") / path
+    path = path.resolve()
+    tools = path.parent
+    if (path.name != BASELINE_NAME or tools.name != ARCH_PACKAGE
+            or tools.parent.name != "tools" or not (tools / "Cargo.toml").is_file()):
         return 0
     if os.environ.get("CRAFT_BACKEND_BASELINE_INIT") == "1":
         return 0
     current = path.read_text(encoding="utf-8") if path.is_file() else ""
     new = edited_text(payload.get("tool_name", ""), tool_input, current)
     if new is None:
-        return 0
+        return feedback(
+            "craft-backend no pudo calcular el resultado de esta edición de baseline.txt "
+            "(el texto a reemplazar no coincide), así que no puede comprobar que la línea "
+            "base no crezca. Usa Write con el contenido completo."
+        )
     grown = baseline_growth(current, new)
     if not grown:
         return 0
@@ -252,8 +267,9 @@ def pre_edit(payload: dict) -> int:
         "baseline.txt solo se achica (VER-1): esta edición agrega o sube entradas:\n\n"
         + "\n".join(f"  - {entry}" for entry in grown)
         + "\n\nCorrige la violación en el código. Borrar o bajar entradas sí está "
-        "permitido. Para el llenado inicial de una adopción, exporta "
-        "CRAFT_BACKEND_BASELINE_INIT=1 antes de abrir la sesión."
+        "permitido. No edites baseline.txt por shell: si crees que la entrada es "
+        "legítima, detente y avisa. Para el llenado inicial de una adopción, el "
+        "usuario exporta CRAFT_BACKEND_BASELINE_INIT=1 antes de abrir la sesión."
     )
 
 

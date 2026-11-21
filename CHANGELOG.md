@@ -11,8 +11,12 @@
 - **Hook `PreToolUse`** (VER-1): bloquea una edición que agrande `baseline.txt`.
   `CRAFT_BACKEND_BASELINE_INIT=1` permite el llenado inicial.
 
+- **`run_evals.py run --harness-ref REF`**: carga los plugins de la kata desde
+  otro commit, para correr una versión anterior como control intercalado.
+
 ### Filas que cambiaron de mecanismo
-- VER-1 (nadie agrega líneas a la línea base): de `pendiente` a `herramienta`.
+- VER-1 (una edición del agente no agranda la línea base): de `pendiente` a
+  `herramienta`. Las ediciones por shell o a mano siguen `pendiente`.
 
 ## 0.19.0 — 2026-11-20
 

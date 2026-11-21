@@ -75,7 +75,8 @@ cambiaron de mecanismo.
 | VER-1 | Lo citado existe y cada regla tiene mecanismo | `herramienta` | `scripts/check_harness.py` (`MISSING-TEST` y `VERIF-*`), job `consistency` |
 | VER-1 | El trinquete rechaza claves nuevas o por encima de su conteo, y pide borrar o bajar lo que ya no viola | `test` | `tests/ratchet.rs::ver_1_baseline_rejects_a_new_violation`, `tests/ratchet.rs::ver_1_baseline_rejects_one_more_violation_in_a_listed_file`, `tests/ratchet.rs::ver_1_baseline_asks_to_delete_what_no_longer_violates` |
 | VER-1 | Los ids del trinquete son los nombres de los tests | `test` | `tests/ratchet.rs::ver_1_baseline_ids_match_tests` |
-| VER-1 | Nadie agrega líneas a `baseline.txt` | `herramienta` | Hook `PreToolUse` de craft-backend (`craft_hooks.py pre-edit`, tests en `scripts/tests/test_craft_hooks.py`): bloquea un Edit, Write o MultiEdit que agregue o suba entradas. No ve ediciones por shell ni a mano: las ve el revisor del PR |
+| VER-1 | Una edición del agente no agranda `baseline.txt` | `herramienta` | Hook `PreToolUse` de craft-backend (`craft_hooks.py pre-edit`, tests en `scripts/tests/test_craft_hooks.py`): bloquea un Edit, Write o MultiEdit que agregue o suba entradas, y uno cuyo resultado no puede calcular |
+| VER-1 | Ningún commit agranda `baseline.txt` (shell, a mano) | `pendiente` | El hook solo ve las herramientas de edición del agente y corre donde está el plugin. Automatizable con un paso de CI del proyecto que compare la línea base con la rama base |
 | RS-1 | Un crate por capa; Cargo hace cumplir las dependencias | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` |
 | RS-1 | Las dependencias de cada miembro heredan del workspace (`workspace = true`) | `test` | `tests/dependencies.rs::rs_1_dependencies_inherit_from_the_workspace` |
 | RS-2 | `unwrap` prohibido | `herramienta` | Clippy, `unwrap_used = "deny"` en `[workspace.lints]` |
