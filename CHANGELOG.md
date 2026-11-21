@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 0.18.0 — 2026-11-20
+
+Plugins: `craft-backend` 0.15.0 y `craft-web` 0.5.0 (sin cambios).
 
 ### Agregado
 - **Modo legacy en los tests de arquitectura** (HEX-1, HEX-2, HEX-4): para
