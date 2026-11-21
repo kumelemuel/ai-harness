@@ -408,21 +408,31 @@ se migra. `tools/architecture/tests/common/mod.rs` trae un modo legacy:
 - **Kernel:** si no hay `kernel/`, el kernel es `shared/` (`LEGACY_KERNEL_DIR`;
   cámbialo si el proyecto le da otro nombre).
 - **Capas virtuales:** cada módulo `src/{domain,application,infrastructure}` de
-  un crate legacy se clasifica como esa capa, y `src/infrastructure/http` como
-  Api. Todas comparten el manifiesto, así que lo que declara cuenta en cada
+  un crate legacy (directorio, archivo `src/domain.rs`, o ambos) se clasifica
+  como esa capa, y `src/infrastructure/http` como Api, que se asume driving y
+  no se lee también como Infrastructure. `lib.rs`, `main.rs` y los módulos con
+  otro nombre (`src/api/`, `src/http/`) no se leen: ajusta `LEGACY_MODULES` si
+  el proyecto usa otros. Todas comparten el manifiesto, así que lo que declara cuenta en cada
   capa: un contexto legacy con `axum` viola HEX-2 en domain y en application
   hasta que se separe. Esas violaciones van a la línea base (la misma clave
   `ruta/Cargo.toml#…` con su conteo).
 - **HEX-4 actúa en legacy:** en application, el dominio es `crate::domain`
-  (también importado con `use crate::domain` o por nombre), así que un
-  contrato que lo expone se detecta antes de separar el crate.
+  (también importado, por nombre o con `super::…::domain`), así que un
+  contrato que lo expone se detecta antes de separar el crate. Las reglas de
+  ubicación (workflows, subscribers, el rol `Service` en `ports/outbound`)
+  resuelven las rutas por capa: `src/workflows` es `src/application/workflows`.
+  HEX-3 reconoce el kernel legacy (`shared::Fault`).
 - **Límites conocidos:** un contexto legacy no puede depender de `edge/*`
   (HEX-1 prohíbe `Domain → Edge`, y el manifiesto es compartido). Un crate
   migrado que dependa de uno legacy falla en HEX-1; el mensaje nombra una de
-  las capas virtuales, porque comparten el nombre del crate.
+  las capas virtuales, porque comparten el nombre del crate (también falla un
+  `apps/api` central que monte un contexto legacy). Un reexporte del dominio
+  desde `lib.rs` (`pub use domain::Account` y luego `crate::Account`) no se
+  detecta.
 - **Se borra al terminar:** cuando no queda ningún contexto legacy y el kernel
-  está en `kernel/`, se borran `LEGACY_KERNEL_DIR`, `LEGACY_MODULES`,
-  `legacy_layers` y sus llamadas en `crates_at`.
+  está en `kernel/`, se borra todo lo marcado `legacy:` en
+  `tools/architecture/tests` (`grep -rn 'legacy:'`), más `tests/legacy.rs` y
+  `tests/fixtures/legacy/`, y los tests siguen en verde.
 - El gate de Stop aplica clippy solo a los crates de la arquitectura (`--no-deps -p …`);
   los tests sí corren en todo el workspace. Así el código legacy con warnings no
   bloquea, pero un test legacy roto sí.

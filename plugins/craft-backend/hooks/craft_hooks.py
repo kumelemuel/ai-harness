@@ -95,9 +95,10 @@ def rust_edition(root: Path) -> str:
 
 
 def architected_packages(root: Path) -> list[str]:
-    """Crates que siguen la arquitectura, con la misma convención de ubicación que
-    `tools/architecture`. Los contextos legacy (`contexts/{ctx}/Cargo.toml`) y los
-    crates fuera de la convención quedan fuera del gate de clippy."""
+    """Crates que siguen la arquitectura (un crate por capa). A diferencia de
+    `tools/architecture`, que también clasifica los contextos legacy y `shared/`,
+    los contextos legacy (`contexts/{ctx}/Cargo.toml`) y los crates fuera de la
+    convención quedan fuera del gate de clippy: su código con warnings no bloquea."""
     dirs: list[Path] = [root / "kernel", root / "app"]
     for group in ("edge", "infrastructure", "apps", "tools"):
         base = root / group

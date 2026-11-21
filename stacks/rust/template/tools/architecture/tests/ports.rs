@@ -9,7 +9,7 @@
 
 mod common;
 
-use common::{Layer, assert_no_violations, crates, parse, relative};
+use common::{Crate, Layer, assert_no_violations, crates, parse, relative};
 use proc_macro2::{Spacing, TokenStream, TokenTree};
 use std::collections::BTreeSet;
 use std::fs;
@@ -20,6 +20,8 @@ const IO_PRIMITIVES: &[&str] = &["BoxFuture", "Fault", "Failure"];
 
 /// Lo que un archivo importa del kernel.
 struct KernelImports {
+    /// Nombre del crate kernel (`kernel`, o `shared` en legacy).
+    kernel: String,
     /// Nombres con los que el archivo se refiere al crate (`kernel`, `use kernel as k`).
     crate_aliases: Vec<String>,
     /// `(nombre local, primitiva)` de cada primitiva importada, con o sin alias.
@@ -28,10 +30,16 @@ struct KernelImports {
     globs: Vec<usize>,
 }
 
-impl Default for KernelImports {
-    fn default() -> Self {
+impl KernelImports {
+    /// `kernel`, o el nombre del crate legacy que hace de kernel.
+    fn is_kernel(&self, name: &str) -> bool {
+        name == "kernel" || name == self.kernel
+    }
+
+    fn new(kernel: &str) -> Self {
         Self {
-            crate_aliases: vec!["kernel".into()],
+            kernel: kernel.into(),
+            crate_aliases: vec!["kernel".into(), kernel.into()],
             names: Vec::new(),
             globs: Vec::new(),
         }
@@ -44,7 +52,7 @@ fn primitive(name: &str) -> Option<&'static str> {
 
 impl KernelImports {
     fn collect(&mut self, tree: &syn::UseTree, prefix: &mut Vec<String>) {
-        let from_kernel = prefix.first().is_some_and(|s| s == "kernel");
+        let from_kernel = prefix.first().is_some_and(|s| self.is_kernel(s));
         match tree {
             syn::UseTree::Path(p) => {
                 prefix.push(p.ident.to_string());
@@ -61,7 +69,9 @@ impl KernelImports {
                     self.names.push((p.into(), p));
                 }
             }
-            syn::UseTree::Rename(r) if prefix.is_empty() && r.ident == "kernel" => {
+            syn::UseTree::Rename(r)
+                if prefix.is_empty() && self.is_kernel(&r.ident.to_string()) =>
+            {
                 self.crate_aliases.push(r.rename.to_string());
             }
             syn::UseTree::Rename(r) if from_kernel => {
@@ -133,14 +143,15 @@ fn scan(tokens: TokenStream, imports: &KernelImports, found: &mut BTreeSet<(usiz
     }
 }
 
-#[test]
-fn hex_3_domain_does_not_use_kernel_io_primitives() {
+/// Violaciones de HEX-3 en los dominios de `all`, y cuántos archivos revisó.
+fn io_violations(all: &[Crate]) -> (Vec<String>, usize) {
     let mut violations = Vec::new();
     let mut files = 0;
-    for krate in crates().into_iter().filter(|c| c.layer == Layer::Domain) {
+    let kernel = kernel_alias(all);
+    for krate in all.iter().filter(|c| c.layer == Layer::Domain) {
         for file in krate.files("src") {
             files += 1;
-            let mut imports = KernelImports::default();
+            let mut imports = KernelImports::new(&kernel);
             imports.visit_file(&parse(&file));
 
             let text = fs::read_to_string(&file).expect("invariante: archivo legible");
@@ -164,11 +175,39 @@ fn hex_3_domain_does_not_use_kernel_io_primitives() {
             }
         }
     }
+    (violations, files)
+}
+
+/// Identificador con el que el código nombra el kernel: `kernel`, o (legacy:)
+/// el crate que hace de kernel (`shared`).
+fn kernel_alias(all: &[Crate]) -> String {
+    all.iter()
+        .find(|c| c.layer == Layer::Kernel)
+        .map_or_else(|| "kernel".into(), |k| k.name.replace('-', "_"))
+}
+
+#[test]
+fn hex_3_domain_does_not_use_kernel_io_primitives() {
+    let (violations, files) = io_violations(&crates());
     assert_no_violations(
         "hex_3_domain_does_not_use_kernel_io_primitives",
         "HEX-3: el dominio no declara puertos (no usa `BoxFuture`, `Fault` ni `Failure` del \
          kernel: un puerto implica E/S)",
         &[("archivos de domain", files)],
         violations,
+    );
+}
+
+/// legacy: con `shared/` como kernel, `shared::Fault` en el dominio es una
+/// primitiva de E/S igual que `kernel::Fault`.
+#[test]
+fn hex_3_sees_the_legacy_kernel() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, _) = io_violations(&common::crates_at(&fixture));
+
+    assert!(
+        violations.iter().any(|v| v.contains("nombra `Fault`")),
+        "{violations:#?}"
     );
 }

@@ -182,7 +182,10 @@ fn ver_1_baseline_ids_match_tests() {
     let dir = root().join("tools/architecture/tests");
     let mut calls = Calls::default();
     let mut files = 0;
-    for path in rust_files(&dir) {
+    for path in rust_files(&dir)
+        .into_iter()
+        .filter(|p| !p.starts_with(dir.join("fixtures")))
+    {
         files += 1;
         calls.visit_file(&parse(&path));
     }

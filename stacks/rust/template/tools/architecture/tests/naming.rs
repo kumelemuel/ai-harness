@@ -26,6 +26,14 @@ const RESERVED_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Result"];
 /// Tipos del contrato de un caso de uso (HEX-4).
 const CONTRACT_SUFFIXES: &[&str] = &["Command", "Query", "Response", "Error"];
 
+/// `true` si `file` (relativo a la raíz, como lo da `scan`) está bajo alguno de
+/// `dirs`. Compara rutas resueltas por capa, no texto: en legacy,
+/// `src/workflows` es `src/application/workflows`.
+fn under(file: &str, dirs: &[PathBuf]) -> bool {
+    let absolute = common::root().join(file);
+    dirs.iter().any(|d| absolute.starts_with(d))
+}
+
 fn dirs_of(layer: Layer, sub: &str) -> Vec<PathBuf> {
     crates()
         .into_iter()
@@ -205,12 +213,46 @@ struct DomainNames {
     local: Vec<String>,
     /// `use {ctx}_domain::…::*`: cualquier nombre podría venir del dominio.
     glob: bool,
+    /// legacy: ruta del módulo del archivo (`["application", "commands", …]`),
+    /// para resolver `super::` y `self::` contra `crate::`.
+    module: Option<Vec<String>>,
+}
+
+/// legacy: ruta de módulo de `file` dentro de `src` (sin `mod`, `lib` ni `main`).
+fn module_path(src: &Path, file: &Path) -> Vec<String> {
+    let relative = file.strip_prefix(src).unwrap_or(file).with_extension("");
+    relative
+        .iter()
+        .map(|c| c.to_string_lossy().to_string())
+        .filter(|c| !matches!(c.as_str(), "mod" | "lib" | "main"))
+        .collect()
 }
 
 impl DomainNames {
-    fn of(root: &[String], file: &syn::File) -> Self {
+    /// legacy: ruta absoluta (`crate::…`) de una que empieza por `super` o `self`.
+    fn absolute(&self, path: &[String]) -> Vec<String> {
+        let Some(module) = &self.module else {
+            return path.to_vec();
+        };
+        let ups = path.iter().take_while(|s| *s == "super").count();
+        let rest = if ups > 0 {
+            &path[ups..]
+        } else if path.first().is_some_and(|s| s == "self") {
+            &path[1..]
+        } else {
+            return path.to_vec();
+        };
+        let base = &module[..module.len().saturating_sub(ups)];
+        std::iter::once("crate".to_string())
+            .chain(base.iter().cloned())
+            .chain(rest.iter().cloned())
+            .collect()
+    }
+
+    fn of(root: &[String], module: Option<Vec<String>>, file: &syn::File) -> Self {
         let mut names = Self {
             root: root.to_vec(),
+            module,
             local: Vec::new(),
             glob: false,
         };
@@ -247,7 +289,7 @@ impl DomainNames {
 }
 
 fn self_is_domain(names: &DomainNames, path: &[String]) -> bool {
-    path.starts_with(&names.root)
+    names.absolute(path).starts_with(&names.root)
         || path
             .first()
             .is_some_and(|first| names.local.contains(first))
@@ -362,6 +404,7 @@ fn domain_crate_of(application: &Crate, all: &[Crate]) -> Option<Vec<String>> {
     let domain = all
         .iter()
         .find(|c| c.layer == Layer::Domain && c.context == application.context)?;
+    // legacy: el dominio es un módulo del mismo crate.
     if application.legacy {
         return Some(vec!["crate".into(), "domain".into()]);
     }
@@ -382,7 +425,8 @@ fn contract_violations(all: &[Crate]) -> (Vec<String>, usize) {
         };
         for path in app.files("src") {
             let syntax = parse(&path);
-            let names = DomainNames::of(&krate, &syntax);
+            let module = app.legacy.then(|| module_path(&app.dir.join("src"), &path));
+            let names = DomainNames::of(&krate, module, &syntax);
             let file = relative(&path);
             let in_cases = is_under(&path, app, &["src/commands", "src/queries"]);
             let in_inbound = is_under(&path, app, &["src/ports/inbound"]);
@@ -834,7 +878,9 @@ fn hex_7_service_suffix_is_only_an_outbound_role() {
         .chain(
             scan(&dirs_of(Layer::Application, "src"), None)
                 .into_iter()
-                .filter(|(file, _)| !file.contains("/src/ports/outbound/")),
+                .filter(|(file, _)| {
+                    !under(file, &dirs_of(Layer::Application, "src/ports/outbound"))
+                }),
         )
         .collect();
 
@@ -889,7 +935,7 @@ fn hex_4_workflows_are_internal_to_application() {
     let application = scan(&dirs_of(Layer::Application, "src"), None);
     let application_scanned = application.len();
     for (file, items) in application {
-        let in_workflows = file.contains("/src/workflows/");
+        let in_workflows = under(&file, &dirs_of(Layer::Application, "src/workflows"));
         if !in_workflows {
             for name in items.types.iter().filter(|n| is_workflow_type(n)) {
                 violations.push(format!(
@@ -935,7 +981,7 @@ fn hex_4_event_subscribers_are_named_and_placed() {
     {
         for path in krate.files("src") {
             let file = relative(&path);
-            let in_subscribers = file.contains("/src/subscribers/");
+            let in_subscribers = is_under(&path, &krate, &["src/subscribers"]);
             for item in items_of(&parse(&path).items) {
                 let syn::Item::Impl(imp) = item else {
                     continue;
@@ -1045,7 +1091,7 @@ fn tdd_2_inbound_doubles_are_named_by_prefix_and_port() {
     );
 }
 
-/// En un contexto legacy, el dominio de application es `crate::domain`: HEX-4
+/// legacy: en un contexto legacy, el dominio de application es `crate::domain`: HEX-4
 /// lo revisa igual que a un crate `{ctx}-domain`.
 #[test]
 fn hex_4_contracts_are_checked_in_legacy_contexts() {
@@ -1062,6 +1108,10 @@ fn hex_4_contracts_are_checked_in_legacy_contexts() {
     assert!(found("expone `crate::domain::Account`"), "{violations:#?}");
     assert!(
         found("`RegisterAccountUseCase` expone `domain::Account`"),
+        "{violations:#?}"
+    );
+    assert!(
+        found("expone `super::super::super::super::domain::Account`"),
         "{violations:#?}"
     );
 }

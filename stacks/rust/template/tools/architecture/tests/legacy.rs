@@ -56,3 +56,36 @@ fn shared_is_the_kernel_when_there_is_no_kernel_dir() {
 
     assert_eq!(kernel.as_deref(), Some("shared"));
 }
+
+fn files_of(context: &str, layer: Layer) -> Vec<String> {
+    let root = fixture().join("contexts").join(context).join("src");
+    crates_at(&fixture())
+        .into_iter()
+        .find(|c| c.layer == layer && c.context.as_deref() == Some(context))
+        .map(|c| c.files("src"))
+        .unwrap_or_default()
+        .iter()
+        .map(|f| f.strip_prefix(&root).unwrap_or(f).display().to_string())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+/// `src/domain.rs` es parte de la capa, junto a `src/domain/`.
+#[test]
+fn a_module_file_belongs_to_its_layer() {
+    assert_eq!(
+        files_of("billing", Layer::Domain),
+        ["domain.rs", "domain/invoice.rs"]
+    );
+}
+
+/// `infrastructure/http` es Api: no se lee también como Infrastructure.
+#[test]
+fn http_is_read_once_as_api() {
+    assert_eq!(files_of("iam", Layer::Api), ["infrastructure/http/mod.rs"]);
+    assert_eq!(
+        files_of("iam", Layer::Infrastructure),
+        ["infrastructure/mod.rs"]
+    );
+}
