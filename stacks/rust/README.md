@@ -26,10 +26,12 @@ principios no cambian; aquí se decide **cómo se expresan**.
 
 ```
 Cargo.toml                      workspace: members = ["kernel", "edge/*", "infrastructure/*", "contexts/*/*", "apps/*", "tools/*"]
-kernel/                         Result nativo, Fault, Failure, BoxFuture, marcadores. Solo std.
+kernel/                         Result nativo, Fault, Failure, BoxFuture, marcadores y capacidades
+                                (Clock, IdGenerator, FaultReporter). Solo std.
 edge/http/                      Borde compartido: Problem Details, AuthenticatedAccount, unexpected(). → kernel
 infrastructure/{tecnología}/    Infraestructura compartida: adaptadores de las capacidades del kernel
-                                (infrastructure/stderr: StderrFaultReporterAdapter). → kernel
+                                (infrastructure/stderr: StderrFaultReporterAdapter;
+                                infrastructure/system: SystemClockAdapter). → kernel
 contexts/{ctx}/
 ├── domain/                     → kernel
 ├── application/                → kernel, {ctx}-domain

@@ -7,7 +7,9 @@ pub struct StderrFaultReporterAdapter;
 impl StderrFaultReporterAdapter {
     /// Línea de registro: lleva el detalle técnico, que nunca sale al cliente (ERR-4).
     /// Recorre la cadena de `source()`: el `Debug` del error de primer nivel no
-    /// siempre muestra su causa.
+    /// siempre muestra su causa. Si un error incluye su causa en `Display` y
+    /// también la devuelve en `source()`, la causa aparece dos veces: se acepta,
+    /// antes que perderla.
     fn line(fault: &Fault) -> String {
         let mut line = format!("unexpected failure: {}", fault.detail());
         let mut cause = fault.detail().source();

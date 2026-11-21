@@ -4,7 +4,8 @@ use std::time::SystemTime;
 ///
 /// El núcleo no lee la hora del sistema ni usa una librería de fechas: recibe
 /// el instante de un `Clock`. El adaptador (`SystemClockAdapter`) vive en
-/// infraestructura, y un test usa un doble con la hora fija.
+/// infraestructura. El doble de test (`FixedClockAdapter`, hora fija) va en el
+/// `testing.rs` del `application` que lo use, como `FixedIdGeneratorAdapter`.
 pub trait Clock: Send + Sync {
     fn now(&self) -> SystemTime;
 }
