@@ -9,7 +9,7 @@
 
 mod common;
 
-use common::{Layer, assert_no_violations, crates, parse, relative, rust_files};
+use common::{Layer, assert_no_violations, crates, parse, relative};
 use proc_macro2::{Spacing, TokenStream, TokenTree};
 use std::collections::BTreeSet;
 use std::fs;
@@ -138,7 +138,7 @@ fn hex_3_domain_does_not_use_kernel_io_primitives() {
     let mut violations = Vec::new();
     let mut files = 0;
     for krate in crates().into_iter().filter(|c| c.layer == Layer::Domain) {
-        for file in rust_files(&krate.dir.join("src")) {
+        for file in krate.files("src") {
             files += 1;
             let mut imports = KernelImports::default();
             imports.visit_file(&parse(&file));

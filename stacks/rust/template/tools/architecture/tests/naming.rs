@@ -30,7 +30,7 @@ fn dirs_of(layer: Layer, sub: &str) -> Vec<PathBuf> {
     crates()
         .into_iter()
         .filter(|c| c.layer == layer)
-        .map(|c| c.dir.join(sub))
+        .filter_map(|c| c.path(sub))
         .filter(|d| d.exists())
         .collect()
 }
@@ -198,8 +198,9 @@ fn hex_4_api_depends_on_use_cases_never_on_handlers() {
 
 /// Nombres con los que un archivo de `application` alcanza el crate de dominio.
 struct DomainNames {
-    /// Identificador del crate (`communities_domain`).
-    krate: String,
+    /// Ruta raíz del dominio: `["communities_domain"]`, o `["crate", "domain"]`
+    /// en un contexto legacy.
+    root: Vec<String>,
     /// Nombres locales importados con `use` desde ese crate (tipos o módulos).
     local: Vec<String>,
     /// `use {ctx}_domain::…::*`: cualquier nombre podría venir del dominio.
@@ -207,9 +208,9 @@ struct DomainNames {
 }
 
 impl DomainNames {
-    fn of(krate: &str, file: &syn::File) -> Self {
+    fn of(root: &[String], file: &syn::File) -> Self {
         let mut names = Self {
-            krate: krate.to_string(),
+            root: root.to_vec(),
             local: Vec::new(),
             glob: false,
         };
@@ -240,15 +241,16 @@ impl DomainNames {
     }
 
     fn is_domain(&self, path: &syn::Path) -> bool {
-        path.segments
-            .first()
-            .is_some_and(|s| s.ident == self.krate || self.local.iter().any(|l| s.ident == l))
+        let segments: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
+        self_is_domain(self, &segments)
     }
 }
 
 fn self_is_domain(names: &DomainNames, path: &[String]) -> bool {
-    path.first()
-        .is_some_and(|first| *first == names.krate || names.local.contains(first))
+    path.starts_with(&names.root)
+        || path
+            .first()
+            .is_some_and(|first| names.local.contains(first))
 }
 
 /// Hojas de un `use`: `(ruta completa, nombre local)`; `None` si es un glob.
@@ -351,28 +353,34 @@ fn items_of(items: &[syn::Item]) -> Vec<&syn::Item> {
 fn is_under(file: &Path, krate: &Crate, subdirs: &[&str]) -> bool {
     subdirs
         .iter()
-        .any(|sub| file.starts_with(krate.dir.join(sub)))
+        .any(|sub| krate.path(sub).is_some_and(|p| file.starts_with(p)))
 }
 
-/// El crate de dominio del mismo contexto, si `application` lo declara.
-fn domain_crate_of(application: &Crate, all: &[Crate]) -> Option<String> {
-    all.iter()
-        .find(|c| c.layer == Layer::Domain && c.context == application.context)
-        .filter(|d| application.dependencies().contains(&d.name))
-        .map(|d| d.name.replace('-', "_"))
+/// Ruta del dominio del mismo contexto, vista desde `application`: el crate
+/// `{ctx}-domain` si lo declara, o `crate::domain` en un contexto legacy.
+fn domain_crate_of(application: &Crate, all: &[Crate]) -> Option<Vec<String>> {
+    let domain = all
+        .iter()
+        .find(|c| c.layer == Layer::Domain && c.context == application.context)?;
+    if application.legacy {
+        return Some(vec!["crate".into(), "domain".into()]);
+    }
+    application
+        .dependencies()
+        .contains(&domain.name)
+        .then(|| vec![domain.name.replace('-', "_")])
 }
 
-#[test]
-fn hex_4_use_case_contracts_do_not_expose_domain_types() {
-    let all = crates();
+/// Violaciones de HEX-4 en los contratos de `all`, y cuántos contratos revisó.
+fn contract_violations(all: &[Crate]) -> (Vec<String>, usize) {
     let mut violations = Vec::new();
     let mut contracts = 0;
 
     for app in all.iter().filter(|c| c.layer == Layer::Application) {
-        let Some(krate) = domain_crate_of(app, &all) else {
+        let Some(krate) = domain_crate_of(app, all) else {
             continue;
         };
-        for path in rust_files(&app.dir.join("src")) {
+        for path in app.files("src") {
             let syntax = parse(&path);
             let names = DomainNames::of(&krate, &syntax);
             let file = relative(&path);
@@ -471,12 +479,19 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
 
             if names.glob && contract_in_file {
                 violations.push(format!(
-                    "{file}: `use {krate}::…::*` junto a un contrato impide verificar que no exponga el dominio"
+                    "{file}: `use {}::…::*` junto a un contrato impide verificar que no exponga el dominio",
+                    krate.join("::")
                 ));
             }
         }
     }
 
+    (violations, contracts)
+}
+
+#[test]
+fn hex_4_use_case_contracts_do_not_expose_domain_types() {
+    let (violations, contracts) = contract_violations(&crates());
     assert_no_violations(
         "hex_4_use_case_contracts_do_not_expose_domain_types",
         "HEX-4: el contrato del caso de uso (Command, Query, Response, Error y el UseCase) \
@@ -623,8 +638,8 @@ fn module_dir(file: &Path) -> PathBuf {
 /// `#[cfg(any(test, feature = "testing"))] mod testing;`) y lo que está dentro
 /// de una función `#[test]`.
 fn trait_impls(krate: &Crate) -> Vec<(PathBuf, syn::ItemImpl, bool)> {
-    let tests_dir = krate.dir.join("tests");
-    let files = [rust_files(&krate.dir.join("src")), rust_files(&tests_dir)].concat();
+    let tests_dir = krate.path("tests");
+    let files = [krate.files("src"), krate.files("tests")].concat();
     let mut parsed = Vec::new();
     let mut test_paths: Vec<PathBuf> = Vec::new();
     for file in files {
@@ -645,8 +660,8 @@ fn trait_impls(krate: &Crate) -> Vec<(PathBuf, syn::ItemImpl, bool)> {
     parsed
         .into_iter()
         .flat_map(|(file, found)| {
-            let file_is_test =
-                file.starts_with(&tests_dir) || test_paths.iter().any(|t| file.starts_with(t));
+            let file_is_test = tests_dir.as_ref().is_some_and(|t| file.starts_with(t))
+                || test_paths.iter().any(|t| file.starts_with(t));
             found
                 .into_iter()
                 .map(move |(imp, test)| (file.clone(), imp, test || file_is_test))
@@ -670,7 +685,14 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
     let ports: Vec<String> = all
         .iter()
         .filter(|c| c.layer == Layer::Application)
-        .flat_map(|app| scan(&[app.dir.join("src/ports/outbound")], Some("dtos")))
+        .flat_map(|app| {
+            scan(
+                &app.path("src/ports/outbound")
+                    .into_iter()
+                    .collect::<Vec<_>>(),
+                Some("dtos"),
+            )
+        })
         .flat_map(|(_, items)| items.traits.into_iter().map(|t| t.ident.to_string()))
         .collect();
     let mut violations = Vec::new();
@@ -911,7 +933,7 @@ fn hex_4_event_subscribers_are_named_and_placed() {
         .into_iter()
         .filter(|c| c.layer == Layer::Application)
     {
-        for path in rust_files(&krate.dir.join("src")) {
+        for path in krate.files("src") {
             let file = relative(&path);
             let in_subscribers = file.contains("/src/subscribers/");
             for item in items_of(&parse(&path).items) {
@@ -967,7 +989,14 @@ fn tdd_2_inbound_doubles_are_named_by_prefix_and_port() {
     let ports: Vec<String> = all
         .iter()
         .filter(|c| c.layer == Layer::Application)
-        .flat_map(|app| scan(&[app.dir.join("src/ports/inbound")], None))
+        .flat_map(|app| {
+            scan(
+                &app.path("src/ports/inbound")
+                    .into_iter()
+                    .collect::<Vec<_>>(),
+                None,
+            )
+        })
         .flat_map(|(_, items)| items.traits.into_iter().map(|t| t.ident.to_string()))
         .collect();
     let mut violations = Vec::new();
@@ -1013,5 +1042,26 @@ fn tdd_2_inbound_doubles_are_named_by_prefix_and_port() {
          {Fake|Fixed|Stub|Spy}{Puerto}, sin `Adapter`: no es un adaptador",
         &[("dobles de puertos entrantes", doubles)],
         violations,
+    );
+}
+
+/// En un contexto legacy, el dominio de application es `crate::domain`: HEX-4
+/// lo revisa igual que a un crate `{ctx}-domain`.
+#[test]
+fn hex_4_contracts_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, contracts) = contract_violations(&common::crates_at(&fixture));
+
+    assert_eq!(contracts, 2, "{violations:#?}");
+    let found = |needle: &str| violations.iter().any(|v| v.contains(needle));
+    assert!(
+        found("`RegisterAccountResponse` expone `Account`"),
+        "{violations:#?}"
+    );
+    assert!(found("expone `crate::domain::Account`"), "{violations:#?}");
+    assert!(
+        found("`RegisterAccountUseCase` expone `domain::Account`"),
+        "{violations:#?}"
     );
 }

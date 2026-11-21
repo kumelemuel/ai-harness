@@ -402,18 +402,43 @@ cabecera.
 ### Contextos legacy
 
 Un workspace puede tener contextos ya separados por capas y otros *legacy* (un
-solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
+solo crate en `contexts/{ctx}/Cargo.toml`, con las capas como módulos) mientras
+se migra. `tools/architecture/tests/common/mod.rs` trae un modo legacy:
 
-- Los tests de arquitectura **ignoran** los contextos legacy y los crates fuera de
-  `kernel/`, `edge/`, `contexts/{ctx}/{capa}/`, `apps/` y `app/` (p. ej. un `shared/`).
-- Un crate migrado que dependa de uno legacy desde `domain`/`application` falla en
-  HEX-2 (lo ve como crate externo): el núcleo migrado no puede apoyarse en legacy.
+- **Kernel:** si no hay `kernel/`, el kernel es `shared/` (`LEGACY_KERNEL_DIR`;
+  cámbialo si el proyecto le da otro nombre).
+- **Capas virtuales:** cada módulo `src/{domain,application,infrastructure}` de
+  un crate legacy se clasifica como esa capa, y `src/infrastructure/http` como
+  Api. Todas comparten el manifiesto, así que lo que declara cuenta en cada
+  capa: un contexto legacy con `axum` viola HEX-2 en domain y en application
+  hasta que se separe. Esas violaciones van a la línea base (la misma clave
+  `ruta/Cargo.toml#…` con su conteo).
+- **HEX-4 actúa en legacy:** en application, el dominio es `crate::domain`
+  (también importado con `use crate::domain` o por nombre), así que un
+  contrato que lo expone se detecta antes de separar el crate.
+- **Límites conocidos:** un contexto legacy no puede depender de `edge/*`
+  (HEX-1 prohíbe `Domain → Edge`, y el manifiesto es compartido). Un crate
+  migrado que dependa de uno legacy falla en HEX-1; el mensaje nombra una de
+  las capas virtuales, porque comparten el nombre del crate.
+- **Se borra al terminar:** cuando no queda ningún contexto legacy y el kernel
+  está en `kernel/`, se borran `LEGACY_KERNEL_DIR`, `LEGACY_MODULES`,
+  `legacy_layers` y sus llamadas en `crates_at`.
 - El gate de Stop aplica clippy solo a los crates de la arquitectura (`--no-deps -p …`);
   los tests sí corren en todo el workspace. Así el código legacy con warnings no
   bloquea, pero un test legacy roto sí.
 - Con contextos legacy, lista los miembros explícitamente
   (`"contexts/iam", "contexts/communities/*"`): el glob `contexts/*/*` tomaría
   `contexts/iam/src` como miembro y `exclude` no lo evita.
+
+### `tests/` de los crates
+
+Los `tests/` de un crate no definen tipos de producción, así que las reglas de
+contratos, errores, salida, puertos y vocabulario (HEX-3, HEX-4 de contratos,
+HEX-6, ERR-1, ERR-4) leen solo `src/`. Lo que sí rige en `tests/`: sus
+dependencias (`[dev-dependencies]`, por HEX-2), los nombres de adaptadores y
+dobles (HEX-5, TDD-2) y que los tests de api no llamen a handlers ni a
+workflows (HEX-4). En un contexto legacy, `tests/` no
+pertenece a ninguna capa y no se lee.
 
 ## Violaciones típicas en Rust
 
