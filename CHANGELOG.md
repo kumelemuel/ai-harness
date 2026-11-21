@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.19.0 — 2026-11-20
+
+Plugins: `craft-backend` 0.16.0 y `craft-web` 0.5.0 (sin cambios).
+
+### Agregado
+- **`Clock` en el kernel** (HEX-8): estaba en la lista cerrada de capacidades y
+  en la skill, pero la plantilla no lo definía. Ahora trae el trait y
+  `SystemClockAdapter` en el crate nuevo `infrastructure-system`, sin cablear
+  hasta que un contexto lo use.
+- **`rustfmt.toml`** en la plantilla, y qué hacer si el proyecto tiene otro.
+
+### Corregido
+- **`StderrFaultReporterAdapter` registra la cadena de `source()`** (ERR-4):
+  imprimía el `Debug` del error de primer nivel, que no siempre muestra su
+  causa.
+
 ## 0.18.0 — 2026-11-20
 
 Plugins: `craft-backend` 0.15.0 y `craft-web` 0.5.0 (sin cambios).
