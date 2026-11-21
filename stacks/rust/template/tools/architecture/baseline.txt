@@ -1,0 +1,14 @@
+# Línea base del trinquete de tools/architecture (VER-1).
+#
+# Formato: `<test> <clave> [n]`. `<test>` es el nombre de la función del
+# test; `<clave>` es lo que el mensaje de la violación pone antes del primer
+# `:`: la ruta del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests
+# de dependencias. `n` es cuántas violaciones de esa clave se admiten (1).
+#
+# El test falla si aparece una clave que no está aquí o que supera su `n`, y
+# si una entrada ya no viola o viola menos (hay que borrarla o bajar `n`). Esta lista solo se achica:
+# no agregar líneas, corregir la violación. Para mover un archivo con
+# entradas: corregir en el lugar, borrar la entrada y después mover.
+#
+# En un proyecto nuevo queda vacía. En una adopción se llena una sola vez,
+# con la auditoría inicial (README del stack, "Migración incremental").

@@ -3,10 +3,9 @@
 mod common;
 
 use common::{
-    CAPABILITIES, Layer, MODEL_MARKERS, assert_no_violations, crates, parse, relative, rust_files,
+    CAPABILITIES, Layer, MODEL_MARKERS, assert_no_violations, crates, declared_dependencies,
+    dependency_key, parse, relative, rust_files,
 };
-
-const DEPENDENCY_SECTIONS: &[&str] = &["dependencies", "dev-dependencies", "build-dependencies"];
 
 fn kernel() -> common::Crate {
     crates()
@@ -20,29 +19,17 @@ fn hex_8_kernel_depends_only_on_std() {
     let kernel = kernel();
     let mut violations = Vec::new();
 
-    for section in DEPENDENCY_SECTIONS {
-        if let Some(table) = kernel.manifest.get(*section).and_then(|v| v.as_table()) {
-            for dep in table.keys() {
-                violations.push(format!("kernel/Cargo.toml: [{section}] declara `{dep}`"));
-            }
-        }
-    }
-    // `[target.'cfg(…)'.dependencies]` también es una dependencia.
-    if let Some(targets) = kernel.manifest.get("target").and_then(|v| v.as_table()) {
-        for (cfg, table) in targets {
-            for section in DEPENDENCY_SECTIONS {
-                if let Some(deps) = table.get(*section).and_then(|v| v.as_table()) {
-                    for dep in deps.keys() {
-                        violations.push(format!(
-                            "kernel/Cargo.toml: [target.{cfg}.{section}] declara `{dep}`"
-                        ));
-                    }
-                }
-            }
-        }
+    // También `[target.'cfg(…)'.*]`: es una dependencia igual.
+    let dir = relative(&kernel.dir);
+    for (section, dep, _) in declared_dependencies(&kernel.manifest) {
+        violations.push(format!(
+            "{}: [{section}] declara `{dep}`",
+            dependency_key(std::path::Path::new(&dir), &section, &dep)
+        ));
     }
 
     assert_no_violations(
+        "hex_8_kernel_depends_only_on_std",
         "HEX-8: el kernel no tiene dependencias, solo std \
          (así las firmas de sus capacidades usan solo std y kernel)",
         // Lee un solo manifiesto, no recorre un conjunto: que no declare
@@ -100,6 +87,7 @@ fn hex_8_kernel_traits_are_model_markers_or_listed_capabilities() {
     }
 
     assert_no_violations(
+        "hex_8_kernel_traits_are_model_markers_or_listed_capabilities",
         "HEX-8: todo trait público del kernel es un marcador de modelo o una capacidad \
          técnica transversal de la lista cerrada; un puerto de un contexto va en su \
          application/ports (HEX-3)",

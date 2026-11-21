@@ -122,6 +122,7 @@ fn hex_4_inbound_ports_are_single_method_use_cases() {
     }
 
     assert_no_violations(
+        "hex_4_inbound_ports_are_single_method_use_cases",
         "HEX-4: un puerto entrante es un `UseCase` con un único `execute` \
          o un `EventSubscriber` con un único `on`",
         &[("traits de ports/inbound", traits)],
@@ -160,6 +161,7 @@ fn hex_4_use_case_implementations_are_handlers() {
     }
 
     assert_no_violations(
+        "hex_4_use_case_implementations_are_handlers",
         "HEX-4: la implementación de un caso de uso se llama {Verb}{Noun}Handler",
         &[(
             "implementaciones de un UseCase en commands/ y queries/",
@@ -187,6 +189,7 @@ fn hex_4_api_depends_on_use_cases_never_on_handlers() {
     }
 
     assert_no_violations(
+        "hex_4_api_depends_on_use_cases_never_on_handlers",
         "HEX-4: api depende del UseCase, nunca del Handler",
         &[("archivos de api (src/ y tests/)", scanned)],
         violations,
@@ -475,6 +478,7 @@ fn hex_4_use_case_contracts_do_not_expose_domain_types() {
     }
 
     assert_no_violations(
+        "hex_4_use_case_contracts_do_not_expose_domain_types",
         "HEX-4: el contrato del caso de uso (Command, Query, Response, Error y el UseCase) \
          no expone tipos de domain; api no ve domain (HEX-1)",
         &[(
@@ -510,6 +514,7 @@ fn hex_5_outbound_ports_are_named_by_role() {
     }
 
     assert_no_violations(
+        "hex_5_outbound_ports_are_named_by_role",
         "HEX-5: puertos salientes con sufijo de rol o nombre propio de la lista, nunca `Port`",
         &[("traits de ports/outbound", ports)],
         violations,
@@ -734,6 +739,7 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
     }
 
     assert_no_violations(
+        "hex_5_adapters_are_named_by_technology_and_concept",
         "HEX-5 / TDD-2: un adaptador se llama {Tecnología}{Concepto}Adapter y vive en \
          infraestructura; un doble, {Fake|Fixed|Stub|Spy}{Concepto}Adapter. Concepto es el \
          puerto sin su sufijo de rol o, si es una capacidad del kernel (HEX-8), su nombre completo",
@@ -763,6 +769,7 @@ fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
     }
 
     assert_no_violations(
+        "hex_6_outbound_dtos_do_not_use_reserved_vocabulary",
         "HEX-6: DTOs de puerto saliente con `Request` o el nombre del concepto",
         &[("tipos de ports/outbound/dtos", dtos)],
         violations,
@@ -788,6 +795,7 @@ fn hex_6_transport_types_carry_the_transport_name() {
     }
 
     assert_no_violations(
+        "hex_6_transport_types_carry_the_transport_name",
         "HEX-6: tipos de transporte con el nombre del transporte",
         &[("tipos *Request/*Response de api", transport)],
         violations,
@@ -823,6 +831,7 @@ fn hex_7_service_suffix_is_only_an_outbound_role() {
     }
 
     assert_no_violations(
+        "hex_7_service_suffix_is_only_an_outbound_role",
         "HEX-7: `Service` es solo un rol de puerto saliente (HEX-5, último recurso); \
          en domain y application ningún tipo se llama `…Service`",
         &[(
@@ -882,6 +891,7 @@ fn hex_4_workflows_are_internal_to_application() {
     }
 
     assert_no_violations(
+        "hex_4_workflows_are_internal_to_application",
         "HEX-4: un `{Verb}{Noun}Workflow` es orquestación compartida de application: \
          vive en workflows/, no implementa un UseCase y api nunca lo nombra",
         &[
@@ -940,6 +950,7 @@ fn hex_4_event_subscribers_are_named_and_placed() {
     }
 
     assert_no_violations(
+        "hex_4_event_subscribers_are_named_and_placed",
         "HEX-4: la reacción a un evento es un `{Verb}{Noun}Subscriber` en \
          application/src/subscribers/ que implementa un `{Concepto}EventSubscriber`",
         &[(
@@ -997,6 +1008,7 @@ fn tdd_2_inbound_doubles_are_named_by_prefix_and_port() {
     }
 
     assert_no_violations(
+        "tdd_2_inbound_doubles_are_named_by_prefix_and_port",
         "TDD-2: un doble de un puerto entrante (UseCase, EventSubscriber) se llama \
          {Fake|Fixed|Stub|Spy}{Puerto}, sin `Adapter`: no es un adaptador",
         &[("dobles de puertos entrantes", doubles)],

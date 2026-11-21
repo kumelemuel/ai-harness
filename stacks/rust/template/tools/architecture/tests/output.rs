@@ -177,6 +177,7 @@ fn err_4_core_does_not_write_to_output() {
         }
     }
     assert_no_violations(
+        "err_4_core_does_not_write_to_output",
         "ERR-4: `domain` y `application` no invocan `println!`, `eprintln!`, `print!`, \
          `eprint!` ni `dbg!` fuera de `#[cfg(test)]` (el registro ocurre en el borde)",
         &[(

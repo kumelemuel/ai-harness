@@ -38,7 +38,8 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
   Puertos entrantes con argumento por valor: `fn execute(&self, command: C) -> BoxFuture<'_, …>`.
   Implementación: `Box::pin(async move { … })`, o `Box::pin(ready(x))` si es síncrona.
 - **RS-4: `cargo test -p architecture`** verifica dependencias y nombres. Si falla,
-  corrige el código, **no el test**.
+  corrige el código, **no el test**. `tools/architecture/baseline.txt` (trinquete)
+  solo se achica: nunca agregues una línea; borra o actualiza la que el test pida.
 
 ## Para un caso de uso nuevo (orden TDD)
 

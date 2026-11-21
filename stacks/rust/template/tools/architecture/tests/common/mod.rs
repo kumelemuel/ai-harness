@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -48,6 +49,15 @@ impl Crate {
     /// Nombres de paquete de todas las dependencias declaradas (ver [`dependency_names`]).
     pub fn dependencies(&self) -> Vec<String> {
         dependency_names(&self.manifest, &self.workspace)
+    }
+
+    /// `(sección, paquete)` de cada dependencia, en el orden de [`Crate::dependencies`].
+    pub fn sectioned_dependencies(&self) -> Vec<(String, String)> {
+        declared_dependencies(&self.manifest)
+            .into_iter()
+            .map(|(section, _, _)| section)
+            .zip(self.dependencies())
+            .collect()
     }
 }
 
@@ -339,16 +349,125 @@ fn material_required() -> bool {
     std::env::var(REQUIRE_MATERIAL).is_ok_and(|v| v == "1")
 }
 
-/// Cierra un test de arquitectura.
+/// Línea base del trinquete: `tools/architecture/baseline.txt`.
+pub const BASELINE: &str = "baseline.txt";
+
+/// Clave de una violación en la línea base: lo que va antes del primer `:`.
+pub fn location(violation: &str) -> &str {
+    violation.split(':').next().unwrap_or(violation).trim()
+}
+
+/// Rutas registradas para `id` en el texto de una línea base. Formato de cada
+/// línea: `<test> <clave>`; `#` empieza un comentario de línea completa.
+/// Entradas de un test en la línea base: clave → violaciones admitidas.
+pub type Baseline = BTreeMap<String, usize>;
+
+/// Clave de una violación de dependencias: manifiesto, sección y paquete.
+pub fn dependency_key(dir: &Path, section: &str, dep: &str) -> String {
+    format!("{}/Cargo.toml#{section}.{dep}", dir.display())
+}
+
+pub fn parse_baseline(text: &str, id: &str) -> Baseline {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .filter_map(|l| l.split_once(char::is_whitespace))
+        .filter(|(test, _)| *test == id)
+        .map(|(_, rest)| {
+            let mut parts = rest.split_whitespace();
+            let key = parts.next().unwrap_or_default().to_string();
+            let count = parts.next().and_then(|n| n.parse().ok()).unwrap_or(1);
+            (key, count)
+        })
+        .collect()
+}
+
+/// Informe del trinquete; vacío si cada violación está en `baseline` y cada
+/// entrada de `baseline` sigue violando. Cada línea empieza por `  - `, que es
+/// lo que el hook `PostToolUse` devuelve al agente.
+pub fn ratchet_report(id: &str, baseline: &Baseline, violations: &[String]) -> String {
+    let mut by_key: BTreeMap<&str, Vec<&String>> = BTreeMap::new();
+    for v in violations {
+        by_key.entry(location(v)).or_default().push(v);
+    }
+
+    let mut new = Vec::new();
+    let mut over = Vec::new();
+    for (key, found) in &by_key {
+        match baseline.get(*key) {
+            None => new.extend(found.iter().copied()),
+            Some(&allowed) if found.len() > allowed => over.push((*key, found, allowed)),
+            Some(_) => {}
+        }
+    }
+    let mut fixed = Vec::new();
+    let mut lower = Vec::new();
+    for (key, &allowed) in baseline {
+        match by_key.get(key.as_str()).map(Vec::len) {
+            None => fixed.push(key),
+            Some(n) if n < allowed => lower.push((key, n)),
+            Some(_) => {}
+        }
+    }
+
+    let mut lines = Vec::new();
+    if !new.is_empty() || !over.is_empty() {
+        lines.push(format!(
+            "  - violaciones nuevas: corregirlas; {BASELINE} no se agranda"
+        ));
+    }
+    for v in &new {
+        lines.push(format!("  - {v}"));
+    }
+    for (key, found, allowed) in &over {
+        lines.push(format!(
+            "  - {key}: {} violaciones y {BASELINE} admite {allowed}",
+            found.len()
+        ));
+        for v in found.iter() {
+            lines.push(format!("  - {v}"));
+        }
+    }
+    for key in &fixed {
+        lines.push(format!("  - borrar de {BASELINE}: {id} {key}"));
+    }
+    for (key, n) in &lower {
+        lines.push(format!("  - actualizar en {BASELINE}: {id} {key} {n}"));
+    }
+    if !new.is_empty() && !fixed.is_empty() {
+        lines.push(format!(
+            "  - ¿Se movió o renombró un archivo? {BASELINE} no sigue los movimientos: \
+             corregir en el lugar, borrar la entrada y después mover."
+        ));
+    }
+    lines.iter().map(|l| format!("{l}\n")).collect()
+}
+
+fn baseline_for(id: &str) -> Baseline {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(BASELINE);
+    parse_baseline(&fs::read_to_string(path).unwrap_or_default(), id)
+}
+
+/// Cierra un test de arquitectura con trinquete sobre la línea base.
 ///
 /// - `material`: cada conjunto que recorrió la regla, `(qué, cuántos)`. Se
 ///   informa siempre (visible con `--nocapture`). Con `ARCH_REQUIRE_MATERIAL=1`,
 ///   un conjunto vacío es un fallo que nombra la regla y lo que faltó.
-/// - `violations`: lo que la regla encontró mal.
-pub fn assert_no_violations(rule: &str, material: &[(&str, usize)], violations: Vec<String>) {
-    let id = rule.split(':').next().unwrap_or(rule);
+/// - `id`: el nombre de la función del test, primera columna de `baseline.txt`.
+/// - `violations`: lo que la regla encontró mal. Cada una empieza por su clave
+///   (la ruta, o `ruta/Cargo.toml#dep`) seguida de `:`.
+///
+/// Trinquete: falla si aparece una violación cuya clave no está en la línea
+/// base, o si una entrada de la línea base ya no viola. Así solo se achica.
+pub fn assert_no_violations(
+    id: &str,
+    rule: &str,
+    material: &[(&str, usize)],
+    violations: Vec<String>,
+) {
+    let rule_id = rule.split(':').next().unwrap_or(rule);
     for (what, count) in material {
-        eprintln!("{id}: revisó {count} {what}");
+        eprintln!("{rule_id}: revisó {count} {what}");
     }
     let missing: Vec<&str> = material
         .iter()
@@ -364,13 +483,20 @@ pub fn assert_no_violations(rule: &str, material: &[(&str, usize)], violations: 
             .collect::<Vec<_>>()
             .join("\n")
     );
-    assert!(
-        violations.is_empty(),
-        "\n{rule}\n{}\n",
-        violations
-            .iter()
-            .map(|v| format!("  - {v}"))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
+    let baseline = baseline_for(id);
+    let tolerated: usize = baseline
+        .iter()
+        .map(|(key, allowed)| {
+            violations
+                .iter()
+                .filter(|v| location(v) == key)
+                .count()
+                .min(*allowed)
+        })
+        .sum();
+    if tolerated > 0 {
+        eprintln!("{rule_id}: {tolerated} violaciones toleradas por {BASELINE}");
+    }
+    let report = ratchet_report(id, &baseline, &violations);
+    assert!(report.is_empty(), "\n{rule}\n{report}");
 }
