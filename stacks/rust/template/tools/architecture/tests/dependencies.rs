@@ -49,8 +49,12 @@ fn hex_1_dependencies_point_inward() {
                 let to = by_name.get(dep.as_str())?;
                 (!may_depend_on(from, to)).then(|| {
                     format!(
-                        "{} ({:?}) → {} ({:?})",
-                        from.name, from.layer, to.name, to.layer
+                        "{}/Cargo.toml#{dep}: {} ({:?}) → {} ({:?})",
+                        relative(&from.dir),
+                        from.name,
+                        from.layer,
+                        to.name,
+                        to.layer
                     )
                 })
             })
@@ -58,6 +62,7 @@ fn hex_1_dependencies_point_inward() {
         .collect();
 
     assert_no_violations(
+        "hex_1_dependencies_point_inward",
         "HEX-1: las dependencias apuntan hacia adentro; api solo ve el application de su contexto y edge; \
          api e infrastructure no se ven entre sí; sin dependencias entre contextos",
         &[
@@ -86,11 +91,19 @@ fn hex_2_core_depends_only_on_std_and_the_kernel() {
             c.dependencies()
                 .into_iter()
                 .filter(|dep| !internal.contains(&dep.as_str()))
-                .map(move |dep| format!("{} ({:?}) usa el crate externo `{dep}`", c.name, c.layer))
+                .map(move |dep| {
+                    format!(
+                        "{}/Cargo.toml#{dep}: {} ({:?}) usa el crate externo `{dep}`",
+                        relative(&c.dir),
+                        c.name,
+                        c.layer
+                    )
+                })
         })
         .collect();
 
     assert_no_violations(
+        "hex_2_core_depends_only_on_std_and_the_kernel",
         "HEX-2 / TDD-2: domain, application y kernel solo usan std y el kernel, \
          también en [dev-dependencies] (sus tests no levantan runtime ni framework)",
         &[("crates de kernel, domain y application", core.len())],
@@ -111,11 +124,19 @@ fn hex_2_server_frameworks_only_at_the_edge() {
             c.dependencies()
                 .into_iter()
                 .filter(|dep| SERVER_FRAMEWORKS.contains(&dep.as_str()))
-                .map(move |dep| format!("{} ({:?}) usa `{dep}`", c.name, c.layer))
+                .map(move |dep| {
+                    format!(
+                        "{}/Cargo.toml#{dep}: {} ({:?}) usa `{dep}`",
+                        relative(&c.dir),
+                        c.name,
+                        c.layer
+                    )
+                })
         })
         .collect();
 
     assert_no_violations(
+        "hex_2_server_frameworks_only_at_the_edge",
         "HEX-2: los frameworks de servidor solo viven en api, edge y bootstrap",
         &[(
             "crates fuera de api, edge y bootstrap (kernel, domain, application, infrastructure)",
@@ -137,7 +158,7 @@ fn rs_1_dependencies_inherit_from_the_workspace() {
         declared += declared_dependencies(manifest).len();
         for (section, dep) in non_inherited(manifest) {
             violations.push(format!(
-                "{}/Cargo.toml: [{section}] `{dep}` no hereda del workspace \
+                "{}/Cargo.toml#{dep}: [{section}] `{dep}` no hereda del workspace \
                  (declararla en [workspace.dependencies] y usar `{dep}.workspace = true`)",
                 relative(dir)
             ));
@@ -145,6 +166,7 @@ fn rs_1_dependencies_inherit_from_the_workspace() {
     }
 
     assert_no_violations(
+        "rs_1_dependencies_inherit_from_the_workspace",
         "RS-1: cada dependencia de un miembro hereda del workspace (`workspace = true`)",
         &[
             ("miembros del workspace", members.len()),

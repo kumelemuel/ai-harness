@@ -1,5 +1,24 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Trinquete oficial** (VER-1): la plantilla trae `tools/architecture/baseline.txt`
+  y `assert_no_violations(id, …)` tolera solo lo que la línea base lista, que
+  solo se achica. Viene de una adopción real. Las dependencias se registran una
+  por una (`ruta/Cargo.toml#dep`): una entrada por manifiesto toleraba cualquier
+  dependencia nueva en él.
+- **Pista de movimiento**: si un test ve a la vez una violación nueva y una
+  entrada que ya no viola, sugiere corregir en el lugar y después mover. Se
+  descartó un comando para mover entradas: el método lo vuelve innecesario.
+
+### Cambiado
+- El hook `PostToolUse` permite borrar de `baseline.txt` las líneas que el test
+  pide borrar.
+
+### Filas que cambiaron de mecanismo
+- VER-1 (la línea base solo se achica): de sin regla a `test`.
+
 ## 0.16.0 — 2026-11-20
 
 Plugins: `craft-backend` 0.13.0 y `craft-web` 0.5.0 (sin cambios).

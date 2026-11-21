@@ -368,6 +368,32 @@ cargo test --workspace
 
 ## Migración incremental
 
+### Trinquete: `tools/architecture/baseline.txt`
+
+Al adoptar el harness en un proyecto existente, los tests de arquitectura
+fallan por violaciones que no se pueden corregir de una vez. La línea base las
+registra y el trinquete impide que crezcan:
+
+1. **Se llena una sola vez**, con la auditoría inicial: una línea
+   `<test> <clave>` por violación. `<test>` es el nombre de la función del
+   test, y `<clave>` es lo que el mensaje pone antes del primer `:`: la ruta del
+   archivo, o `ruta/Cargo.toml#dep` en los tests de dependencias (una entrada
+   por dependencia, así tolerar un manifiesto no tolera una dependencia nueva).
+2. **Solo se achica.** El test falla si aparece una violación con una clave que
+   no está en la línea base, y también si una entrada ya no viola: el mensaje
+   dice `borrar de baseline.txt: <test> <clave>`. Ese es el rojo de un refactor
+   que corrige una violación, y el PR borra la línea.
+3. **Corregir en el lugar y después mover.** La línea base no sigue los
+   movimientos: mover un archivo con entradas da a la vez una violación nueva y
+   una entrada para borrar. Primero se corrige en la ruta vieja y se borra la
+   entrada; después se mueve. Si las dos cosas aparecen juntas, el test lo
+   sugiere.
+
+En un proyecto creado desde la plantilla, `baseline.txt` queda solo con la
+cabecera.
+
+### Contextos legacy
+
 Un workspace puede tener contextos ya separados por capas y otros *legacy* (un
 solo crate en `contexts/{ctx}/Cargo.toml`) mientras se migra:
 

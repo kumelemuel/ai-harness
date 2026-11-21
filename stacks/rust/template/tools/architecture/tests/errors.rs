@@ -171,6 +171,7 @@ fn err_1_domain_errors_do_not_implement_std_error() {
         }
     }
     assert_no_violations(
+        "err_1_domain_errors_do_not_implement_std_error",
         "ERR-1: los errores de dominio no implementan std::error::Error \
          (si lo hicieran, `?` los convertiría en Fault sin que nadie lo decida)",
         &[("archivos de domain", files)],
@@ -306,6 +307,7 @@ fn err_1_application_errors_do_not_implement_std_error() {
         }
     }
     assert_no_violations(
+        "err_1_application_errors_do_not_implement_std_error",
         "ERR-1: los errores de `application` (hojas, contratos y errores de puertos) no \
          implementan std::error::Error (`impl From<E: Error> for Fault` los absorbería en el \
          árbol B)",

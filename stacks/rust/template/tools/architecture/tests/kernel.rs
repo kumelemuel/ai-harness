@@ -23,7 +23,9 @@ fn hex_8_kernel_depends_only_on_std() {
     for section in DEPENDENCY_SECTIONS {
         if let Some(table) = kernel.manifest.get(*section).and_then(|v| v.as_table()) {
             for dep in table.keys() {
-                violations.push(format!("kernel/Cargo.toml: [{section}] declara `{dep}`"));
+                violations.push(format!(
+                    "kernel/Cargo.toml#{dep}: [{section}] declara `{dep}`"
+                ));
             }
         }
     }
@@ -34,7 +36,7 @@ fn hex_8_kernel_depends_only_on_std() {
                 if let Some(deps) = table.get(*section).and_then(|v| v.as_table()) {
                     for dep in deps.keys() {
                         violations.push(format!(
-                            "kernel/Cargo.toml: [target.{cfg}.{section}] declara `{dep}`"
+                            "kernel/Cargo.toml#{dep}: [target.{cfg}.{section}] declara `{dep}`"
                         ));
                     }
                 }
@@ -43,6 +45,7 @@ fn hex_8_kernel_depends_only_on_std() {
     }
 
     assert_no_violations(
+        "hex_8_kernel_depends_only_on_std",
         "HEX-8: el kernel no tiene dependencias, solo std \
          (así las firmas de sus capacidades usan solo std y kernel)",
         // Lee un solo manifiesto, no recorre un conjunto: que no declare
@@ -100,6 +103,7 @@ fn hex_8_kernel_traits_are_model_markers_or_listed_capabilities() {
     }
 
     assert_no_violations(
+        "hex_8_kernel_traits_are_model_markers_or_listed_capabilities",
         "HEX-8: todo trait público del kernel es un marcador de modelo o una capacidad \
          técnica transversal de la lista cerrada; un puerto de un contexto va en su \
          application/ports (HEX-3)",

@@ -73,6 +73,7 @@ cambiaron de mecanismo.
 | TDD-2 | Forma de los tests: sin contenedor, fakes en vez de mocks, reglas no probadas por el endpoint | `revisor:architecture-reviewer` | Prioridad 5 del revisor |
 | VER-1 | Los tests de arquitectura corren en CI y no pasan en vacío | `herramienta` | `.github/workflows/harness.yml`, job `rust`, con `ARCH_REQUIRE_MATERIAL=1` |
 | VER-1 | Lo citado existe y cada regla tiene mecanismo | `herramienta` | `scripts/check_harness.py` (`MISSING-TEST` y `VERIF-*`), job `consistency` |
+| VER-1 | La línea base de violaciones conocidas solo se achica (trinquete) | `test` | `tests/ratchet.rs::ver_1_baseline_rejects_a_new_violation`, `tests/ratchet.rs::ver_1_baseline_asks_to_delete_what_no_longer_violates` |
 | RS-1 | Un crate por capa; Cargo hace cumplir las dependencias | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` |
 | RS-1 | Las dependencias de cada miembro heredan del workspace (`workspace = true`) | `test` | `tests/dependencies.rs::rs_1_dependencies_inherit_from_the_workspace` |
 | RS-2 | `unwrap` prohibido | `herramienta` | Clippy, `unwrap_used = "deny"` en `[workspace.lints]` |

@@ -165,6 +165,7 @@ fn hex_3_domain_does_not_use_kernel_io_primitives() {
         }
     }
     assert_no_violations(
+        "hex_3_domain_does_not_use_kernel_io_primitives",
         "HEX-3: el dominio no declara puertos (no usa `BoxFuture`, `Fault` ni `Failure` del \
          kernel: un puerto implica E/S)",
         &[("archivos de domain", files)],
