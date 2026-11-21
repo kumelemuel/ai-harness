@@ -181,7 +181,7 @@ def post_edit(payload: dict) -> int:
             f"{found}\n\n"
             "Corrige el código para cumplir la regla citada; no modifiques "
             "tools/architecture para que pase. La única edición permitida es "
-            "borrar de baseline.txt las líneas que el test pide borrar."
+            "borrar o actualizar en baseline.txt las líneas que el test pida."
         )
     return feedback(
         "No se pudieron ejecutar los tests de arquitectura:\n\n"

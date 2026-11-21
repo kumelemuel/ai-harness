@@ -39,7 +39,7 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
   Implementación: `Box::pin(async move { … })`, o `Box::pin(ready(x))` si es síncrona.
 - **RS-4: `cargo test -p architecture`** verifica dependencias y nombres. Si falla,
   corrige el código, **no el test**. `tools/architecture/baseline.txt` (trinquete)
-  solo se achica: nunca agregues una línea; borra la que el test pide borrar.
+  solo se achica: nunca agregues una línea; borra o actualiza la que el test pida.
 
 ## Para un caso de uso nuevo (orden TDD)
 

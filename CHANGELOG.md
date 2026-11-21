@@ -4,20 +4,24 @@
 
 ### Agregado
 - **Trinquete oficial** (VER-1): la plantilla trae `tools/architecture/baseline.txt`
-  y `assert_no_violations(id, …)` tolera solo lo que la línea base lista, que
-  solo se achica. Viene de una adopción real. Las dependencias se registran una
-  por una (`ruta/Cargo.toml#dep`): una entrada por manifiesto toleraba cualquier
-  dependencia nueva en él.
+  (`<test> <clave> [n]`) y `assert_no_violations(id, …)` tolera solo lo que
+  lista, que solo se achica. Viene de una adopción real. Una entrada por
+  manifiesto o por archivo toleraba cualquier violación nueva en él: ahora las
+  dependencias llevan sección y paquete (`#dev-dependencies.tokio`) y cada clave
+  lleva su conteo. `ver_1_baseline_ids_match_tests` exige que los ids sean los
+  nombres de los tests.
 - **Pista de movimiento**: si un test ve a la vez una violación nueva y una
   entrada que ya no viola, sugiere corregir en el lugar y después mover. Se
   descartó un comando para mover entradas: el método lo vuelve innecesario.
 
 ### Cambiado
-- El hook `PostToolUse` permite borrar de `baseline.txt` las líneas que el test
-  pide borrar.
+- El mensaje del hook `PostToolUse` dice que la única edición permitida en
+  `baseline.txt` es borrar las líneas que el test pide borrar. Todo el informe
+  del trinquete le llega al agente.
 
 ### Filas que cambiaron de mecanismo
-- VER-1 (la línea base solo se achica): de sin regla a `test`.
+- VER-1 (trinquete y sus ids): de sin regla a `test`.
+- VER-1 (nadie agrega líneas a la línea base): de sin regla a `pendiente`.
 
 ## 0.16.0 — 2026-11-20
 

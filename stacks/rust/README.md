@@ -375,19 +375,26 @@ fallan por violaciones que no se pueden corregir de una vez. La línea base las
 registra y el trinquete impide que crezcan:
 
 1. **Se llena una sola vez**, con la auditoría inicial: una línea
-   `<test> <clave>` por violación. `<test>` es el nombre de la función del
-   test, y `<clave>` es lo que el mensaje pone antes del primer `:`: la ruta del
-   archivo, o `ruta/Cargo.toml#dep` en los tests de dependencias (una entrada
-   por dependencia, así tolerar un manifiesto no tolera una dependencia nueva).
-2. **Solo se achica.** El test falla si aparece una violación con una clave que
-   no está en la línea base, y también si una entrada ya no viola: el mensaje
-   dice `borrar de baseline.txt: <test> <clave>`. Ese es el rojo de un refactor
-   que corrige una violación, y el PR borra la línea.
+   `<test> <clave> [n]` por clave distinta. `<test>` es el nombre de la función
+   del test. `<clave>` es lo que el mensaje pone antes del primer `:`: la ruta
+   del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests de
+   dependencias (por ejemplo `#dev-dependencies.tokio`). `n` es cuántas
+   violaciones de esa clave se admiten, 1 si se omite.
+2. **Solo se achica.** El test falla si aparece una clave que no está en la
+   línea base o si una clave supera su `n`. También falla si una entrada ya no
+   viola (`borrar de baseline.txt: …`) o viola menos (`actualizar en
+   baseline.txt: … n`). Ese es el rojo de un refactor que corrige una
+   violación, y el PR borra o actualiza la línea. Que nadie *agregue* una línea
+   no lo verifica ningún test: lo dicen la skill y el hook, y lo ve el revisor
+   del PR.
 3. **Corregir en el lugar y después mover.** La línea base no sigue los
    movimientos: mover un archivo con entradas da a la vez una violación nueva y
    una entrada para borrar. Primero se corrige en la ruta vieja y se borra la
    entrada; después se mueve. Si las dos cosas aparecen juntas, el test lo
    sugiere.
+4. **Los ids son verificados.** `ver_1_baseline_ids_match_tests` exige que cada
+   llamada a `assert_no_violations` pase el nombre de su función y que cada
+   `<test>` de la línea base exista.
 
 En un proyecto creado desde la plantilla, `baseline.txt` queda solo con la
 cabecera.

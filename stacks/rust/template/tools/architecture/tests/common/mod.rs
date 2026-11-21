@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -49,6 +49,15 @@ impl Crate {
     /// Nombres de paquete de todas las dependencias declaradas (ver [`dependency_names`]).
     pub fn dependencies(&self) -> Vec<String> {
         dependency_names(&self.manifest, &self.workspace)
+    }
+
+    /// `(sección, paquete)` de cada dependencia, en el orden de [`Crate::dependencies`].
+    pub fn sectioned_dependencies(&self) -> Vec<(String, String)> {
+        declared_dependencies(&self.manifest)
+            .into_iter()
+            .map(|(section, _, _)| section)
+            .zip(self.dependencies())
+            .collect()
     }
 }
 
@@ -350,55 +359,91 @@ pub fn location(violation: &str) -> &str {
 
 /// Rutas registradas para `id` en el texto de una línea base. Formato de cada
 /// línea: `<test> <clave>`; `#` empieza un comentario de línea completa.
-pub fn parse_baseline(text: &str, id: &str) -> BTreeSet<String> {
+/// Entradas de un test en la línea base: clave → violaciones admitidas.
+pub type Baseline = BTreeMap<String, usize>;
+
+/// Clave de una violación de dependencias: manifiesto, sección y paquete.
+pub fn dependency_key(dir: &Path, section: &str, dep: &str) -> String {
+    format!("{}/Cargo.toml#{section}.{dep}", dir.display())
+}
+
+pub fn parse_baseline(text: &str, id: &str) -> Baseline {
     text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .filter_map(|l| l.split_once(char::is_whitespace))
         .filter(|(test, _)| *test == id)
-        .map(|(_, key)| key.trim().to_string())
+        .map(|(_, rest)| {
+            let mut parts = rest.split_whitespace();
+            let key = parts.next().unwrap_or_default().to_string();
+            let count = parts.next().and_then(|n| n.parse().ok()).unwrap_or(1);
+            (key, count)
+        })
         .collect()
 }
 
 /// Informe del trinquete; vacío si cada violación está en `baseline` y cada
 /// entrada de `baseline` sigue violando. Cada línea empieza por `  - `, que es
 /// lo que el hook `PostToolUse` devuelve al agente.
-pub fn ratchet_report(id: &str, baseline: &BTreeSet<String>, violations: &[String]) -> String {
-    let current: BTreeSet<&str> = violations.iter().map(|v| location(v)).collect();
-    let new: Vec<&String> = violations
-        .iter()
-        .filter(|v| !baseline.contains(location(v)))
-        .collect();
-    let fixed: Vec<&String> = baseline
-        .iter()
-        .filter(|key| !current.contains(key.as_str()))
-        .collect();
+pub fn ratchet_report(id: &str, baseline: &Baseline, violations: &[String]) -> String {
+    let mut by_key: BTreeMap<&str, Vec<&String>> = BTreeMap::new();
+    for v in violations {
+        by_key.entry(location(v)).or_default().push(v);
+    }
 
-    let mut report = String::new();
-    if !new.is_empty() {
-        report.push_str(&format!(
-            "\nViolaciones nuevas (corregirlas; {BASELINE} no se agranda):\n"
-        ));
-        for v in &new {
-            report.push_str(&format!("  - {v}\n"));
+    let mut new = Vec::new();
+    let mut over = Vec::new();
+    for (key, found) in &by_key {
+        match baseline.get(*key) {
+            None => new.extend(found.iter().copied()),
+            Some(&allowed) if found.len() > allowed => over.push((*key, found, allowed)),
+            Some(_) => {}
         }
     }
-    if !fixed.is_empty() {
-        report.push_str("\nYa no violan:\n");
-        for key in &fixed {
-            report.push_str(&format!("  - borrar de {BASELINE}: {id} {key}\n"));
+    let mut fixed = Vec::new();
+    let mut lower = Vec::new();
+    for (key, &allowed) in baseline {
+        match by_key.get(key.as_str()).map(Vec::len) {
+            None => fixed.push(key),
+            Some(n) if n < allowed => lower.push((key, n)),
+            Some(_) => {}
         }
+    }
+
+    let mut lines = Vec::new();
+    if !new.is_empty() || !over.is_empty() {
+        lines.push(format!(
+            "  - violaciones nuevas: corregirlas; {BASELINE} no se agranda"
+        ));
+    }
+    for v in &new {
+        lines.push(format!("  - {v}"));
+    }
+    for (key, found, allowed) in &over {
+        lines.push(format!(
+            "  - {key}: {} violaciones y {BASELINE} admite {allowed}",
+            found.len()
+        ));
+        for v in found.iter() {
+            lines.push(format!("  - {v}"));
+        }
+    }
+    for key in &fixed {
+        lines.push(format!("  - borrar de {BASELINE}: {id} {key}"));
+    }
+    for (key, n) in &lower {
+        lines.push(format!("  - actualizar en {BASELINE}: {id} {key} {n}"));
     }
     if !new.is_empty() && !fixed.is_empty() {
-        report.push_str(&format!(
+        lines.push(format!(
             "  - ¿Se movió o renombró un archivo? {BASELINE} no sigue los movimientos: \
-             corregir en el lugar, borrar la entrada y después mover.\n"
+             corregir en el lugar, borrar la entrada y después mover."
         ));
     }
-    report
+    lines.iter().map(|l| format!("{l}\n")).collect()
 }
 
-fn baseline_for(id: &str) -> BTreeSet<String> {
+fn baseline_for(id: &str) -> Baseline {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(BASELINE);
     parse_baseline(&fs::read_to_string(path).unwrap_or_default(), id)
 }
@@ -439,10 +484,16 @@ pub fn assert_no_violations(
             .join("\n")
     );
     let baseline = baseline_for(id);
-    let tolerated = violations
+    let tolerated: usize = baseline
         .iter()
-        .filter(|v| baseline.contains(location(v)))
-        .count();
+        .map(|(key, allowed)| {
+            violations
+                .iter()
+                .filter(|v| location(v) == key)
+                .count()
+                .min(*allowed)
+        })
+        .sum();
     if tolerated > 0 {
         eprintln!("{rule_id}: {tolerated} violaciones toleradas por {BASELINE}");
     }

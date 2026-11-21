@@ -6,13 +6,18 @@
 mod common;
 
 use common::{
-    Crate, Layer, assert_no_violations, crates, declared_dependencies, dependency_names,
-    expand_members, non_inherited, relative, workspace_members,
+    Crate, Layer, assert_no_violations, crates, declared_dependencies, dependency_key,
+    dependency_names, expand_members, non_inherited, relative, workspace_members,
 };
 use std::collections::HashMap;
 
 /// Frameworks de servidor: solo en el borde driving y en el composition root.
 const SERVER_FRAMEWORKS: &[&str] = &["axum", "actix-web", "rocket", "warp", "poem", "tower-http"];
+
+/// Clave de la violación en la línea base: `ruta/Cargo.toml#sección.paquete`.
+fn key_of(dir: &std::path::Path, section: &str, dep: &str) -> String {
+    dependency_key(std::path::Path::new(&relative(dir)), section, dep)
+}
 
 fn may_depend_on(from: &Crate, to: &Crate) -> bool {
     use Layer::*;
@@ -45,19 +50,21 @@ fn hex_1_dependencies_point_inward() {
     let violations = crates
         .iter()
         .flat_map(|from| {
-            from.dependencies().into_iter().filter_map(|dep| {
-                let to = by_name.get(dep.as_str())?;
-                (!may_depend_on(from, to)).then(|| {
-                    format!(
-                        "{}/Cargo.toml#{dep}: {} ({:?}) → {} ({:?})",
-                        relative(&from.dir),
-                        from.name,
-                        from.layer,
-                        to.name,
-                        to.layer
-                    )
+            from.sectioned_dependencies()
+                .into_iter()
+                .filter_map(|(section, dep)| {
+                    let to = by_name.get(dep.as_str())?;
+                    (!may_depend_on(from, to)).then(|| {
+                        format!(
+                            "{}: {} ({:?}) → {} ({:?})",
+                            key_of(&from.dir, &section, &dep),
+                            from.name,
+                            from.layer,
+                            to.name,
+                            to.layer
+                        )
+                    })
                 })
-            })
         })
         .collect();
 
@@ -88,13 +95,13 @@ fn hex_2_core_depends_only_on_std_and_the_kernel() {
     let violations = core
         .iter()
         .flat_map(|c| {
-            c.dependencies()
+            c.sectioned_dependencies()
                 .into_iter()
-                .filter(|dep| !internal.contains(&dep.as_str()))
-                .map(move |dep| {
+                .filter(|(_, dep)| !internal.contains(&dep.as_str()))
+                .map(move |(section, dep)| {
                     format!(
-                        "{}/Cargo.toml#{dep}: {} ({:?}) usa el crate externo `{dep}`",
-                        relative(&c.dir),
+                        "{}: {} ({:?}) usa el crate externo `{dep}`",
+                        key_of(&c.dir, &section, &dep),
                         c.name,
                         c.layer
                     )
@@ -121,13 +128,13 @@ fn hex_2_server_frameworks_only_at_the_edge() {
     let violations = inner
         .iter()
         .flat_map(|c| {
-            c.dependencies()
+            c.sectioned_dependencies()
                 .into_iter()
-                .filter(|dep| SERVER_FRAMEWORKS.contains(&dep.as_str()))
-                .map(move |dep| {
+                .filter(|(_, dep)| SERVER_FRAMEWORKS.contains(&dep.as_str()))
+                .map(move |(section, dep)| {
                     format!(
-                        "{}/Cargo.toml#{dep}: {} ({:?}) usa `{dep}`",
-                        relative(&c.dir),
+                        "{}: {} ({:?}) usa `{dep}`",
+                        key_of(&c.dir, &section, &dep),
                         c.name,
                         c.layer
                     )
@@ -158,9 +165,9 @@ fn rs_1_dependencies_inherit_from_the_workspace() {
         declared += declared_dependencies(manifest).len();
         for (section, dep) in non_inherited(manifest) {
             violations.push(format!(
-                "{}/Cargo.toml#{dep}: [{section}] `{dep}` no hereda del workspace \
+                "{}: [{section}] `{dep}` no hereda del workspace \
                  (declararla en [workspace.dependencies] y usar `{dep}.workspace = true`)",
-                relative(dir)
+                key_of(dir, &section, &dep)
             ));
         }
     }
@@ -224,6 +231,20 @@ mod resolution {
         );
 
         assert_eq!(found, ["tokio"]);
+    }
+
+    #[test]
+    fn a_dependency_violation_is_keyed_by_manifest_section_and_package() {
+        let key = dependency_key(
+            std::path::Path::new("contexts/x/domain"),
+            "target.'cfg(unix)'.dev-dependencies",
+            "tokio",
+        );
+
+        assert_eq!(
+            key,
+            "contexts/x/domain/Cargo.toml#target.'cfg(unix)'.dev-dependencies.tokio"
+        );
     }
 
     #[test]
