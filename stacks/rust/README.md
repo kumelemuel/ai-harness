@@ -90,8 +90,12 @@ kernel.workspace = true
 workspace = true
 ```
 
-Las versiones de crates externos se declaran una sola vez en
-`[workspace.dependencies]`.
+Las versiones de los crates se declaran una sola vez en
+`[workspace.dependencies]`, y cada miembro las hereda con `dep.workspace = true`
+(puede agregar `features`). Lo exige `rs_1_dependencies_inherit_from_the_workspace`,
+también en `[dev-dependencies]`, `[build-dependencies]` y `[target.'cfg(…)'.*]`.
+Los tests de dependencias (HEX-1, HEX-2) resuelven los renombres
+(`foo = { package = "axum" }`, también en la raíz): cuenta el paquete, no la clave.
 
 **Sin dependencias entre contextos.** Un contexto no importa el dominio de otro
 (p. ej. `AccountId` de `iam` dentro de `communities`): modela su propia vista

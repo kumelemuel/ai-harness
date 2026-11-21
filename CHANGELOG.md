@@ -1,5 +1,22 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Herencia del workspace** (RS-1): `rs_1_dependencies_inherit_from_the_workspace`
+  exige `workspace = true` en cada dependencia de cada miembro. Antes, un crate
+  nuevo podía fijar su propia versión sin que nada fallara (hallazgo del revisor
+  en la adopción de un proyecto).
+
+### Corregido
+- **Renombres y dependencias por target** (HEX-1, HEX-2): los tests leían solo la
+  clave de la dependencia. `foo = { package = "axum" }`, local o en la raíz,
+  pasaba `hex_2_server_frameworks_*` en infrastructure. Tampoco se leía
+  `[target.'cfg(…)'.*]`.
+
+### Filas que cambiaron de mecanismo
+- RS-1 (herencia del workspace): de sin regla a `test`.
+
 ## 0.15.0 — 2026-11-19
 
 Plugins: `craft-backend` 0.12.0 y `craft-web` 0.5.0 (sin cambios).

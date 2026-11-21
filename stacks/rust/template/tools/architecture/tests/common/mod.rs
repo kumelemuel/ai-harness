@@ -40,16 +40,77 @@ pub struct Crate {
     pub context: Option<String>,
     pub dir: PathBuf,
     pub manifest: toml::Table,
+    /// `[workspace.dependencies]` de la raíz, para resolver `dep.workspace = true`.
+    pub workspace: toml::Table,
 }
 
 impl Crate {
+    /// Nombres de paquete de todas las dependencias declaradas (ver [`dependency_names`]).
     pub fn dependencies(&self) -> Vec<String> {
-        ["dependencies", "dev-dependencies", "build-dependencies"]
-            .iter()
-            .filter_map(|section| self.manifest.get(*section).and_then(|v| v.as_table()))
-            .flat_map(|table| table.keys().cloned())
-            .collect()
+        dependency_names(&self.manifest, &self.workspace)
     }
+}
+
+/// Secciones de dependencias de un manifiesto.
+pub const DEPENDENCY_SECTIONS: &[&str] =
+    &["dependencies", "dev-dependencies", "build-dependencies"];
+
+/// Cada dependencia declarada en `manifest`, también las de
+/// `[target.'cfg(…)'.*]`: `(sección, clave, valor)`.
+pub fn declared_dependencies(manifest: &toml::Table) -> Vec<(String, String, toml::Value)> {
+    let mut tables: Vec<(String, &toml::Table)> = DEPENDENCY_SECTIONS
+        .iter()
+        .filter_map(|section| Some((section.to_string(), manifest.get(*section)?.as_table()?)))
+        .collect();
+    if let Some(targets) = manifest.get("target").and_then(|t| t.as_table()) {
+        for (cfg, target) in targets {
+            for section in DEPENDENCY_SECTIONS {
+                if let Some(table) = target.get(*section).and_then(|v| v.as_table()) {
+                    tables.push((format!("target.'{cfg}'.{section}"), table));
+                }
+            }
+        }
+    }
+    tables
+        .into_iter()
+        .flat_map(|(section, table)| {
+            table
+                .iter()
+                .map(move |(k, v)| (section.clone(), k.clone(), v.clone()))
+        })
+        .collect()
+}
+
+fn inherits(value: &toml::Value) -> bool {
+    value.get("workspace").and_then(toml::Value::as_bool) == Some(true)
+}
+
+fn package_of(value: &toml::Value) -> Option<String> {
+    value.get("package")?.as_str().map(str::to_string)
+}
+
+/// Nombres de paquete de las dependencias de `manifest`. Resuelve los
+/// renombres (`foo = { package = "axum" }`), también cuando el renombre está en
+/// `[workspace.dependencies]` y el miembro solo dice `foo.workspace = true`.
+pub fn dependency_names(manifest: &toml::Table, workspace: &toml::Table) -> Vec<String> {
+    declared_dependencies(manifest)
+        .into_iter()
+        .map(|(_, key, value)| {
+            let inherited = inherits(&value)
+                .then(|| workspace.get(&key).and_then(package_of))
+                .flatten();
+            package_of(&value).or(inherited).unwrap_or(key)
+        })
+        .collect()
+}
+
+/// Dependencias que no heredan del workspace (`workspace = true`): `(sección, clave)`.
+pub fn non_inherited(manifest: &toml::Table) -> Vec<(String, String)> {
+    declared_dependencies(manifest)
+        .into_iter()
+        .filter(|(_, _, value)| !inherits(value))
+        .map(|(section, key, _)| (section, key))
+        .collect()
 }
 
 pub fn root() -> PathBuf {
@@ -72,6 +133,19 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
     dirs
 }
 
+/// `[workspace.dependencies]` del `Cargo.toml` de la raíz.
+pub fn workspace_dependencies() -> toml::Table {
+    let text =
+        fs::read_to_string(root().join("Cargo.toml")).expect("invariante: Cargo.toml raíz legible");
+    let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml raíz válido");
+    manifest
+        .get("workspace")
+        .and_then(|w| w.get("dependencies"))
+        .and_then(|d| d.as_table())
+        .cloned()
+        .unwrap_or_default()
+}
+
 fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
     let text = fs::read_to_string(dir.join("Cargo.toml")).expect("invariante: Cargo.toml legible");
     let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml válido");
@@ -85,6 +159,7 @@ fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
         context,
         dir,
         manifest,
+        workspace: workspace_dependencies(),
     }
 }
 
@@ -156,6 +231,21 @@ pub fn crates() -> Vec<Crate> {
     }
 
     crates
+}
+
+/// Cada miembro del workspace con su manifiesto: los crates que clasifica
+/// [`crates`] más los de `tools/`.
+pub fn workspace_members() -> Vec<(PathBuf, toml::Table)> {
+    let mut members: Vec<(PathBuf, toml::Table)> =
+        crates().into_iter().map(|c| (c.dir, c.manifest)).collect();
+    for tool in subdirs(&root().join("tools")) {
+        if tool.join("Cargo.toml").exists() {
+            let text = fs::read_to_string(tool.join("Cargo.toml"))
+                .expect("invariante: Cargo.toml legible");
+            members.push((tool, text.parse().expect("invariante: Cargo.toml válido")));
+        }
+    }
+    members
 }
 
 pub fn rust_files(dir: &Path) -> Vec<PathBuf> {

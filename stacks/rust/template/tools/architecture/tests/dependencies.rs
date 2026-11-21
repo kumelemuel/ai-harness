@@ -5,7 +5,10 @@
 
 mod common;
 
-use common::{Crate, Layer, assert_no_violations, crates};
+use common::{
+    Crate, Layer, assert_no_violations, crates, dependency_names, non_inherited, relative,
+    workspace_members,
+};
 use std::collections::HashMap;
 
 /// Frameworks de servidor: solo en el borde driving y en el composition root.
@@ -120,4 +123,121 @@ fn hex_2_server_frameworks_only_at_the_edge() {
         )],
         violations,
     );
+}
+
+/// RS-1: las versiones de los crates se declaran una sola vez, en
+/// `[workspace.dependencies]`. Un miembro que fija la suya puede divergir del
+/// resto sin que nada lo muestre.
+#[test]
+fn rs_1_dependencies_inherit_from_the_workspace() {
+    let members = workspace_members();
+    let mut declared = 0;
+    let mut violations = Vec::new();
+    for (dir, manifest) in &members {
+        declared += dependency_names(manifest, &toml::Table::new()).len();
+        for (section, dep) in non_inherited(manifest) {
+            violations.push(format!(
+                "{}/Cargo.toml: [{section}] `{dep}` no hereda del workspace \
+                 (declararla en [workspace.dependencies] y usar `{dep}.workspace = true`)",
+                relative(dir)
+            ));
+        }
+    }
+
+    assert_no_violations(
+        "RS-1: cada dependencia de un miembro hereda del workspace (`workspace = true`)",
+        &[
+            ("miembros del workspace", members.len()),
+            ("dependencias declaradas", declared),
+        ],
+        violations,
+    );
+}
+
+/// Resolución de nombres que usan HEX-1 y HEX-2. Sin ella, un renombre
+/// (`foo = { package = "axum" }`) esconde el paquete real detrás de la clave.
+mod resolution {
+    use super::*;
+
+    fn table(text: &str) -> toml::Table {
+        text.parse().expect("invariante: TOML de prueba válido")
+    }
+
+    fn names(manifest: &str, workspace: &str) -> Vec<String> {
+        let workspace = table(workspace);
+        let workspace = workspace
+            .get("workspace")
+            .and_then(|w| w.get("dependencies"))
+            .and_then(|d| d.as_table())
+            .cloned()
+            .unwrap_or_default();
+        dependency_names(&table(manifest), &workspace)
+    }
+
+    #[test]
+    fn a_workspace_rename_resolves_to_the_real_package() {
+        let found = names(
+            "[dependencies]\nfoo.workspace = true\n",
+            "[workspace.dependencies]\nfoo = { package = \"axum\", version = \"0.8\" }\n",
+        );
+
+        assert_eq!(found, ["axum"]);
+    }
+
+    #[test]
+    fn a_local_rename_resolves_to_the_real_package() {
+        let found = names(
+            "[dependencies]\nfoo = { package = \"axum\", version = \"0.8\" }\n",
+            "",
+        );
+
+        assert_eq!(found, ["axum"]);
+    }
+
+    #[test]
+    fn target_specific_dependencies_are_read() {
+        let found = names(
+            "[target.'cfg(unix)'.dev-dependencies]\ntokio.workspace = true\n",
+            "[workspace.dependencies]\ntokio = \"1\"\n",
+        );
+
+        assert_eq!(found, ["tokio"]);
+    }
+
+    #[test]
+    fn a_plain_dependency_keeps_its_key() {
+        let found = names(
+            "[dependencies]\nkernel.workspace = true\n",
+            "[workspace.dependencies]\nkernel = { path = \"kernel\" }\n",
+        );
+
+        assert_eq!(found, ["kernel"]);
+    }
+
+    #[test]
+    fn only_workspace_true_counts_as_inherited() {
+        let manifest = table(
+            "[dependencies]\n\
+             a.workspace = true\n\
+             b = { workspace = true, features = [\"x\"] }\n\
+             c = \"1\"\n\
+             d = { path = \"../d\" }\n\
+             [target.'cfg(unix)'.build-dependencies]\n\
+             e = { version = \"1\" }\n",
+        );
+
+        let found = non_inherited(&manifest);
+
+        assert_eq!(
+            found,
+            [
+                ("dependencies".to_string(), "c".to_string()),
+                ("dependencies".to_string(), "d".to_string()),
+                (
+                    "target.'cfg(unix)'.build-dependencies".to_string(),
+                    "e".to_string()
+                ),
+            ]
+        );
+    }
 }
