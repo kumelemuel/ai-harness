@@ -6,8 +6,8 @@
 mod common;
 
 use common::{
-    Crate, Layer, assert_no_violations, crates, dependency_names, non_inherited, relative,
-    workspace_members,
+    Crate, Layer, assert_no_violations, crates, declared_dependencies, dependency_names,
+    expand_members, non_inherited, relative, workspace_members,
 };
 use std::collections::HashMap;
 
@@ -134,7 +134,7 @@ fn rs_1_dependencies_inherit_from_the_workspace() {
     let mut declared = 0;
     let mut violations = Vec::new();
     for (dir, manifest) in &members {
-        declared += dependency_names(manifest, &toml::Table::new()).len();
+        declared += declared_dependencies(manifest).len();
         for (section, dep) in non_inherited(manifest) {
             violations.push(format!(
                 "{}/Cargo.toml: [{section}] `{dep}` no hereda del workspace \
@@ -212,6 +212,65 @@ mod resolution {
         );
 
         assert_eq!(found, ["kernel"]);
+    }
+
+    /// Un árbol temporal con un `Cargo.toml` en cada ruta dada.
+    fn tree(name: &str, crates: &[&str]) -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!("arch-members-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for dir in crates {
+            let dir = root.join(dir);
+            std::fs::create_dir_all(&dir).expect("invariante: tmp escribible");
+            std::fs::write(dir.join("Cargo.toml"), "").expect("invariante: tmp escribible");
+        }
+        root
+    }
+
+    fn members_of(root: &std::path::Path, manifest: &str) -> Vec<String> {
+        expand_members(root, &table(manifest))
+            .iter()
+            .map(|d| {
+                d.strip_prefix(root)
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn members_come_from_the_workspace_globs_not_from_the_layout() {
+        let root = tree(
+            "globs",
+            &[
+                "libs/util",
+                "contexts/iam",
+                "contexts/communities/domain",
+                "old/x",
+            ],
+        );
+
+        let found = members_of(
+            &root,
+            "[workspace]\nmembers = [\"libs/*\", \"contexts/iam\", \"contexts/communities/*\", \"old/*\"]\n\
+             exclude = [\"old/x\"]\n",
+        );
+
+        assert_eq!(
+            found,
+            ["contexts/communities/domain", "contexts/iam", "libs/util"]
+        );
+    }
+
+    #[test]
+    fn a_root_package_is_a_member() {
+        let root = tree("root", &[]);
+
+        let found = members_of(
+            &root,
+            "[package]\nname = \"app\"\n[workspace]\nmembers = []\n",
+        );
+
+        assert_eq!(found, [""]);
     }
 
     #[test]

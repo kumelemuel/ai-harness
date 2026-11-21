@@ -233,19 +233,69 @@ pub fn crates() -> Vec<Crate> {
     crates
 }
 
-/// Cada miembro del workspace con su manifiesto: los crates que clasifica
-/// [`crates`] más los de `tools/`.
-pub fn workspace_members() -> Vec<(PathBuf, toml::Table)> {
-    let mut members: Vec<(PathBuf, toml::Table)> =
-        crates().into_iter().map(|c| (c.dir, c.manifest)).collect();
-    for tool in subdirs(&root().join("tools")) {
-        if tool.join("Cargo.toml").exists() {
-            let text = fs::read_to_string(tool.join("Cargo.toml"))
-                .expect("invariante: Cargo.toml legible");
-            members.push((tool, text.parse().expect("invariante: Cargo.toml válido")));
-        }
+/// Directorios de los miembros que declara `[workspace]` en `root`: expande
+/// los globs de `members` (solo `*` por segmento) y quita `exclude`. Incluye la
+/// raíz si además es un paquete.
+pub fn expand_members(root: &Path, workspace_manifest: &toml::Table) -> Vec<PathBuf> {
+    fn strings(table: Option<&toml::Value>) -> Vec<String> {
+        table
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
-    members
+    let workspace = workspace_manifest.get("workspace");
+    let exclude: Vec<PathBuf> = strings(workspace.and_then(|w| w.get("exclude")))
+        .iter()
+        .map(|e| root.join(e))
+        .collect();
+    let mut found: Vec<PathBuf> = Vec::new();
+    for pattern in strings(workspace.and_then(|w| w.get("members"))) {
+        let mut dirs = vec![root.to_path_buf()];
+        for segment in pattern.split('/') {
+            dirs = dirs
+                .into_iter()
+                .flat_map(|dir| {
+                    if segment == "*" {
+                        subdirs(&dir).into_iter().filter(|d| d.is_dir()).collect()
+                    } else {
+                        vec![dir.join(segment)]
+                    }
+                })
+                .collect();
+        }
+        found.extend(
+            dirs.into_iter()
+                .filter(|d| d.join("Cargo.toml").exists() && !exclude.contains(d)),
+        );
+    }
+    if workspace_manifest.contains_key("package") {
+        found.push(root.to_path_buf());
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// Cada miembro del workspace con su manifiesto, según `[workspace] members`:
+/// también los contextos legacy y los crates que [`crates`] no clasifica.
+pub fn workspace_members() -> Vec<(PathBuf, toml::Table)> {
+    let root = root();
+    let text =
+        fs::read_to_string(root.join("Cargo.toml")).expect("invariante: Cargo.toml raíz legible");
+    let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml raíz válido");
+    expand_members(&root, &manifest)
+        .into_iter()
+        .map(|dir| {
+            let text =
+                fs::read_to_string(dir.join("Cargo.toml")).expect("invariante: Cargo.toml legible");
+            let member = text.parse().expect("invariante: Cargo.toml válido");
+            (dir, member)
+        })
+        .collect()
 }
 
 pub fn rust_files(dir: &Path) -> Vec<PathBuf> {

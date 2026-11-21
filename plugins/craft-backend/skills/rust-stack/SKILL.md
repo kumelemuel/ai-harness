@@ -18,6 +18,7 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
 ## Decisiones del stack
 
 - **RS-1: un crate por capa**, en `contexts/{ctx}/{domain,application,infrastructure,api}`.
+  Cada dependencia hereda del workspace (`dep.workspace = true`; la versión, en la raíz).
   El crate se nombra `{ctx}-{capa}`. `{ctx}-api` solo ve su `{ctx}-application`,
   `edge-http` y el kernel. `edge/http` (Problem Details, `AuthenticatedAccount`,
   `unexpected`) es lo único compartido del borde. `apps/server` (o `app/`) es el
