@@ -1,10 +1,13 @@
 # Changelog
 
-## Sin publicar
+## 0.16.0 — 2026-11-20
+
+Plugins: `craft-backend` 0.13.0 y `craft-web` 0.5.0 (sin cambios).
 
 ### Agregado
 - **Herencia del workspace** (RS-1): `rs_1_dependencies_inherit_from_the_workspace`
-  exige `workspace = true` en cada dependencia de cada miembro. Antes, un crate
+  exige `workspace = true` en cada dependencia de cada miembro de
+  `[workspace] members`. Antes, un crate
   nuevo podía fijar su propia versión sin que nada fallara (hallazgo del revisor
   en la adopción de un proyecto).
 
