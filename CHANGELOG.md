@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 0.17.0 — 2026-11-20
+
+Plugins: `craft-backend` 0.14.0 y `craft-web` 0.5.0 (sin cambios).
 
 ### Agregado
 - **Trinquete oficial** (VER-1): la plantilla trae `tools/architecture/baseline.txt`
