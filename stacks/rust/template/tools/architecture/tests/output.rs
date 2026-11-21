@@ -7,7 +7,7 @@
 
 mod common;
 
-use common::{Layer, assert_no_violations, crates, parse, relative, rust_files};
+use common::{Layer, assert_no_violations, crates, parse, relative};
 use proc_macro2::{TokenStream, TokenTree};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -140,7 +140,7 @@ fn err_4_core_does_not_write_to_output() {
         .into_iter()
         .filter(|c| matches!(c.layer, Layer::Domain | Layer::Application))
     {
-        let files = rust_files(&krate.dir.join("src"));
+        let files = krate.files("src");
         let mut test_files: Vec<PathBuf> = Vec::new();
         let mut per_file = Vec::new();
         for file in &files {

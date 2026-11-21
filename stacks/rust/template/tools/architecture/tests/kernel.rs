@@ -4,7 +4,7 @@ mod common;
 
 use common::{
     CAPABILITIES, Layer, MODEL_MARKERS, assert_no_violations, crates, declared_dependencies,
-    dependency_key, parse, relative, rust_files,
+    dependency_key, parse, relative,
 };
 
 fn kernel() -> common::Crate {
@@ -71,7 +71,7 @@ fn hex_8_kernel_traits_are_model_markers_or_listed_capabilities() {
     let mut violations = Vec::new();
     let mut checked = 0;
 
-    for path in rust_files(&kernel.dir.join("src")) {
+    for path in kernel.files("src") {
         let mut traits = Vec::new();
         public_traits(&parse(&path).items, &mut traits);
         checked += traits.len();

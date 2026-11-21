@@ -39,13 +39,62 @@ pub struct Crate {
     pub name: String,
     pub layer: Layer,
     pub context: Option<String>,
+    /// Directorio del `Cargo.toml`.
     pub dir: PathBuf,
+    /// Raíz del código de la capa: `dir/src` en un crate por capa; el módulo de
+    /// la capa en un contexto legacy (`contexts/iam/src/domain`).
+    pub src: PathBuf,
+    /// Tests de integración de la capa: `dir/tests`. En un contexto legacy no
+    /// hay: los `tests/` del crate no pertenecen a una sola capa.
+    pub tests: Option<PathBuf>,
+    /// legacy: `true` si es una capa virtual de un contexto legacy.
+    pub legacy: bool,
+    /// legacy: archivo del módulo de la capa (`src/domain.rs`), si existe.
+    pub module_file: Option<PathBuf>,
+    /// legacy: submódulo que pertenece a otra capa (`infrastructure/http` es
+    /// Api, no Infrastructure).
+    pub skip: Option<PathBuf>,
     pub manifest: toml::Table,
     /// `[workspace.dependencies]` de la raíz, para resolver `dep.workspace = true`.
     pub workspace: toml::Table,
 }
 
 impl Crate {
+    /// Ruta escrita como en un crate por capa (`src/ports/inbound`, `tests`),
+    /// resuelta contra la raíz real de la capa. `None` si la capa no tiene ese
+    /// directorio (los `tests/` de un contexto legacy).
+    pub fn path(&self, sub: &str) -> Option<PathBuf> {
+        let (head, rest) = sub.split_once('/').unwrap_or((sub, ""));
+        let base = match head {
+            "src" => self.src.clone(),
+            "tests" => self.tests.clone()?,
+            _ => return Some(self.dir.join(sub)),
+        };
+        Some(if rest.is_empty() {
+            base
+        } else {
+            base.join(rest)
+        })
+    }
+
+    /// Archivos `.rs` bajo [`Crate::path`]; vacío si la capa no lo tiene. En
+    /// legacy, `files("src")` incluye el archivo del módulo y excluye el
+    /// submódulo de otra capa.
+    pub fn files(&self, sub: &str) -> Vec<PathBuf> {
+        let mut files: Vec<PathBuf> = self
+            .path(sub)
+            .map(|p| rust_files(&p))
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|f| !self.skip.as_ref().is_some_and(|s| f.starts_with(s)))
+            .collect();
+        if sub == "src" {
+            files.extend(self.module_file.iter().filter(|f| f.is_file()).cloned());
+            files.sort();
+        }
+        files
+    }
+
     /// Nombres de paquete de todas las dependencias declaradas (ver [`dependency_names`]).
     pub fn dependencies(&self) -> Vec<String> {
         dependency_names(&self.manifest, &self.workspace)
@@ -143,10 +192,10 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
     dirs
 }
 
-/// `[workspace.dependencies]` del `Cargo.toml` de la raíz.
-pub fn workspace_dependencies() -> toml::Table {
+/// `[workspace.dependencies]` del `Cargo.toml` de `root`.
+pub fn workspace_dependencies_at(root: &Path) -> toml::Table {
     let text =
-        fs::read_to_string(root().join("Cargo.toml")).expect("invariante: Cargo.toml raíz legible");
+        fs::read_to_string(root.join("Cargo.toml")).expect("invariante: Cargo.toml raíz legible");
     let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml raíz válido");
     manifest
         .get("workspace")
@@ -156,7 +205,7 @@ pub fn workspace_dependencies() -> toml::Table {
         .unwrap_or_default()
 }
 
-fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
+fn load(dir: PathBuf, layer: Layer, context: Option<String>, workspace: &toml::Table) -> Crate {
     let text = fs::read_to_string(dir.join("Cargo.toml")).expect("invariante: Cargo.toml legible");
     let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml válido");
     let name = manifest["package"]["name"]
@@ -167,10 +216,63 @@ fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
         name,
         layer,
         context,
+        src: dir.join("src"),
+        tests: Some(dir.join("tests")),
+        legacy: false,
+        module_file: None,
+        skip: None,
         dir,
         manifest,
-        workspace: workspace_dependencies(),
+        workspace: workspace.clone(),
     }
+}
+
+/// legacy: directorio del kernel cuando no hay `kernel/`.
+///
+/// Todo lo marcado `legacy:` en `tools/architecture/tests` existe para adoptar
+/// el harness en un proyecto con un crate por contexto. Cuando no quede ningún
+/// contexto legacy y el kernel esté en `kernel/`, se borra todo lo marcado,
+/// más `tests/legacy.rs` y `tests/fixtures/legacy/` (README del stack).
+pub const LEGACY_KERNEL_DIR: &str = "shared";
+
+/// legacy: módulos de capa de un crate legacy, en `src/` (directorio o archivo). `infrastructure/http` es el
+/// adaptador driving: cuenta como Api, y sus archivos también como
+/// Infrastructure porque viven dentro de ese módulo.
+const LEGACY_MODULES: &[(&str, Layer)] = &[
+    ("domain", Layer::Domain),
+    ("application", Layer::Application),
+    ("infrastructure", Layer::Infrastructure),
+    ("infrastructure/http", Layer::Api),
+];
+
+/// legacy: capas virtuales de un crate legacy (un crate por contexto, con las capas
+/// como módulos). Todas comparten el manifiesto: lo que declara está
+/// disponible en cada capa, que es justo lo que HEX-1 y HEX-2 tienen que ver.
+/// No tienen `tests/`: los tests del crate no pertenecen a una sola capa.
+fn legacy_layers(whole: &Crate) -> Vec<Crate> {
+    LEGACY_MODULES
+        .iter()
+        .filter(|(module, _)| {
+            whole.src.join(module).is_dir() || whole.src.join(format!("{module}.rs")).is_file()
+        })
+        .map(|(module, layer)| Crate {
+            name: whole.name.clone(),
+            layer: *layer,
+            context: whole.context.clone(),
+            dir: whole.dir.clone(),
+            src: whole.src.join(module),
+            tests: None,
+            legacy: true,
+            module_file: Some(whole.src.join(format!("{module}.rs"))),
+            skip: LEGACY_MODULES
+                .iter()
+                .map(|(other, _)| *other)
+                .find(|other| other.starts_with(&format!("{module}/")))
+                .map(|other| whole.src.join(other)),
+            manifest: whole.manifest.clone(),
+            workspace: whole.workspace.clone(),
+        })
+        .collect()
 }
 
 /// Clasifica cada crate del workspace por su ubicación.
@@ -182,11 +284,24 @@ fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
 /// - `contexts/{ctx}/{domain|application|infrastructure|api}/` → capa del contexto
 /// - `apps/api/` → Api central · otros `apps/*` y `app/` → Bootstrap
 ///
-/// Un contexto con `Cargo.toml` propio (`contexts/{ctx}/Cargo.toml`) es *legacy*:
-/// aún no está separado por capas y no se clasifica. `tools/` tampoco.
+/// Legacy (ver [`LEGACY_KERNEL_DIR`]): sin `kernel/`, el kernel es `shared/`, y un
+/// contexto con `Cargo.toml` propio (`contexts/{ctx}/Cargo.toml`) se clasifica
+/// por sus módulos de capa (ver `legacy_layers`). `tools/` no se clasifica.
 pub fn crates() -> Vec<Crate> {
-    let root = root();
-    let mut crates = vec![load(root.join("kernel"), Layer::Kernel, None)];
+    crates_at(&root())
+}
+
+/// [`crates`] sobre un workspace cualquiera (los tests lo usan con fixtures).
+pub fn crates_at(root: &Path) -> Vec<Crate> {
+    let ws = workspace_dependencies_at(root);
+    let load = |dir: PathBuf, layer: Layer, context: Option<String>| load(dir, layer, context, &ws);
+    // legacy: sin `kernel/`, el kernel es `LEGACY_KERNEL_DIR`.
+    let kernel = if root.join("kernel/Cargo.toml").exists() {
+        root.join("kernel")
+    } else {
+        root.join(LEGACY_KERNEL_DIR)
+    };
+    let mut crates = vec![load(kernel, Layer::Kernel, None)];
 
     for edge_dir in subdirs(&root.join("edge")) {
         if edge_dir.join("Cargo.toml").exists() {
@@ -201,14 +316,17 @@ pub fn crates() -> Vec<Crate> {
     }
 
     for context_dir in subdirs(&root.join("contexts")) {
-        if context_dir.join("Cargo.toml").exists() {
-            continue; // legacy: un solo crate por contexto
-        }
         let context = context_dir
             .file_name()
             .expect("invariante: directorio con nombre")
             .to_string_lossy()
             .to_string();
+        // legacy: un crate por contexto, clasificado por sus módulos.
+        if context_dir.join("Cargo.toml").exists() {
+            let whole = load(context_dir.clone(), Layer::Bootstrap, Some(context));
+            crates.extend(legacy_layers(&whole));
+            continue;
+        }
         for layer_dir in subdirs(&context_dir) {
             if !layer_dir.join("Cargo.toml").exists() {
                 continue;

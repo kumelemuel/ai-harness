@@ -1,0 +1,8 @@
+# Fixture de tools/architecture (tests/legacy.rs): un workspace en adopción.
+# No es miembro de ningún workspace real; los tests solo lo leen.
+[workspace]
+members = ["shared", "contexts/iam", "contexts/billing"]
+
+[workspace.dependencies]
+shared = { path = "shared" }
+axum = "0.8"

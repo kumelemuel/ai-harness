@@ -1,0 +1,6 @@
+[package]
+name = "iam"
+
+[dependencies]
+shared.workspace = true
+axum.workspace = true

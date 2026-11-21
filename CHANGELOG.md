@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.18.0 — 2026-11-20
+
+Plugins: `craft-backend` 0.15.0 y `craft-web` 0.5.0 (sin cambios).
+
+### Agregado
+- **Modo legacy en los tests de arquitectura** (HEX-1, HEX-2, HEX-4): para
+  adoptar el harness en un proyecto con un crate por contexto. Cada módulo de
+  capa es una capa virtual, y `shared/` es el kernel si no hay `kernel/`. Antes
+  los contextos legacy se ignoraban. Viene de una adopción real, con la
+  instrucción de borrarlo cuando no quede legacy.
+- **HEX-4 en legacy**: `crate::domain` cuenta como el dominio. Sin esto, el test
+  de contratos no revisaba ningún contrato de un contexto legacy.
+- **`tests/` de los crates**: se documenta qué reglas los leen y por qué las
+  demás no.
+
 ## 0.17.0 — 2026-11-20
 
 Plugins: `craft-backend` 0.14.0 y `craft-web` 0.5.0 (sin cambios).

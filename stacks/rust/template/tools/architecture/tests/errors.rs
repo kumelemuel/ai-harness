@@ -159,7 +159,7 @@ fn err_1_domain_errors_do_not_implement_std_error() {
     let mut violations = Vec::new();
     let mut files = 0;
     for krate in crates().into_iter().filter(|c| c.layer == Layer::Domain) {
-        for file in rust_files(&krate.dir.join("src")) {
+        for file in krate.files("src") {
             files += 1;
             for (line, target, origin) in error_impls(&file) {
                 violations.push(format!(
@@ -288,7 +288,7 @@ fn err_1_application_errors_do_not_implement_std_error() {
         .into_iter()
         .filter(|c| c.layer == Layer::Application)
     {
-        let src = krate.dir.join("src");
+        let src = krate.src.clone();
         let declared = DeclaredErrors::of(&src);
         leaves += declared.count(LEAF);
         contracts += declared.count(CONTRACT);
