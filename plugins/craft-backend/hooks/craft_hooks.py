@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Hooks de craft-backend (VER-1): lo que no se verifica se erosiona.
 
+pre-edit   Antes de editar `tools/architecture/baseline.txt`: bloquea la
+           edición si agrega entradas o sube un conteo (la línea base solo
+           se achica).
 post-edit  Tras editar un .rs o Cargo.toml en un workspace Rust con
            `tools/architecture`: formatea el archivo y corre los tests de
            arquitectura. Si fallan, devuelve las violaciones al agente.
@@ -11,8 +14,9 @@ stop       Antes de que el agente termine, si hay cambios Rust sin commit:
 Fuera de un workspace con `tools/architecture` no hace nada.
 
 Variables de entorno:
-  CRAFT_BACKEND_HOOKS=0       desactiva ambos hooks
+  CRAFT_BACKEND_HOOKS=0       desactiva todos los hooks
   CRAFT_BACKEND_STOP_GATE=0   desactiva solo el hook de Stop
+  CRAFT_BACKEND_BASELINE_INIT=1  permite agrandar baseline.txt (llenado inicial)
   CRAFT_BACKEND_HOOKS_LOG=…   ruta de un archivo donde registrar cada decisión
 
 Códigos de salida (contrato de hooks de Claude Code):
@@ -190,6 +194,69 @@ def post_edit(payload: dict) -> int:
     )
 
 
+BASELINE_NAME = "baseline.txt"
+
+
+def baseline_entries(text: str) -> dict[tuple[str, str], int]:
+    """`(test, clave) → conteo` de una línea base (`<test> <clave> [n]`)."""
+    entries: dict[tuple[str, str], int] = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) < 2 or parts[0].startswith("#"):
+            continue
+        count = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+        entries[(parts[0], parts[1])] = count
+    return entries
+
+
+def baseline_growth(old: str, new: str) -> list[str]:
+    """Entradas de `new` que no están en `old` o con un conteo mayor."""
+    before = baseline_entries(old)
+    grown = []
+    for (test, key), count in baseline_entries(new).items():
+        if count > before.get((test, key), 0):
+            grown.append(f"{test} {key}" + (f" {count}" if count != 1 else ""))
+    return grown
+
+
+def edited_text(tool: str, tool_input: dict, current: str) -> str | None:
+    """Contenido del archivo después de la edición, o `None` si no se puede saber."""
+    if tool == "Write":
+        return tool_input.get("content")
+    edits = tool_input.get("edits") if tool == "MultiEdit" else [tool_input]
+    text = current
+    for edit in edits or []:
+        old, new = edit.get("old_string", ""), edit.get("new_string", "")
+        if old not in text:
+            return None
+        text = text.replace(old, new) if edit.get("replace_all") else text.replace(old, new, 1)
+    return text
+
+
+def pre_edit(payload: dict) -> int:
+    """Bloquea una edición que agrande `tools/architecture/baseline.txt` (VER-1)."""
+    tool_input = payload.get("tool_input") or {}
+    path = Path(tool_input.get("file_path") or "")
+    if path.name != BASELINE_NAME or path.parent.name != ARCH_PACKAGE:
+        return 0
+    if os.environ.get("CRAFT_BACKEND_BASELINE_INIT") == "1":
+        return 0
+    current = path.read_text(encoding="utf-8") if path.is_file() else ""
+    new = edited_text(payload.get("tool_name", ""), tool_input, current)
+    if new is None:
+        return 0
+    grown = baseline_growth(current, new)
+    if not grown:
+        return 0
+    return feedback(
+        "baseline.txt solo se achica (VER-1): esta edición agrega o sube entradas:\n\n"
+        + "\n".join(f"  - {entry}" for entry in grown)
+        + "\n\nCorrige la violación en el código. Borrar o bajar entradas sí está "
+        "permitido. Para el llenado inicial de una adopción, exporta "
+        "CRAFT_BACKEND_BASELINE_INIT=1 antes de abrir la sesión."
+    )
+
+
 def rust_changes(root: Path) -> bool:
     result = run(
         ["git", "status", "--porcelain", "--", "*.rs", "*Cargo.toml"],
@@ -238,7 +305,7 @@ def main() -> int:
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
     payload = read_input()
     try:
-        handlers = {"post-edit": post_edit, "stop": stop}
+        handlers = {"pre-edit": pre_edit, "post-edit": post_edit, "stop": stop}
         if mode in handlers:
             code = handlers[mode](payload)
             target = (payload.get("tool_input") or {}).get("file_path") or payload.get("cwd", "")

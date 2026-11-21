@@ -1,5 +1,19 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Skill `adoption`**: auditoría inicial, documento de estado con su
+  plantilla (`templates/backend/adoption.md`: inventario con IDs estables, plan
+  de rebanadas, decisiones, fricciones y tokens) y el ritual de cada rebanada,
+  con la regla de ramas (cada una sale de `main`, sin PRs apilados). Viene de
+  una adopción real.
+- **Hook `PreToolUse`** (VER-1): bloquea una edición que agrande `baseline.txt`.
+  `CRAFT_BACKEND_BASELINE_INIT=1` permite el llenado inicial.
+
+### Filas que cambiaron de mecanismo
+- VER-1 (nadie agrega líneas a la línea base): de `pendiente` a `herramienta`.
+
 ## 0.19.0 — 2026-11-20
 
 Plugins: `craft-backend` 0.16.0 y `craft-web` 0.5.0 (sin cambios).

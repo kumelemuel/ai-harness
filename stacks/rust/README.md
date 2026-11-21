@@ -385,7 +385,8 @@ Al adoptar el harness en un proyecto existente, los tests de arquitectura
 fallan por violaciones que no se pueden corregir de una vez. La línea base las
 registra y el trinquete impide que crezcan:
 
-1. **Se llena una sola vez**, con la auditoría inicial: una línea
+1. **Se llena una sola vez**, con la auditoría inicial (skill
+   `craft-backend:adoption`): una línea
    `<test> <clave> [n]` por clave distinta. `<test>` es el nombre de la función
    del test. `<clave>` es lo que el mensaje pone antes del primer `:`: la ruta
    del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests de
@@ -396,8 +397,9 @@ registra y el trinquete impide que crezcan:
    viola (`borrar de baseline.txt: …`) o viola menos (`actualizar en
    baseline.txt: … n`). Ese es el rojo de un refactor que corrige una
    violación, y el PR borra o actualiza la línea. Que nadie *agregue* una línea
-   no lo verifica ningún test: lo dicen la skill y el hook, y lo ve el revisor
-   del PR.
+   lo bloquea el hook `PreToolUse` de craft-backend en las ediciones del
+   agente; el llenado inicial se hace con `CRAFT_BACKEND_BASELINE_INIT=1`. Una
+   edición por shell o a mano la ve el revisor del PR.
 3. **Corregir en el lugar y después mover.** La línea base no sigue los
    movimientos: mover un archivo con entradas da a la vez una violación nueva y
    una entrada para borrar. Primero se corrige en la ruta vieja y se borra la
