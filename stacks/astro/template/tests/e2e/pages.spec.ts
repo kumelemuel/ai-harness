@@ -101,6 +101,11 @@ test("robots.txt apunta al sitemap", async ({ request }) => {
   );
 });
 
+test("hay redirecciones que verificar (WEB_REQUIRE_MATERIAL=1)", () => {
+  test.skip(process.env.WEB_REQUIRE_MATERIAL !== "1", "solo en el CI del harness");
+  expect(Object.keys(REDIRECTS).length, "REDIRECTS está vacío").toBeGreaterThan(0);
+});
+
 for (const [from, to] of Object.entries(REDIRECTS)) {
   test(`${from} redirige con 301 a ${to}`, async ({ request }) => {
     const response = await request.get(from, { maxRedirects: 0 });

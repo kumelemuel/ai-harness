@@ -41,6 +41,21 @@ describe("WEB-2: una sola fuente de rutas", () => {
     expect(hardcoded).toEqual([]);
   });
 
+  // Un conjunto vacío pasa en un sitio sin redirecciones, pero no verifica nada. El CI del
+  // harness activa WEB_REQUIRE_MATERIAL=1: la plantilla tiene que ejercitar la regla.
+  it("hay redirecciones que verificar (WEB_REQUIRE_MATERIAL=1)", () => {
+    if (process.env.WEB_REQUIRE_MATERIAL === "1") {
+      expect(Object.keys(REDIRECTS).length, "REDIRECTS está vacío").toBeGreaterThan(0);
+    }
+  });
+
+  it("cada redirección sale de una ruta que ya no existe", () => {
+    const current = new Set<string>(Object.values(ROUTES));
+    for (const from of Object.keys(REDIRECTS)) {
+      expect(current.has(from), `${from} sigue siendo una ruta`).toBe(false);
+    }
+  });
+
   it("cada redirección apunta a una ruta existente", () => {
     const targets = new Set<string>(Object.values(ROUTES));
     for (const [from, to] of Object.entries(REDIRECTS)) {

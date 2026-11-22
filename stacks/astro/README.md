@@ -20,7 +20,7 @@ kumelemuel.dev (barra de calidad) y kidus-akaal.com (Cloudflare, antispam).
 | ID | Decisión | Motivo |
 |----|----------|--------|
 | AS-1 | **Astro estático + Cloudflare Workers** (`imageService: "compile"`, `session: false`) | Gratis, con rate limiter nativo y Turnstile disponible. Imágenes optimizadas en el build: no hace falta el binding de Images. |
-| AS-2 | **Tailwind 4**, con los tokens de marca en `@theme` | Rápido de repetir entre clientes. El CSS sale en archivo, así que es compatible con la CSP estricta. |
+| AS-2 | **Tailwind 4**, con los tokens de marca en `@theme` | Rápido de repetir entre clientes. El CSS sale en archivo, así que es compatible con la CSP estricta. `theme.test.ts` rechaza los colores y tipografías fuera de `@theme`: valores arbitrarios (`text-[#…]`), la paleta por defecto (`bg-white`, `text-red-500`) y colores escritos a mano en CSS. |
 | AS-3 | **Código en inglés**; contenido, URLs y mensajes en el idioma del cliente | El código lo lee cualquier desarrollador; el sitio lo lee el cliente. |
 | AS-4 | **CSP con los hashes de Astro** (`security.csp`); cabeceras desde `src/security.ts` | Sin `unsafe-inline`. Una sola fuente de política para `_headers`, el middleware y la config. |
 | AS-5 | **Formulario = Astro Action + página on-demand de confirmación** | Funciona sin JS. Las reglas son puras y con tests; el handler solo orquesta. |
@@ -33,7 +33,7 @@ kumelemuel.dev (barra de calidad) y kidus-akaal.com (Cloudflare, antispam).
 | Principio | En la plantilla | Verificación |
 |-----------|-----------------|--------------|
 | WEB-1 Estático por defecto | `output: "static"`; `prerender = false` solo en las rutas de `ON_DEMAND` | `routes.test.ts`: las páginas on-demand son exactamente `ON_DEMAND` |
-| WEB-2 Una sola fuente de rutas | `src/routes.ts`: `ROUTES`, `route()`, `articlePath()`, `NAV`, `REDIRECTS` (301 en `astro.config.mjs`) | `routes.test.ts`: cada ruta tiene su página, ningún `.astro` escribe `href="/…"` a mano y cada redirección tiene destino; e2e de redirecciones |
+| WEB-2 Una sola fuente de rutas | `src/routes.ts`: `ROUTES`, `route()`, `articlePath()`, `NAV`, `REDIRECTS` (301 en `astro.config.mjs`; trae `/nosotros/` de ejemplo) | `routes.test.ts`: cada ruta tiene su página, ningún `.astro` escribe `href="/…"` a mano y cada redirección sale de una ruta que ya no existe y tiene destino; e2e de redirecciones (301). Con `WEB_REQUIRE_MATERIAL=1` (CI del harness), un `REDIRECTS` vacío falla |
 | WEB-3 Contenido tipado | `src/site.ts`; colección `articles` con schema (descripción de 70 a 170); `robots.txt` generado desde `SITE` | El build falla si el schema no se cumple; `astro check` |
 | WEB-4 Accesibilidad | Un único `<h1>` desde el Layout, `lang`, enlace de salto, `:focus-visible`, `prefers-reduced-motion`, enlaces subrayados | e2e: axe WCAG 2.2 AA en cada página después del scroll; un `<h1>`; enlace de salto |
 | WEB-5 Rendimiento | Imágenes en build, fuentes con `fonts` de Astro (servidas desde el propio dominio), JS mínimo | `lighthouserc.cjs` con aserciones `error`, en el CI del harness y en el de la plantilla |

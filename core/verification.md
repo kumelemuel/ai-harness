@@ -85,7 +85,7 @@ cambiaron de mecanismo.
 | RS-4 | Tests de arquitectura con `toml` y `syn` | `test` | `tests/naming.rs`, `tests/dependencies.rs`, `tests/errors.rs`, `tests/ports.rs`, `tests/output.rs`, `tests/kernel.rs` |
 | WEB-1 | Las páginas on-demand son exactamente las declaradas | `test` | `routes.test.ts` |
 | WEB-2 | Una sola fuente de rutas, sin rutas internas a mano | `test` | `routes.test.ts` |
-| WEB-2 | Las redirecciones 301 apuntan a una ruta y responden 301 | `pendiente` | `REDIRECTS` está vacío en la plantilla: el test unitario y el e2e de `pages.spec.ts` recorren un conjunto vacío y no verifican nada. Falta una redirección de ejemplo |
+| WEB-2 | Las redirecciones 301 apuntan a una ruta y responden 301 | `test` | `routes.test.ts` y `pages.spec.ts`, sobre la redirección de ejemplo; con `WEB_REQUIRE_MATERIAL=1` en el CI del harness, un `REDIRECTS` vacío falla |
 | WEB-3 | Contenido como datos tipados | `herramienta` | `astro check`: el schema de las colecciones de contenido |
 | WEB-3 | Sin texto de relleno ni contenido incrustado en componentes | `revisor:site-auditor` | Paso 6 del auditor |
 | WEB-4 | Accesibilidad automática en cada página | `test` | `pages.spec.ts` (axe) |
@@ -105,7 +105,7 @@ cambiaron de mecanismo.
 | WEB-10 | Secretos declarados en un schema | `herramienta` | `astro check` y el build: `env.schema` de `astro.config.mjs` |
 | AS-1 | Astro estático sobre Cloudflare Workers | `herramienta` | `astro build` con el adaptador de Cloudflare, servido por `wrangler dev` en el job `astro-e2e` |
 | AS-2 | El CSS de Tailwind sale en archivo y respeta la CSP | `test` | `pages.spec.ts` |
-| AS-2 | Los tokens de marca viven en `@theme` | `pendiente` | Nada comprueba que los colores y tipografías salgan de `@theme` y no de valores sueltos. Automatizable con una regla de lint sobre las clases arbitrarias |
+| AS-2 | Los tokens de marca viven en `@theme` | `test` | `theme.test.ts`: clases con colores o tipografías fuera de `@theme` y colores escritos a mano en CSS |
 | AS-3 | Código en inglés; contenido, URLs y mensajes en el idioma del cliente | `revisor:site-auditor` | Paso 9 del auditor |
 | AS-4 | CSP con los hashes de Astro y una sola fuente de cabeceras | `test` | `security.test.ts` |
 | AS-5 | Formulario con Action y confirmación on-demand | `test` | `contact.spec.ts` |

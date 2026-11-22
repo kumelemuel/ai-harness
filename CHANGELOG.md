@@ -1,5 +1,22 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Redirección de ejemplo** (WEB-2): `REDIRECTS` estaba vacío, así que el test
+  unitario y el e2e recorrían un conjunto vacío. La plantilla trae
+  `/nosotros/` → `/sobre/`, y con `WEB_REQUIRE_MATERIAL=1` (CI del harness) un
+  `REDIRECTS` vacío falla. Un test nuevo exige que la ruta vieja ya no exista.
+- **Tokens de `@theme`** (AS-2): `theme.test.ts` rechaza colores y tipografías
+  fuera de `@theme` en las clases (valores arbitrarios, paleta por defecto) y
+  colores escritos a mano en CSS. Encontró `bg-white` en el formulario y
+  `color: white` en `.button`: ahora salen de `surface` y `on-brand`, con el
+  mismo color.
+
+### Filas que cambiaron de mecanismo
+- WEB-2 (las redirecciones responden 301): de `pendiente` a `test`.
+- AS-2 (los tokens viven en `@theme`): de `pendiente` a `test`.
+
 ## 0.21.0 — 2026-11-22
 
 Plugins: `craft-backend` 0.18.0 y `craft-web` 0.5.0 (sin cambios).
