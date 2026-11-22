@@ -1,7 +1,15 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NOINDEX, ON_DEMAND, REDIRECTS, ROUTES, isIndexable, type RouteKey } from "../../src/routes";
+import {
+  NOINDEX,
+  ON_DEMAND,
+  REDIRECTS,
+  ROUTES,
+  articlePath,
+  isIndexable,
+  type RouteKey,
+} from "../../src/routes";
 
 const SRC = join(import.meta.dirname, "../../src");
 const PAGES = join(SRC, "pages");
@@ -39,6 +47,26 @@ describe("WEB-2: una sola fuente de rutas", () => {
           .map((href) => `${relative(SRC, file)}: href="${href}"`),
       );
     expect(hardcoded).toEqual([]);
+  });
+
+  // Un conjunto vacío pasa en un sitio sin redirecciones, pero no verifica nada. El CI del
+  // harness activa WEB_REQUIRE_MATERIAL=1: la plantilla tiene que ejercitar la regla.
+  it("hay redirecciones que verificar (WEB_REQUIRE_MATERIAL=1)", () => {
+    if (process.env.WEB_REQUIRE_MATERIAL === "1") {
+      expect(Object.keys(REDIRECTS).length, "REDIRECTS está vacío").toBeGreaterThan(0);
+    }
+  });
+
+  it("cada redirección sale de una ruta que ya no existe (ni en ROUTES, ni como página, ni como artículo)", () => {
+    const current = new Set<string>(Object.values(ROUTES));
+    const articles = new Set(
+      readdirSync(join(SRC, "content/articles")).map((file) => articlePath(file.replace(/\.(md|mdx)$/, ""))),
+    );
+    for (const from of Object.keys(REDIRECTS)) {
+      expect(current.has(from), `${from} sigue siendo una ruta`).toBe(false);
+      expect(pageFileFor(from), `${from} todavía tiene página`).toBeUndefined();
+      expect(articles.has(from), `${from} es un artículo`).toBe(false);
+    }
   });
 
   it("cada redirección apunta a una ruta existente", () => {

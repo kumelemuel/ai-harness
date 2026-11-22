@@ -28,9 +28,12 @@ export const NOINDEX: readonly RouteKey[] = ["contactSent", "privacy"];
 
 /**
  * Redirecciones 301 de URLs publicadas que cambiaron (WEB-2): ruta vieja → ruta nueva.
- * Ejemplo: "/nosotros/": ROUTES.about
+ * La de `/nosotros/` es el ejemplo de la plantilla, para que los tests la ejerciten:
+ * bórrala si el sitio nunca publicó esa URL.
  */
-export const REDIRECTS: Readonly<Record<string, string>> = {};
+export const REDIRECTS: Readonly<Record<string, string>> = {
+  "/nosotros/": ROUTES.about,
+};
 
 export const isIndexable = (path: string): boolean =>
   !NOINDEX.some((key) => path === ROUTES[key] || path.startsWith(ROUTES[key]));

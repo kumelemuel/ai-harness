@@ -25,6 +25,8 @@
       con un dominio verificado en Resend: SPF y DKIM)
 - [ ] **Formulario probado en producción con un envío real**, recibido en el buzón del cliente
 - [ ] Redirecciones 301 del sitio anterior verificadas una por una
+- [ ] La redirección de ejemplo de la plantilla (`/nosotros/`) está borrada, o corresponde
+      a una URL que el sitio publicó
 - [ ] Sitemap enviado en Google Search Console; propiedad verificada
 - [ ] Analítica activa, si se acordó
 - [ ] Rulesets de ramas: `main` solo por PR con CI en verde
