@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 0.21.0 — 2026-11-22
+
+Plugins: `craft-backend` 0.18.0 y `craft-web` 0.5.0 (sin cambios).
 
 ### Agregado
 - **Asincronía propia en el dominio** (HEX-3): `hex_3_domain_declares_no_asynchrony`
