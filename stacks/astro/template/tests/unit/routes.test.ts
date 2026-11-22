@@ -1,7 +1,15 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NOINDEX, ON_DEMAND, REDIRECTS, ROUTES, isIndexable, type RouteKey } from "../../src/routes";
+import {
+  NOINDEX,
+  ON_DEMAND,
+  REDIRECTS,
+  ROUTES,
+  articlePath,
+  isIndexable,
+  type RouteKey,
+} from "../../src/routes";
 
 const SRC = join(import.meta.dirname, "../../src");
 const PAGES = join(SRC, "pages");
@@ -49,10 +57,15 @@ describe("WEB-2: una sola fuente de rutas", () => {
     }
   });
 
-  it("cada redirección sale de una ruta que ya no existe", () => {
+  it("cada redirección sale de una ruta que ya no existe (ni en ROUTES, ni como página, ni como artículo)", () => {
     const current = new Set<string>(Object.values(ROUTES));
+    const articles = new Set(
+      readdirSync(join(SRC, "content/articles")).map((file) => articlePath(file.replace(/\.(md|mdx)$/, ""))),
+    );
     for (const from of Object.keys(REDIRECTS)) {
       expect(current.has(from), `${from} sigue siendo una ruta`).toBe(false);
+      expect(pageFileFor(from), `${from} todavía tiene página`).toBeUndefined();
+      expect(articles.has(from), `${from} es un artículo`).toBe(false);
     }
   });
 
