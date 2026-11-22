@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 0.22.0 — 2026-11-22
+
+Plugins: `craft-backend` 0.18.0 (sin cambios) y `craft-web` 0.6.0.
 
 ### Agregado
 - **Redirección de ejemplo** (WEB-2): `REDIRECTS` estaba vacío, así que el test
