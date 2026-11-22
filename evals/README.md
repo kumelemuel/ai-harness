@@ -36,6 +36,18 @@ python3 scripts/run_evals.py run --model claude-opus-5-5 --label base --kata ast
 python3 scripts/run_evals.py table evals/results/*.json
 ```
 
+**Control de otra versión del harness.** `--harness-ref REF` carga los plugins
+de la kata desde `REF` (extraído con `git archive` a la caché), con los del
+marketplace deshabilitados. La plantilla sigue saliendo del clon, así que la
+única variable es el plugin. Las dos configuraciones corren en paralelo, en la
+misma ventana:
+
+```sh
+python3 scripts/run_evals.py run --model claude-sonnet-5-5 --label rama --kata rust-rename-community &
+python3 scripts/run_evals.py run --model claude-sonnet-5-5 --label control --harness-ref main --kata rust-rename-community &
+wait
+```
+
 Cada kata corre 3 veces por configuración (`--runs`), por la variabilidad del
 modelo; se informa la mediana y el rango. El modelo se fija siempre con
 `--model`. `--parallel N` corre varias ejecuciones a la vez (cada ejecución
@@ -380,6 +392,38 @@ usuario. Por corrida: renombrar 3, 5 y 3; buscar por slug 0, 4 y 0.
 `tdd_2_inbound_doubles_are_named_by_prefix_and_port`, y la plantilla renombra
 sus dos `StubUseCase`. Aclara además que un `Fake` puede exponer lo que
 recibió.
+
+### Skill `adoption` y hook `pre-edit` (0.20.0, control intercalado)
+
+Primera medición con `--harness-ref`: la rama del PR (`craft-backend` 0.17.0,
+sin publicar) contra `main` (0.16.0, `7039347`), con la misma plantilla. Las
+dos configuraciones corrieron en paralelo, kata por kata, en la misma ventana.
+Sonnet implementa y Opus revisa como subagente, como en la línea base de 0.14.
+
+| Kata | Configuración | Aceptación | Costo | Turnos | Archivos leídos |
+|---|---|---|---|---|---|
+| rust-rename-community | rama | 3/3 | $0.70 ($0.66–$0.71) | 63 (53–74) | 14 (1–29) |
+| rust-rename-community | control | 3/3 | $0.75 ($0.72–$0.82) | 68 (65–76) | 21 (7–25) |
+| rust-community-by-slug | rama | 3/3 | $0.51 ($0.47–$0.52) | 58 (49–63) | 16 (11–24) |
+| rust-community-by-slug | control | 3/3 | $0.44 ($0.42–$0.50) | 54 (52–59) | 22 (19–23) |
+| review-planted-subagent | rama | 3/3 | $0.30 ($0.26–$0.30) | 2 | 2 (0–2) |
+| review-planted-subagent | control | 3/3 | $0.23 ($0.22–$0.25) | 2 | 0 |
+
+- **Corrección:** igual en las dos (3/3 en las tres katas; el revisor detectó
+  las 4 violaciones plantadas en todas las corridas).
+- **La skill no se carga:** `adoption` (con `disable-model-invocation`) no
+  aparece en ninguna corrida, y el hook `pre-edit` no bloqueó nada.
+- **Costo:** los rangos no se solapan en el renombre (rama −$0.05) ni en la
+  revisión (rama +$0.07), y en direcciones opuestas. Por la regla de 3 corridas
+  cuentan como efectos, pero el diff no les da mecanismo: en estas sesiones el
+  PR solo agrega un hook sin tokens y cambia texto de `rust.md` que nadie leyó.
+  La diferencia de la revisión viene de dos corridas en que el subagente leyó
+  `rust-stack/SKILL.md` (sin cambios en el PR) y archivos de dominio. No se
+  actúa sobre ellos; si se repiten en la próxima ronda, se investigan.
+- **Corridas inválidas:** el límite de uso cortó con 429 la consulta por slug y
+  la revisión de la primera ventana (2026-11-20 23:32). Se repitieron con la
+  misma etiqueta el 2026-11-22, de nuevo las dos configuraciones en paralelo.
+  El renombre quedó de la primera ventana.
 
 ### Índice de ejemplos (archivado)
 

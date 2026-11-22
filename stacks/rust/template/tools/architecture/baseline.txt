@@ -11,4 +11,4 @@
 # entradas: corregir en el lugar, borrar la entrada y después mover.
 #
 # En un proyecto nuevo queda vacía. En una adopción se llena una sola vez,
-# con la auditoría inicial (README del stack, "Migración incremental").
+# con la auditoría inicial (skill `craft-backend:adoption`).

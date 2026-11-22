@@ -1,6 +1,18 @@
 {
   "description": "craft-backend: verificación determinista de la arquitectura (VER-1) mientras el agente trabaja.",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/craft_hooks.py\" pre-edit",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",

@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.20.0 — 2026-11-22
+
+Plugins: `craft-backend` 0.17.0 y `craft-web` 0.5.0 (sin cambios).
+
+### Agregado
+- **Skill `adoption`**: auditoría inicial, documento de estado con su
+  plantilla (`templates/backend/adoption.md`: inventario con IDs estables, plan
+  de rebanadas, decisiones, fricciones y tokens) y el ritual de cada rebanada,
+  con la regla de ramas (cada una sale de `main`, sin PRs apilados). Viene de
+  una adopción real.
+- **Hook `PreToolUse`** (VER-1): bloquea una edición que agrande `baseline.txt`.
+  `CRAFT_BACKEND_BASELINE_INIT=1` permite el llenado inicial.
+
+- **`run_evals.py run --harness-ref REF`**: carga los plugins de la kata desde
+  otro commit, para correr una versión anterior como control intercalado.
+
+### Filas que cambiaron de mecanismo
+- VER-1 (una edición del agente no agranda la línea base): de `pendiente` a
+  `herramienta`. Las ediciones por shell o a mano siguen `pendiente`.
+
+### Katas
+- Contra `main` como control intercalado (`--harness-ref`), Sonnet implementa
+  y Opus revisa: 3/3 en las tres katas en las dos configuraciones. Renombre
+  $0.70 frente a $0.75; slug $0.51 frente a $0.44; revisión $0.30 frente a
+  $0.23. Los rangos del renombre y la revisión no se solapan, en direcciones
+  opuestas y sin mecanismo en el diff (`evals/README.md`). La skill no se
+  cargó en ninguna corrida.
+
 ## 0.19.0 — 2026-11-20
 
 Plugins: `craft-backend` 0.16.0 y `craft-web` 0.5.0 (sin cambios).

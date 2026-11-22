@@ -4,6 +4,7 @@
 Uso:
   python3 scripts/run_evals.py run --model MODELO --label ETIQUETA [--kata K ...]
                                    [--runs 3] [--parallel N] [--keep]
+                                   [--harness-ref REF]
   python3 scripts/run_evals.py table evals/results/*.json
 
 Cada kata vive en `evals/<kata>/`: `prompt.md` (la tarea), `acceptance/` (tests
@@ -509,10 +510,11 @@ def set_frontmatter_model(text: str, model: str) -> str:
     return "\n".join(lines) + sep + body
 
 
-def plugin_with_model(plugin: str, agent: str, model: str, target: Path) -> Path:
+def plugin_with_model(plugin: str, agent: str, model: str, target: Path,
+                      source_root: Path = REPO) -> Path:
     """Copia del plugin con `model:` fijado en un agente. Los symlinks quedan
-    absolutos hacia el repo: así no se copia la plantilla (ni su `target/`)."""
-    source = REPO / "plugins" / plugin
+    absolutos hacia `source_root`: así no se copia la plantilla (ni su `target/`)."""
+    source = source_root / "plugins" / plugin
     copy = target / plugin
     shutil.copytree(source, copy, symlinks=True, ignore=shutil.ignore_patterns("__pycache__"))
     for link in [p for p in copy.rglob("*") if p.is_symlink()]:
@@ -545,7 +547,8 @@ def git(workdir: Path, *args: str) -> None:
     )
 
 
-def claude_command(kata: Kata, model: str, budget: float, plugin_dir: Path | None = None) -> list[str]:
+def claude_command(kata: Kata, model: str, budget: float,
+                   plugin_dirs: list[Path] | None = None) -> list[str]:
     command = [
         "claude", "-p", kata.prompt,
         "--output-format", "stream-json", "--verbose",
@@ -557,13 +560,46 @@ def claude_command(kata: Kata, model: str, budget: float, plugin_dir: Path | Non
     ]
     if kata.agent:
         command += ["--agent", kata.agent]
-    if plugin_dir:
+    for plugin_dir in plugin_dirs or []:
         command += ["--plugin-dir", str(plugin_dir)]
     return command
 
 
+def harness_snapshot(ref: str, cache: Path) -> Path:
+    """El repo en `ref`, extraído con `git archive` (sin `target/` ni nada sin
+    versionar). Sus symlinks relativos resuelven dentro de la copia. Se
+    reutiliza por commit."""
+    sha = subprocess.run(["git", "-C", str(REPO), "rev-parse", "--verify", f"{ref}^{{commit}}"],
+                         capture_output=True, text=True, check=True).stdout.strip()
+    root = cache / sha
+    if not (root / "CHANGELOG.md").is_file():
+        root.mkdir(parents=True, exist_ok=True)
+        archive = subprocess.run(["git", "-C", str(REPO), "archive", sha],
+                                 capture_output=True, check=True).stdout
+        subprocess.run(["tar", "-x", "-C", str(root)], input=archive, check=True)
+    return root
+
+
+def kata_plugins(kata: Kata, harness_root: Path | None, subagent_model: str | None,
+                 run_dir: Path) -> tuple[list[Path], list[str]]:
+    """`(--plugin-dir, plugins deshabilitados en el marketplace)` de una corrida.
+
+    Con `harness_root` (`--harness-ref`), todos los plugins de la kata salen de
+    esa copia: es el control de otra versión del harness en la misma ventana.
+    Con `subagent_model`, el plugin del subagente sale de una copia con ese
+    `model:`, hecha desde la misma fuente."""
+    dirs: dict[str, Path] = {}
+    if harness_root:
+        dirs = {plugin: harness_root / "plugins" / plugin for plugin in kata.plugins}
+    if kata.subagent and subagent_model:
+        plugin, agent = kata.subagent.split(":")
+        dirs[plugin] = plugin_with_model(plugin, agent, subagent_model, run_dir / "plugin",
+                                         source_root=harness_root or REPO)
+    return list(dirs.values()), list(dirs)
+
+
 def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep: bool,
-             subagent_model: str | None = None) -> dict:
+             subagent_model: str | None = None, harness_root: Path | None = None) -> dict:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     variant = f"{kata.name}@{subagent_model}" if subagent_model else kata.name
     run_dir = CACHE / "runs" / f"{harness_version()}-{label}" / f"{variant}-{index}-{stamp}"
@@ -572,12 +608,7 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
     workdir.mkdir(parents=True)
 
     copy_template(kata.template, workdir)
-    plugin_dir = None
-    overridden: list[str] = []
-    if kata.subagent and subagent_model:
-        plugin, agent = kata.subagent.split(":")
-        plugin_dir = plugin_with_model(plugin, agent, subagent_model, run_dir / "plugin")
-        overridden = [plugin]
+    plugin_dirs, overridden = kata_plugins(kata, harness_root, subagent_model, run_dir)
     (workdir / ".claude").mkdir(exist_ok=True)
     (workdir / ".claude" / "settings.json").write_text(
         json.dumps(project_settings(kata.plugins, overridden), indent=2) + "\n", encoding="utf-8"
@@ -600,7 +631,7 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     hook_log.write_text("", encoding="utf-8")
 
-    command = claude_command(kata, model, budget, plugin_dir)
+    command = claude_command(kata, model, budget, plugin_dirs)
     log(kata, index, f"agente ({model})")
     started = dt.datetime.now()
     stream_file = run_dir / "stream.jsonl"
@@ -654,6 +685,7 @@ def run_once(kata: Kata, index: int, model: str, label: str, budget: float, keep
         "acceptance": {"passed": verdict.passed, "checks": verdict.checks},
         "findings": parse_findings(report),
         "subagent_model": subagent_model,
+        "harness_root": str(harness_root) if harness_root else None,
         "invalid": _invalid_reason(kata, metrics),
         "raw": str(run_dir),
     }
@@ -713,7 +745,10 @@ def command_run(args: argparse.Namespace) -> int:
 def execute(jobs: list[tuple], runs: dict[str, list[dict]], args: argparse.Namespace) -> None:
     """Corre en el orden de `jobs` (intercalado si hay varias configuraciones)."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as pool:
-        futures = {pool.submit(run_once, kata, index, args.model, args.label, args.budget, args.keep, submodel): key
+        harness_root = (harness_snapshot(args.harness_ref, CACHE / "harness")
+                        if getattr(args, "harness_ref", None) else None)
+        futures = {pool.submit(run_once, kata, index, args.model, args.label, args.budget, args.keep,
+                               submodel, harness_root): key
                    for key, kata, index, submodel in jobs}
         for future in concurrent.futures.as_completed(futures):
             runs[futures[future]].append(future.result())
@@ -785,6 +820,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--subagent-model", action="append",
                      help="modelo del subagente de la kata (repetible: se intercalan en la misma ventana)")
     run.add_argument("--keep", action="store_true", help="conserva el directorio de trabajo")
+    run.add_argument("--harness-ref",
+                     help="carga los plugins de la kata desde este commit (control de otra versión; "
+                          "la plantilla sigue saliendo del clon)")
     run.set_defaults(func=command_run)
     review = sub.add_parser("review", help="revisa con architecture-reviewer el diff de cada corrida")
     review.add_argument("results", help="resultado cuyas corridas se revisan (evals/results/….json)")
