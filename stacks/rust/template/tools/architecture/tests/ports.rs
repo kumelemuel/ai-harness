@@ -211,3 +211,120 @@ fn hex_3_sees_the_legacy_kernel() {
         "{violations:#?}"
     );
 }
+
+/// Asincronía propia en un archivo: `(línea, qué)`. Cuenta `async fn`, los
+/// bloques `async`, `.await` y cualquier ruta que nombre `Future` o
+/// `IntoFuture` (`impl Future`, `Pin<Box<dyn Future>>`, `std::future::…`).
+fn asynchrony(file: &syn::File) -> Vec<(usize, String)> {
+    #[derive(Default)]
+    struct Found(Vec<(usize, String)>);
+
+    impl<'ast> Visit<'ast> for Found {
+        fn visit_signature(&mut self, sig: &'ast syn::Signature) {
+            if let Some(token) = &sig.asyncness {
+                self.0
+                    .push((token.span.start().line, format!("`async fn {}`", sig.ident)));
+            }
+            syn::visit::visit_signature(self, sig);
+        }
+
+        fn visit_expr_async(&mut self, expr: &'ast syn::ExprAsync) {
+            self.0
+                .push((expr.async_token.span.start().line, "bloque `async`".into()));
+            syn::visit::visit_expr_async(self, expr);
+        }
+
+        fn visit_expr_await(&mut self, expr: &'ast syn::ExprAwait) {
+            self.0
+                .push((expr.await_token.span.start().line, "`.await`".into()));
+            syn::visit::visit_expr_await(self, expr);
+        }
+
+        fn visit_path(&mut self, path: &'ast syn::Path) {
+            if let Some(segment) = path
+                .segments
+                .iter()
+                .find(|s| s.ident == "Future" || s.ident == "IntoFuture")
+            {
+                self.0.push((
+                    segment.ident.span().start().line,
+                    format!("`{}`", segment.ident),
+                ));
+            }
+            syn::visit::visit_path(self, path);
+        }
+    }
+
+    let mut found = Found::default();
+    found.visit_file(file);
+    found.0.sort();
+    found.0
+}
+
+/// El dominio es síncrono (RS-3: la asincronía vive en los puertos de
+/// `application`). Una función o un tipo async en el dominio declara una
+/// frontera técnica propia, aunque no use las primitivas del kernel.
+#[test]
+fn hex_3_domain_declares_no_asynchrony() {
+    let mut violations = Vec::new();
+    let mut files = 0;
+    for krate in crates().into_iter().filter(|c| c.layer == Layer::Domain) {
+        for file in krate.files("src") {
+            files += 1;
+            for (line, what) in asynchrony(&parse(&file)) {
+                violations.push(format!(
+                    "{}:{line}: {what} — el dominio no declara asincronía propia; \
+                     la E/S va por un puerto en `application/ports`",
+                    relative(&file)
+                ));
+            }
+        }
+    }
+    assert_no_violations(
+        "hex_3_domain_declares_no_asynchrony",
+        "HEX-3: el dominio no declara asincronía propia (`async fn`, `async`, `.await`, `Future`)",
+        &[("archivos de domain", files)],
+        violations,
+    );
+}
+
+mod own_asynchrony {
+    use super::asynchrony;
+
+    fn found(code: &str) -> Vec<String> {
+        let file = syn::parse_file(code).expect("invariante: código de prueba válido");
+        asynchrony(&file)
+            .into_iter()
+            .map(|(_, what)| what)
+            .collect()
+    }
+
+    #[test]
+    fn an_async_fn_is_asynchrony() {
+        assert_eq!(found("pub async fn load() {}"), ["`async fn load`"]);
+    }
+
+    #[test]
+    fn an_async_method_in_a_trait_or_impl_is_asynchrony() {
+        let code = "trait T { async fn a(&self); } struct S; impl S { async fn b(&self) {} }";
+        assert_eq!(found(code), ["`async fn a`", "`async fn b`"]);
+    }
+
+    #[test]
+    fn a_future_in_a_signature_is_asynchrony() {
+        let code = "fn a() -> impl std::future::Future<Output = ()> { async {} }";
+        assert_eq!(found(code), ["`Future`", "bloque `async`"]);
+    }
+
+    #[test]
+    fn await_is_asynchrony() {
+        assert_eq!(found("fn a(x: X) { x.await; }"), ["`.await`"]);
+    }
+
+    #[test]
+    fn plain_domain_code_is_not() {
+        let code =
+            "pub struct Slug(String); impl Slug { pub fn new(s: &str) -> Self { Self(s.into()) } }";
+        assert!(found(code).is_empty());
+    }
+}

@@ -1,5 +1,16 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Asincronía propia en el dominio** (HEX-3): `hex_3_domain_declares_no_asynchrony`
+  detecta `async fn`, bloques `async`, `.await` y cualquier `Future` en
+  `domain`. Antes solo se detectaban las primitivas del kernel (`BoxFuture`).
+  Criterio: el dominio es síncrono, y la asincronía vive en los puertos (RS-3).
+
+### Filas que cambiaron de mecanismo
+- HEX-3 (asincronía propia): de `pendiente` a `test`.
+
 ## 0.20.0 — 2026-11-22
 
 Plugins: `craft-backend` 0.17.0 y `craft-web` 0.5.0 (sin cambios).
