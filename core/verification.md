@@ -33,7 +33,7 @@ cambiaron de mecanismo.
 | HEX-2 | Núcleo solo con el estándar y el kernel | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | HEX-2 | Frameworks de servidor solo en el borde | `test` | `tests/dependencies.rs::hex_2_server_frameworks_only_at_the_edge` |
 | HEX-3 | El dominio no usa las primitivas de E/S del kernel | `test` | `tests/ports.rs::hex_3_domain_does_not_use_kernel_io_primitives` |
-| HEX-3 | El dominio no declara asincronía propia (`async fn`, bloques `async`, `.await`, `Future`) | `test` | `tests/ports.rs::hex_3_domain_declares_no_asynchrony` |
+| HEX-3 | El dominio no declara asincronía propia (`async fn`, bloques y closures `async`, `.await`, `std::future`/`std::task`, `Future`, `AsyncFn*`; también en macros y en `#[cfg(test)]`) | `test` | `tests/ports.rs::hex_3_domain_declares_no_asynchrony` |
 | HEX-4 | Un `UseCase` de un solo `execute` | `test` | `tests/naming.rs::hex_4_inbound_ports_are_single_method_use_cases` |
 | HEX-4 | Las implementaciones se llaman `*Handler` | `test` | `tests/naming.rs::hex_4_use_case_implementations_are_handlers` |
 | HEX-4 | `api` depende del `UseCase`, nunca del `Handler` | `test` | `tests/naming.rs::hex_4_api_depends_on_use_cases_never_on_handlers` |

@@ -4,8 +4,10 @@
 
 ### Agregado
 - **Asincronía propia en el dominio** (HEX-3): `hex_3_domain_declares_no_asynchrony`
-  detecta `async fn`, bloques `async`, `.await` y cualquier `Future` en
-  `domain`. Antes solo se detectaban las primitivas del kernel (`BoxFuture`).
+  detecta en `domain` `async fn`, bloques y closures `async`, `.await`, los
+  módulos `std::future`/`std::task` (también en un `use`), `Future` y `AsyncFn*`,
+  incluso dentro de macros y de `#[cfg(test)]`. Un tipo propio llamado `Future`
+  no cuenta. Antes solo se detectaban las primitivas del kernel (`BoxFuture`).
   Criterio: el dominio es síncrono, y la asincronía vive en los puertos (RS-3).
 
 ### Filas que cambiaron de mecanismo
