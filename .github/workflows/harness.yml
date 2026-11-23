@@ -2,13 +2,16 @@ name: Harness
 
 # VER-1 aplicado al propio harness: consistencia de la documentación y las dos
 # plantillas en verde. El job astro-e2e corre los e2e y Lighthouse de la
-# plantilla Astro cuando cambia stacks/astro/, cada semana y a mano.
+# plantilla Astro cuando cambia stacks/astro/, cada semana y a mano; el job
+# rust-nightly, el clippy de la plantilla Rust con el último nightly, cada semana
+# y a mano.
 
 on:
   pull_request:
   push:
     branches: [main]
-  # Semanal, solo para astro-e2e: detecta deriva de navegador, wrangler y Lighthouse.
+  # Semanal, solo para astro-e2e y rust-nightly: detecta deriva de navegador,
+  # wrangler, Lighthouse y de los lints de clippy que todavía no llegan a stable.
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
@@ -73,6 +76,31 @@ jobs:
       - run: cargo test --workspace
         env:
           ARCH_REQUIRE_MATERIAL: "1"
+
+  # Un lint nuevo llega a nightly unas 12 semanas antes que a stable. Los
+  # proyectos que adoptan la plantilla suelen fijar un nightly (rustfmt con
+  # opciones inestables) y copian tools/architecture tal cual: si la copia no
+  # pasa su clippy, tiene que divergir. Semanal y a mano, no en cada PR, para que
+  # un lint nuevo de nightly no bloquee cambios ajenos.
+  rust-nightly:
+    name: Plantilla Rust (clippy nightly)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: stacks/rust/template
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: stacks/rust/template
+          key: nightly
+      - run: rustc --version
+      - run: cargo clippy --workspace --all-targets -- -D warnings
 
   astro:
     name: Plantilla Astro

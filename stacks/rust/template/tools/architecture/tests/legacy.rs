@@ -42,7 +42,7 @@ fn legacy_layers_share_the_manifest_and_have_no_tests_dir() {
     for layer in &iam {
         assert!(layer.legacy, "{:?}", layer.layer);
         assert_eq!(layer.name, "iam");
-        assert!(layer.dependencies().contains(&"axum".to_string()));
+        assert!(layer.dependencies().iter().any(|d| d == "axum"));
         assert_eq!(layer.path("tests"), None, "{:?}", layer.layer);
     }
 }
