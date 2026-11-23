@@ -28,14 +28,18 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
 3. Agrega `tools/architecture` desde la plantilla del stack. En Rust, con el
    modo legacy si hay un crate por contexto o un `shared/` como kernel.
 4. Llena la línea base con lo que los tests de arquitectura reportan hoy. Es la
-   única vez que se llena, salvo una sincronización con el harness (§4). El hook bloquea las ediciones que la agrandan: el usuario abre
-   esa sesión con la variable ya exportada (`CRAFT_BACKEND_BASELINE_INIT=1
+   única vez que se llena, salvo una sincronización con el harness (sección 4
+   de esta skill). El hook bloquea las ediciones que la agrandan: el usuario
+   abre esa sesión con la variable ya exportada (`CRAFT_BACKEND_BASELINE_INIT=1
    claude`) y la cierra al terminar. El hook la lee del entorno con que arrancó
    Claude Code: exportarla a mitad de sesión no sirve. **Antes de vaciar o tocar
    la línea base**, corre `echo $CRAFT_BACKEND_BASELINE_INIT`; si no da `1`,
    detente y pide al usuario que reabra con `CRAFT_BACKEND_BASELINE_INIT=1 claude
    --continue`. Cada entrada se concilia con un hallazgo del inventario.
-5. Escribe el plan (§5): rebanadas chicas, orden por dependencias, puntos de
+5. Llena "Ritual de rebanada" en §5.1 con las convenciones del proyecto: lo que
+   digan su `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` o un comando de rebanada
+   propio (`.claude/commands/`). Lo que no esté, pregúntalo.
+6. Escribe el plan (§5): rebanadas chicas, orden por dependencias, puntos de
    replanificación, y qué decisiones son del usuario (§5.7). Por defecto,
    **corregir en el lugar antes de mover**: el trinquete no sigue los
    movimientos.
@@ -61,7 +65,8 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
   aparece una violación nueva, detente y avisa. Nunca agregues líneas.
 - La red de seguridad (tests de caracterización) no se modifica, salvo los
   cambios de contrato de §5.5 para esta rebanada.
-- Sigue la convención de commits del proyecto.
+- Sigue el "Ritual de rebanada" de §5.1 (commits, limpieza). Si falta, usa la
+  convención del repo y anota la fricción en §6.
 
 ### Al terminar
 1. El CI local del stack en verde (en Rust: `cargo fmt --check`, `cargo clippy
@@ -70,7 +75,8 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
    si cambió un contrato, §5.5.
 3. `architecture-reviewer` sobre el diff. Aplica lo de esta rebanada; lo demás
    se anota en su resultado de §5.3.
-4. Push y PR solo si el usuario lo pidió. Si no, deja la rama con sus commits
+4. Push y PR si el usuario lo pidió o si el "Ritual de rebanada" de §5.1 dice
+   que siempre. Si no, deja la rama con sus commits
    y pon el texto del PR en el reporte: resumen, tests nuevos con su rojo,
    entradas borradas de la línea base y cambios de contrato.
 5. Si hay PR, su base debe ser `main` (en GitHub, `gh pr view --json

@@ -108,6 +108,14 @@ Datos verificados que condicionan el plan:
   baja la entrada de la línea base, se confirma que el test falla con esa
   violación y se corrige hasta verde.
 - <Verificación manual mientras haya algo que los tests no ven.>
+- **Ritual de rebanada: convenciones del proyecto.** La skill las lee de aquí y
+  mandan sobre sus valores por defecto. Si el proyecto tenía su propio comando
+  de rebanada (`.claude/commands/…`), sus reglas se pasan aquí.
+  - Commits: <convención e idioma; por ejemplo, Conventional Commits en inglés>.
+  - PR: <siempre al terminar, o solo si el usuario lo pide (valor por defecto)>.
+  - Limpieza: <qué se quita en la rebanada además de la línea base; por ejemplo,
+    los `#[allow(…)]` del código que toca>.
+  - <Otras: rama, etiquetas, revisores.>
 
 ### 5.2 <Decisión de orden: qué se corrige en el lugar y qué espera a la separación>
 
