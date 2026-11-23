@@ -35,6 +35,12 @@ Fricciones de la primera sincronización de un proyecto adoptado
   nightly-2026-11-19): una copia tal cual de `tools/architecture` rompía el CI
   de un proyecto con nightly. El CI usaba stable 1.100, que no lo detecta.
 
+### Katas
+- `main` (1.0.0-rc.2) contra `v1.0.0-rc.1` como control intercalado: 3/3 en las
+  tres katas en las dos configuraciones. Renombre $0.72 frente a $0.72, slug
+  $0.49 frente a $0.45, revisión $0.27 frente a $0.32. Los rangos se solapan en
+  las tres: ningún efecto establecido (`evals/README.md`).
+
 ## 1.0.0-rc.1 — 2026-11-22
 
 Plugins: `craft-backend` 1.0.0-rc.1 y `craft-web` 1.0.0-rc.1.
