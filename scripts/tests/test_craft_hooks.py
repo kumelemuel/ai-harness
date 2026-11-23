@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -157,6 +158,15 @@ class PreEdit(unittest.TestCase):
         )
         self.assertIn("shell", message)
 
+    def test_the_message_says_the_variable_is_read_when_the_session_opens(self) -> None:
+        # Exportarla a mitad de sesión no llega al hook: hereda el entorno de
+        # Claude Code al arrancar. El mensaje dice cómo reabrir.
+        _, message = self.run_hook(
+            "Write", {"file_path": str(self.baseline), "content": BASE + "z w\n"}
+        )
+        self.assertIn("a mitad de sesión", message)
+        self.assertIn("CRAFT_BACKEND_BASELINE_INIT=1 claude --continue", message)
+
     def test_an_architecture_dir_outside_tools_is_ignored(self) -> None:
         other = Path(self.tmp.name) / "docs" / "architecture" / "baseline.txt"
         code, _ = self.run_hook("Write", {"file_path": str(other), "content": "a b\n"})
@@ -166,6 +176,49 @@ class PreEdit(unittest.TestCase):
         other = Path(self.tmp.name) / "notes" / "baseline.txt"
         code, _ = self.run_hook("Write", {"file_path": str(other), "content": "a b\n"})
         self.assertEqual(code, 0)
+
+
+class SessionStart(unittest.TestCase):
+    """Una sesión con `CRAFT_BACKEND_BASELINE_INIT=1` tiene el trinquete abierto: avisa."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        (self.root / "Cargo.toml").write_text("[workspace]\nmembers = []\n")
+        arch = self.root / "tools" / "architecture"
+        arch.mkdir(parents=True)
+        (arch / "Cargo.toml").write_text('[package]\nname = "architecture"\n')
+        self.env = mock.patch.dict(os.environ, {}, clear=False)
+        self.env.start()
+        os.environ.pop("CRAFT_BACKEND_BASELINE_INIT", None)
+
+    def tearDown(self) -> None:
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def run_hook(self, cwd: Path) -> tuple[int, str]:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            code = craft_hooks.session_start({"cwd": str(cwd)})
+        return code, stdout.getvalue()
+
+    def test_an_open_ratchet_is_announced_to_user_and_agent(self) -> None:
+        os.environ["CRAFT_BACKEND_BASELINE_INIT"] = "1"
+        code, out = self.run_hook(self.root / "tools")
+        self.assertEqual(code, 0)
+        output = json.loads(out)
+        self.assertIn("CRAFT_BACKEND_BASELINE_INIT=1", output["systemMessage"])
+        context = output["hookSpecificOutput"]
+        self.assertEqual(context["hookEventName"], "SessionStart")
+        self.assertIn("baseline.txt", context["additionalContext"])
+
+    def test_without_the_variable_it_is_silent(self) -> None:
+        self.assertEqual(self.run_hook(self.root), (0, ""))
+
+    def test_outside_a_workspace_with_architecture_tests_it_is_silent(self) -> None:
+        os.environ["CRAFT_BACKEND_BASELINE_INIT"] = "1"
+        (self.root / "tools" / "architecture" / "Cargo.toml").unlink()
+        self.assertEqual(self.run_hook(self.root), (0, ""))
 
 
 if __name__ == "__main__":

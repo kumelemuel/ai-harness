@@ -29,8 +29,12 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
    modo legacy si hay un crate por contexto o un `shared/` como kernel.
 4. Llena la línea base **una sola vez**, con lo que los tests de arquitectura
    reportan hoy. El hook bloquea las ediciones que la agrandan: el usuario abre
-   esa sesión con `CRAFT_BACKEND_BASELINE_INIT=1` y la cierra al terminar. Cada entrada se
-   concilia con un hallazgo del inventario.
+   esa sesión con la variable ya exportada (`CRAFT_BACKEND_BASELINE_INIT=1
+   claude`) y la cierra al terminar. El hook la lee del entorno con que arrancó
+   Claude Code: exportarla a mitad de sesión no sirve. **Antes de vaciar o tocar
+   la línea base**, corre `echo $CRAFT_BACKEND_BASELINE_INIT`; si no da `1`,
+   detente y pide al usuario que reabra con `CRAFT_BACKEND_BASELINE_INIT=1 claude
+   --continue`. Cada entrada se concilia con un hallazgo del inventario.
 5. Escribe el plan (§5): rebanadas chicas, orden por dependencias, puntos de
    replanificación, y qué decisiones son del usuario (§5.7). Por defecto,
    **corregir en el lugar antes de mover**: el trinquete no sigue los

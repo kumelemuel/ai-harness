@@ -400,8 +400,13 @@ registra y el trinquete impide que crezcan:
    primero: se borra o baja la entrada, se ve fallar el test con esa violación
    y se corrige hasta verde. Que nadie *agregue* una línea
    lo bloquea el hook `PreToolUse` de craft-backend en las ediciones del
-   agente; el llenado inicial se hace con `CRAFT_BACKEND_BASELINE_INIT=1`. Una
-   edición por shell o a mano la ve el revisor del PR.
+   agente; el llenado inicial se hace con `CRAFT_BACKEND_BASELINE_INIT=1`, exportada
+   **antes de abrir la sesión** (`CRAFT_BACKEND_BASELINE_INIT=1 claude`): el hook
+   hereda el entorno de Claude Code al arrancar, y exportarla a mitad de sesión no
+   llega. Antes de vaciar la línea base, compruébala (`echo
+   $CRAFT_BACKEND_BASELINE_INIT` debe dar `1`); el hook `SessionStart` también avisa
+   que la sesión tiene el trinquete abierto. Una edición por shell o a mano la ve el
+   revisor del PR.
 3. **Corregir en el lugar y después mover.** La línea base no sigue los
    movimientos: mover un archivo con entradas da a la vez una violación nueva y
    una entrada para borrar. Primero se corrige en la ruta vieja y se borra la
