@@ -393,6 +393,31 @@ usuario. Por corrida: renombrar 3, 5 y 3; buscar por slug 0, 4 y 0.
 sus dos `StubUseCase`. Aclara además que un `Fake` puede exponer lo que
 recibió.
 
+### Candidata 1.0.0-rc.1 (0.22.0 contra 0.20.0)
+
+`main` en `265f747` (0.22.0) contra `63dfe77` (0.20.0) con `--harness-ref`. Entre
+las dos solo están HEX-3 (un test) y WEB-2/AS-2 (plantilla Astro, que estas katas
+no usan): ninguna skill, hook ni subagente cambió.
+
+| Kata | Configuración | Aceptación | Costo | Turnos |
+|---|---|---|---|---|
+| rust-rename-community | main | 3/3 | $0.68 ($0.63–$0.72) | 55 (55–71) |
+| rust-rename-community | control | 3/3 | $0.70 ($0.64–$0.72) | 54 (52–64) |
+| rust-community-by-slug | main | 3/3 | $0.47 ($0.43–$0.52) | 54 (52–58) |
+| rust-community-by-slug | control | 3/3 | $0.50 ($0.50–$0.52) | 61 (61–63) |
+| review-planted-subagent | main | 3/3 | $0.25 ($0.24–$0.27) | 2 |
+| review-planted-subagent | control | 3/3 | $0.20 ($0.19–$0.24) | 2 |
+
+- Los rangos se solapan en las tres katas (en la revisión, solo en $0.24): no
+  hay efecto establecido, como se esperaba sin cambios en lo que carga la sesión.
+- **Desviación de la ventana:** el setup (`cargo build`) de una corrida de `main`
+  falló antes de guardar su JSON, así que la retoma repitió sus 6 corridas de
+  Rust (17:13–17:25, el control corrió 15:29–17:08) y la revisión de `main`
+  corrió a las 20:24 (el control, 17:09). Una corrida más la cortó un 429 y se
+  repitió. Costo total de las katas: $8.43.
+- Hallazgo del runner: si una corrida lanza en el setup, el proceso termina sin
+  guardar las válidas de esa configuración. Queda para otro encargo.
+
 ### Skill `adoption` y hook `pre-edit` (0.20.0, control intercalado)
 
 Primera medición con `--harness-ref`: la rama del PR (`craft-backend` 0.17.0,

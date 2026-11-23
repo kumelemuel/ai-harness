@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.0-rc.1 — 2026-11-22
+
+Plugins: `craft-backend` 1.0.0-rc.1 y `craft-web` 1.0.0-rc.1.
+
+Candidata a 1.0.0. Cierra el encargo de huecos de la primera adopción real
+(0.16.0 a 0.22.0): dependencias renombradas y herencia del workspace,
+trinquete oficial con conteos, modo legacy, `Clock`, cadena de `source()`,
+skill `adoption` con su hook, asincronía en el dominio, redirecciones y tokens
+de `@theme` verificados. Sin cambios de contenido respecto de 0.22.0.
+
+### Katas
+- `main` (0.22.0) contra 0.20.0 como control (`--harness-ref 63dfe77`):
+  3/3 en las tres katas en las dos configuraciones. Renombre $0.68 frente a
+  $0.70, slug $0.47 frente a $0.50, revisión $0.25 frente a $0.20. Los rangos
+  se solapan en las tres: ningún efecto establecido. La configuración `main`
+  se cayó en un setup y se retomó fuera de la ventana del control
+  (`evals/README.md`).
+
 ## 0.22.0 — 2026-11-22
 
 Plugins: `craft-backend` 0.18.0 (sin cambios) y `craft-web` 0.6.0.
