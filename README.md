@@ -51,18 +51,20 @@ sumó 7 falsos positivos o IDs equivocados, contra 0. `site-auditor` no tiene
 
 ## Hooks
 
-`craft-backend` trae tres hooks que se activan solos en workspaces Rust con
+`craft-backend` trae cuatro hooks que se activan solos en workspaces Rust con
 `tools/architecture`:
 
 | Hook | Cuándo | Qué hace |
 |------|--------|----------|
+| `SessionStart` | Al abrir la sesión, si `CRAFT_BACKEND_BASELINE_INIT=1` | Avisa al usuario y al agente que la sesión tiene el trinquete abierto |
 | `PreToolUse` | Antes de editar `tools/architecture/baseline.txt` | Bloquea la edición si agrega entradas o sube un conteo: la línea base solo se achica |
 | `PostToolUse` | Tras editar un `.rs` o `Cargo.toml` | `rustfmt` del archivo y tests de arquitectura; las violaciones vuelven al agente con su ID |
 | `Stop` | Antes de que el agente termine, si hay cambios Rust | `clippy -D warnings` (solo crates de la arquitectura) + `cargo test --workspace`; si falla, no lo deja terminar (una vez por turno) |
 
 Variables: `CRAFT_BACKEND_HOOKS=0` apaga todos, `CRAFT_BACKEND_STOP_GATE=0` solo el
 de Stop, `CRAFT_BACKEND_BASELINE_INIT=1` permite el llenado inicial de la línea
-base en una adopción y `CRAFT_BACKEND_HOOKS_LOG=/ruta` registra cada decisión.
+base en una adopción (se lee al abrir la sesión: exportarla a mitad de sesión no
+sirve) y `CRAFT_BACKEND_HOOKS_LOG=/ruta` registra cada decisión.
 
 Los hooks de ambos plugins requieren `python3` 3.11 o superior en el `PATH`
 (`craft-backend` lee los `Cargo.toml` con `tomllib`). Con una versión menor, cada

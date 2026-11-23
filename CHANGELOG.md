@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.0.0-rc.2 — 2026-11-23
+
+Plugins: `craft-backend` 1.0.0-rc.2 y `craft-web` 1.0.0-rc.1 (sin cambios).
+
+Fricciones de la primera sincronización de un proyecto adoptado
+(kumenity-backend-rust) con `v1.0.0-rc.1`.
+
+### Agregado
+- **`/craft-backend:adoption sincronizar <tag>`** (VER-1): procedimiento para
+  volver a llenar la línea base cuando una versión cambia sus claves, en un PR
+  propio sin cambios de código. `compare_baseline.py` agrupa lo viejo frente a
+  lo nuevo (claves normalizadas sin `#sección.paquete`) y sale con 1 si algo
+  desaparece o baja: puede ser un cierre en falso.
+- **Hook `SessionStart`** (VER-1): con `CRAFT_BACKEND_BASELINE_INIT=1`, avisa al
+  usuario y al agente que la sesión tiene el trinquete abierto.
+- **Job `rust-nightly`** en el CI del harness, semanal y a mano: clippy de la
+  plantilla con el último nightly, para lo que los proyectos con un nightly
+  fijado ven antes que stable.
+- **"Ritual de rebanada"** en §5.1 de la plantilla de adopción: commits, PR
+  siempre o a pedido y limpieza propios del proyecto. La skill lo lee de ahí.
+
+### Cambiado
+- **La línea base se vuelve a llenar al sincronizar** (VER-1): ya no "una sola
+  vez". Proyectos adoptados antes de 0.17.0 (`ruta/Cargo.toml` pasó a
+  `ruta/Cargo.toml#sección.paquete`) o de 0.18.0 (en legacy, `n` cuenta las
+  capas virtuales que ven la dependencia) tienen que sincronizar.
+- **`CRAFT_BACKEND_BASELINE_INIT` se lee al abrir la sesión**: la skill, el
+  README del stack y el mensaje del hook lo dicen, piden comprobarla antes de
+  vaciar la línea base y cómo reabrir (`… claude --continue`).
+
+### Corregido
+- **`legacy.rs` pasa clippy en nightly** (`unnecessary_to_owned` desde
+  nightly-2026-11-19): una copia tal cual de `tools/architecture` rompía el CI
+  de un proyecto con nightly. El CI usaba stable 1.100, que no lo detecta.
+
 ## 1.0.0-rc.1 — 2026-11-22
 
 Plugins: `craft-backend` 1.0.0-rc.1 y `craft-web` 1.0.0-rc.1.

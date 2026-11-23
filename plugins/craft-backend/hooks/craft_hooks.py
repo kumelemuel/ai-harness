@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Hooks de craft-backend (VER-1): lo que no se verifica se erosiona.
 
+session-start  Al abrir la sesión: si `CRAFT_BACKEND_BASELINE_INIT=1` está
+           activa, avisa al usuario y al agente que el trinquete está abierto.
 pre-edit   Antes de editar `tools/architecture/baseline.txt`: bloquea la
            edición si agrega entradas o sube un conteo (la línea base solo
            se achica).
@@ -16,7 +18,8 @@ Fuera de un workspace con `tools/architecture` no hace nada.
 Variables de entorno:
   CRAFT_BACKEND_HOOKS=0       desactiva todos los hooks
   CRAFT_BACKEND_STOP_GATE=0   desactiva solo el hook de Stop
-  CRAFT_BACKEND_BASELINE_INIT=1  permite agrandar baseline.txt (llenado inicial)
+  CRAFT_BACKEND_BASELINE_INIT=1  permite agrandar baseline.txt (llenado inicial o
+                                 sincronización); se lee al abrir la sesión
   CRAFT_BACKEND_HOOKS_LOG=…   ruta de un archivo donde registrar cada decisión
 
 Códigos de salida (contrato de hooks de Claude Code):
@@ -268,9 +271,37 @@ def pre_edit(payload: dict) -> int:
         + "\n".join(f"  - {entry}" for entry in grown)
         + "\n\nCorrige la violación en el código. Borrar o bajar entradas sí está "
         "permitido. No edites baseline.txt por shell: si crees que la entrada es "
-        "legítima, detente y avisa. Para el llenado inicial de una adopción, el "
-        "usuario exporta CRAFT_BACKEND_BASELINE_INIT=1 antes de abrir la sesión."
+        "legítima, detente y avisa. Para el llenado inicial de una adopción o una "
+        "sincronización con el harness, el usuario exporta "
+        "CRAFT_BACKEND_BASELINE_INIT=1 antes de abrir la sesión: el hook hereda el "
+        "entorno de Claude Code al arrancar, así que exportarla a mitad de sesión no "
+        "sirve. Para retomar esta sesión con la variable, el usuario la cierra y "
+        "corre `CRAFT_BACKEND_BASELINE_INIT=1 claude --continue`."
     )
+
+
+def session_start(payload: dict) -> int:
+    """Avisa que la sesión tiene el trinquete abierto (`CRAFT_BACKEND_BASELINE_INIT=1`)."""
+    if os.environ.get("CRAFT_BACKEND_BASELINE_INIT") != "1":
+        return 0
+    root = workspace_root(Path(payload.get("cwd") or ".").resolve())
+    if root is None or not has_architecture_tests(root):
+        return 0
+    message = (
+        "craft-backend: CRAFT_BACKEND_BASELINE_INIT=1 está activa. El hook deja agrandar "
+        "tools/architecture/baseline.txt en esta sesión (trinquete abierto). Úsala solo "
+        "para el llenado inicial de una adopción o una sincronización con el harness, y "
+        "cierra la sesión al terminar."
+    )
+    context = (
+        message + " Fuera de ese encargo, no agregues ni subas entradas de baseline.txt "
+        "aunque el hook no lo bloquee: detente y avisa."
+    )
+    print(json.dumps({
+        "systemMessage": message,
+        "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context},
+    }, ensure_ascii=False))
+    return 0
 
 
 def rust_changes(root: Path) -> bool:
@@ -321,7 +352,12 @@ def main() -> int:
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
     payload = read_input()
     try:
-        handlers = {"pre-edit": pre_edit, "post-edit": post_edit, "stop": stop}
+        handlers = {
+            "session-start": session_start,
+            "pre-edit": pre_edit,
+            "post-edit": post_edit,
+            "stop": stop,
+        }
         if mode in handlers:
             code = handlers[mode](payload)
             target = (payload.get("tool_input") or {}).get("file_path") or payload.get("cwd", "")

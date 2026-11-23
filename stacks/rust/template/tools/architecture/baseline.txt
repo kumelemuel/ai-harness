@@ -10,5 +10,8 @@
 # no agregar líneas, corregir la violación. Para mover un archivo con
 # entradas: corregir en el lugar, borrar la entrada y después mover.
 #
-# En un proyecto nuevo queda vacía. En una adopción se llena una sola vez,
-# con la auditoría inicial (skill `craft-backend:adoption`).
+# En un proyecto nuevo queda vacía. En una adopción se llena con la auditoría
+# inicial (skill `craft-backend:adoption`) y solo vuelve a llenarse al
+# sincronizar tools/architecture con una versión nueva del harness que cambia
+# las claves (`/craft-backend:adoption sincronizar <tag>`), en un PR propio y
+# sin cambios de código.

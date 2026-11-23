@@ -1,7 +1,7 @@
 ---
 name: adoption
-description: Ritual de adopción de craft-backend en un backend existente (auditoría, documento de estado, línea base y rebanadas). Se invoca a mano con /craft-backend:adoption.
-argument-hint: "[empezar | R<n> | replanificar]"
+description: Ritual de adopción de craft-backend en un backend existente (auditoría, documento de estado, línea base, rebanadas y sincronización con versiones nuevas del harness). Se invoca a mano con /craft-backend:adoption.
+argument-hint: "[empezar | R<n> | replanificar | sincronizar <tag>]"
 disable-model-invocation: true
 ---
 
@@ -27,11 +27,19 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
    fijen el comportamiento. Anótalos en el documento (cabecera y §5.1).
 3. Agrega `tools/architecture` desde la plantilla del stack. En Rust, con el
    modo legacy si hay un crate por contexto o un `shared/` como kernel.
-4. Llena la línea base **una sola vez**, con lo que los tests de arquitectura
-   reportan hoy. El hook bloquea las ediciones que la agrandan: el usuario abre
-   esa sesión con `CRAFT_BACKEND_BASELINE_INIT=1` y la cierra al terminar. Cada entrada se
-   concilia con un hallazgo del inventario.
-5. Escribe el plan (§5): rebanadas chicas, orden por dependencias, puntos de
+4. Llena la línea base con lo que los tests de arquitectura reportan hoy. Es la
+   única vez que se llena, salvo una sincronización con el harness (sección 4
+   de esta skill). El hook bloquea las ediciones que la agrandan: el usuario
+   abre esa sesión con la variable ya exportada (`CRAFT_BACKEND_BASELINE_INIT=1
+   claude`) y la cierra al terminar. El hook la lee del entorno con que arrancó
+   Claude Code: exportarla a mitad de sesión no sirve. **Antes de vaciar o tocar
+   la línea base**, corre `echo $CRAFT_BACKEND_BASELINE_INIT`; si no da `1`,
+   detente y pide al usuario que reabra con `CRAFT_BACKEND_BASELINE_INIT=1 claude
+   --continue`. Cada entrada se concilia con un hallazgo del inventario.
+5. Llena "Ritual de rebanada" en §5.1 con las convenciones del proyecto: lo que
+   digan su `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` o un comando de rebanada
+   propio (`.claude/commands/`). Lo que no esté, pregúntalo.
+6. Escribe el plan (§5): rebanadas chicas, orden por dependencias, puntos de
    replanificación, y qué decisiones son del usuario (§5.7). Por defecto,
    **corregir en el lugar antes de mover**: el trinquete no sigue los
    movimientos.
@@ -57,7 +65,8 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
   aparece una violación nueva, detente y avisa. Nunca agregues líneas.
 - La red de seguridad (tests de caracterización) no se modifica, salvo los
   cambios de contrato de §5.5 para esta rebanada.
-- Sigue la convención de commits del proyecto.
+- Sigue el "Ritual de rebanada" de §5.1 (commits, limpieza). Si falta, usa la
+  convención del repo y anota la fricción en §6.
 
 ### Al terminar
 1. El CI local del stack en verde (en Rust: `cargo fmt --check`, `cargo clippy
@@ -66,7 +75,8 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
    si cambió un contrato, §5.5.
 3. `architecture-reviewer` sobre el diff. Aplica lo de esta rebanada; lo demás
    se anota en su resultado de §5.3.
-4. Push y PR solo si el usuario lo pidió. Si no, deja la rama con sus commits
+4. Push y PR si el usuario lo pidió o si el "Ritual de rebanada" de §5.1 dice
+   que siempre. Si no, deja la rama con sus commits
    y pon el texto del PR en el reporte: resumen, tests nuevos con su rojo,
    entradas borradas de la línea base y cambios de contrato.
 5. Si hay PR, su base debe ser `main` (en GitHub, `gh pr view --json
@@ -81,3 +91,36 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
 
 En cada punto de replanificación sigue §5.9 de la plantilla. Lo que cambie del
 plan va en un PR de solo documentación antes de la rebanada siguiente.
+
+## 4. Sincronizar con el harness (`sincronizar <tag>`)
+
+Cuando el proyecto copia `tools/architecture` de una versión nueva del harness.
+Si el CHANGELOG de esa versión (o de las que salta) cambia la clave o el conteo
+de las entradas, la línea base tiene que volver a llenarse. Es la única
+excepción a "solo se achica", y por eso tiene su propio procedimiento:
+
+1. Rama desde `main` y **PR propio, sin cambios de código** de producción: así
+   la diferencia en la línea base solo puede venir del harness.
+2. Comprueba la variable: `echo $CRAFT_BACKEND_BASELINE_INIT` tiene que dar `1`.
+   Si no, detente: el usuario reabre con `CRAFT_BACKEND_BASELINE_INIT=1 claude
+   --continue` (exportarla a mitad de sesión no llega al hook).
+3. Guarda la línea base vigente: `git show main:tools/architecture/baseline.txt
+   > /tmp/baseline-old.txt`.
+4. Copia `tools/architecture` del `<tag>` (en Rust, de la plantilla del stack)
+   sin tocar `baseline.txt`, y conserva lo que el proyecto adapta (anótalo en
+   el PR). Vacía las entradas (deja la cabecera nueva), corre los tests de
+   arquitectura y escribe una entrada por cada violación reportada.
+5. Compara con el script de esta skill: `python3
+   "${CLAUDE_SKILL_DIR}/scripts/compare_baseline.py" /tmp/baseline-old.txt
+   tools/architecture/baseline.txt` (`${CLAUDE_SKILL_DIR}` es el directorio de
+   este archivo, no el del proyecto). Agrupa en: se mantienen, cambian de clave (mapeo viejo → nuevo),
+   desaparecen, bajan o suben de conteo, y nuevas.
+6. **Si algo desaparece o baja (salida 1), detente y avisa.** Sin cambios de
+   código, nada debería cerrarse: puede ser un cierre en falso (la versión nueva
+   dejó de detectar la violación). No lo expliques tú; lo decide el usuario
+   con evidencia.
+7. Cada entrada nueva o que sube necesita un ID del inventario (uno existente o
+   el siguiente libre de su regla) y una rebanada que la cierre. Actualiza §2,
+   §5.6 y la fila de §5.10.
+8. El análisis completo del script va en el cuerpo del PR. El PR, como en las
+   rebanadas, solo si el usuario lo pidió.

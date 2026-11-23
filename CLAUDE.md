@@ -80,6 +80,11 @@ Plugins: `craft-backend` A.B.C, `craft-web` D.E.F.
 - <kata>: aceptación, costo y turnos (mediana) contra la referencia.
 ```
 
+Si cambia la clave o el conteo de una entrada de `baseline.txt` (lo que un test
+pone antes del primer `:` o lo que cuenta), la entrada lo dice en `### Cambiado`
+con el mapeo viejo → nuevo: los proyectos adoptados tienen que sincronizar
+(`/craft-backend:adoption sincronizar <tag>`).
+
 Las secciones sin contenido se omiten. La narración de cada verificación
 (inyecciones, comandos, salidas) va en el cuerpo del mensaje de commit, no en el
 CHANGELOG. Las entradas anteriores a 0.12.0 no se reescriben.

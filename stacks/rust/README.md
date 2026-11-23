@@ -3,8 +3,9 @@
 > **Estado:** v0.2 (2026-11-12)
 > **Toolchain:** Rust estable, edición 2024 (verificado con 1.97).
 > **Referencia ejecutable:** [`template/`](template/) — compila, todos los tests en verde
-> (lo comprueba el [CI del harness](../../.github/workflows/harness.yml)) y los tests de
-> arquitectura detectan cada violación (verificado inyectándolas).
+> (lo comprueba el [CI del harness](../../.github/workflows/harness.yml), que además corre
+> clippy con el último nightly cada semana, para que la copia de `tools/architecture` pase
+> también en un proyecto que fija un nightly) y los tests de arquitectura detectan cada violación (verificado inyectándolas).
 
 Traducción de [`core/principles`](../../core/principles/README.md) a Rust. Los
 principios no cambian; aquí se decide **cómo se expresan**.
@@ -385,8 +386,10 @@ Al adoptar el harness en un proyecto existente, los tests de arquitectura
 fallan por violaciones que no se pueden corregir de una vez. La línea base las
 registra y el trinquete impide que crezcan:
 
-1. **Se llena una sola vez**, con la auditoría inicial (skill
-   `craft-backend:adoption`): una línea
+1. **Se llena con la auditoría inicial** (skill `craft-backend:adoption`) y solo
+   vuelve a llenarse al sincronizar `tools/architecture` con una versión del harness
+   que cambia las claves (`/craft-backend:adoption sincronizar <tag>`, en un PR
+   propio): una línea
    `<test> <clave> [n]` por clave distinta. `<test>` es el nombre de la función
    del test. `<clave>` es lo que el mensaje pone antes del primer `:`: la ruta
    del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests de
@@ -399,8 +402,13 @@ registra y el trinquete impide que crezcan:
    primero: se borra o baja la entrada, se ve fallar el test con esa violación
    y se corrige hasta verde. Que nadie *agregue* una línea
    lo bloquea el hook `PreToolUse` de craft-backend en las ediciones del
-   agente; el llenado inicial se hace con `CRAFT_BACKEND_BASELINE_INIT=1`. Una
-   edición por shell o a mano la ve el revisor del PR.
+   agente; el llenado inicial se hace con `CRAFT_BACKEND_BASELINE_INIT=1`, exportada
+   **antes de abrir la sesión** (`CRAFT_BACKEND_BASELINE_INIT=1 claude`): el hook
+   hereda el entorno de Claude Code al arrancar, y exportarla a mitad de sesión no
+   llega. Antes de vaciar la línea base, compruébala (`echo
+   $CRAFT_BACKEND_BASELINE_INIT` debe dar `1`); el hook `SessionStart` también avisa
+   que la sesión tiene el trinquete abierto. Una edición por shell o a mano la ve el
+   revisor del PR.
 3. **Corregir en el lugar y después mover.** La línea base no sigue los
    movimientos: mover un archivo con entradas da a la vez una violación nueva y
    una entrada para borrar. Primero se corrige en la ruta vieja y se borra la
