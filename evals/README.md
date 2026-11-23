@@ -393,6 +393,37 @@ usuario. Por corrida: renombrar 3, 5 y 3; buscar por slug 0, 4 y 0.
 sus dos `StubUseCase`. Aclara además que un `Fake` puede exponer lo que
 recibió.
 
+### Candidata 1.0.0-rc.2 (contra 1.0.0-rc.1)
+
+`main` en `9810b44` (1.0.0-rc.2) contra `v1.0.0-rc.1` (`e9526c8`) con
+`--harness-ref`, 2026-11-23 de 06:32 a 06:54, las dos configuraciones en
+paralelo kata por kata. Sonnet implementa; en la revisión, Haiku en la sesión y
+el revisor en Opus (su `model:`). Entre las dos cambian la skill `adoption`
+(modo `sincronizar`, "Ritual de rebanada"), un hook `SessionStart` nuevo que
+sin `CRAFT_BACKEND_BASELINE_INIT=1` no imprime nada, el mensaje de bloqueo de
+`pre-edit` y `legacy.rs`.
+
+| Kata | Configuración | Aceptación | Costo | Turnos | Archivos leídos |
+|---|---|---|---|---|---|
+| rust-rename-community | main | 3/3 | $0.72 ($0.60–$0.76) | 58 (50–79) | 2 (1–27) |
+| rust-rename-community | control | 3/3 | $0.72 ($0.71–$0.78) | 63 (59–75) | 11 (7–26) |
+| rust-community-by-slug | main | 3/3 | $0.49 ($0.44–$0.53) | 59 (48–61) | 16 (13–23) |
+| rust-community-by-slug | control | 3/3 | $0.45 ($0.39–$0.58) | 53 (48–56) | 20 (15–24) |
+| review-planted-subagent | main | 3/3 | $0.27 ($0.19–$0.31) | 2 | 0 (0–2) |
+| review-planted-subagent | control | 3/3 | $0.32 ($0.23–$0.37) | 2 | 0 (0–2) |
+
+- Los rangos se solapan en las tres katas: ningún efecto establecido, como se
+  esperaba. `adoption` (con `disable-model-invocation`) no se cargó en ninguna
+  corrida, el hook `SessionStart` no tiene salida sin la variable y no hubo
+  bloqueos de hooks.
+- El revisor detectó las cuatro violaciones plantadas (HEX-7, ERR-2, RS-2,
+  TDD-1) en las 6 corridas.
+- Sin corridas inválidas ni 429. Costo total: $8.84.
+- Hallazgo del runner: `plugins` en el JSON registra las versiones del clon
+  también con `--harness-ref` (el control figura con `craft-backend`
+  1.0.0-rc.2). La fuente real está en `harness_root` de cada corrida. Queda
+  para otro encargo.
+
 ### Candidata 1.0.0-rc.1 (0.22.0 contra 0.20.0)
 
 `main` en `265f747` (0.22.0) contra `63dfe77` (0.20.0) con `--harness-ref`. Entre
