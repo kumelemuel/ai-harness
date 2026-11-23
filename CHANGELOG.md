@@ -1,8 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 1.0.0-rc.2 — 2026-11-23
 
-Plugins: `craft-backend` (sube; propuesta `1.0.0-rc.2`), `craft-web` 1.0.0-rc.1 (sin cambios).
+Plugins: `craft-backend` 1.0.0-rc.2 y `craft-web` 1.0.0-rc.1 (sin cambios).
 
 Fricciones de la primera sincronización de un proyecto adoptado
 (kumenity-backend-rust) con `v1.0.0-rc.1`.
