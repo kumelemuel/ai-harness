@@ -386,8 +386,10 @@ Al adoptar el harness en un proyecto existente, los tests de arquitectura
 fallan por violaciones que no se pueden corregir de una vez. La línea base las
 registra y el trinquete impide que crezcan:
 
-1. **Se llena una sola vez**, con la auditoría inicial (skill
-   `craft-backend:adoption`): una línea
+1. **Se llena con la auditoría inicial** (skill `craft-backend:adoption`) y solo
+   vuelve a llenarse al sincronizar `tools/architecture` con una versión del harness
+   que cambia las claves (`/craft-backend:adoption sincronizar <tag>`, en un PR
+   propio): una línea
    `<test> <clave> [n]` por clave distinta. `<test>` es el nombre de la función
    del test. `<clave>` es lo que el mensaje pone antes del primer `:`: la ruta
    del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests de

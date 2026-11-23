@@ -1,7 +1,7 @@
 ---
 name: adoption
-description: Ritual de adopción de craft-backend en un backend existente (auditoría, documento de estado, línea base y rebanadas). Se invoca a mano con /craft-backend:adoption.
-argument-hint: "[empezar | R<n> | replanificar]"
+description: Ritual de adopción de craft-backend en un backend existente (auditoría, documento de estado, línea base, rebanadas y sincronización con versiones nuevas del harness). Se invoca a mano con /craft-backend:adoption.
+argument-hint: "[empezar | R<n> | replanificar | sincronizar <tag>]"
 disable-model-invocation: true
 ---
 
@@ -27,8 +27,8 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
    fijen el comportamiento. Anótalos en el documento (cabecera y §5.1).
 3. Agrega `tools/architecture` desde la plantilla del stack. En Rust, con el
    modo legacy si hay un crate por contexto o un `shared/` como kernel.
-4. Llena la línea base **una sola vez**, con lo que los tests de arquitectura
-   reportan hoy. El hook bloquea las ediciones que la agrandan: el usuario abre
+4. Llena la línea base con lo que los tests de arquitectura reportan hoy. Es la
+   única vez que se llena, salvo una sincronización con el harness (§4). El hook bloquea las ediciones que la agrandan: el usuario abre
    esa sesión con la variable ya exportada (`CRAFT_BACKEND_BASELINE_INIT=1
    claude`) y la cierra al terminar. El hook la lee del entorno con que arrancó
    Claude Code: exportarla a mitad de sesión no sirve. **Antes de vaciar o tocar
@@ -85,3 +85,36 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
 
 En cada punto de replanificación sigue §5.9 de la plantilla. Lo que cambie del
 plan va en un PR de solo documentación antes de la rebanada siguiente.
+
+## 4. Sincronizar con el harness (`sincronizar <tag>`)
+
+Cuando el proyecto copia `tools/architecture` de una versión nueva del harness.
+Si el CHANGELOG de esa versión (o de las que salta) cambia la clave o el conteo
+de las entradas, la línea base tiene que volver a llenarse. Es la única
+excepción a "solo se achica", y por eso tiene su propio procedimiento:
+
+1. Rama desde `main` y **PR propio, sin cambios de código** de producción: así
+   la diferencia en la línea base solo puede venir del harness.
+2. Comprueba la variable: `echo $CRAFT_BACKEND_BASELINE_INIT` tiene que dar `1`.
+   Si no, detente: el usuario reabre con `CRAFT_BACKEND_BASELINE_INIT=1 claude
+   --continue` (exportarla a mitad de sesión no llega al hook).
+3. Guarda la línea base vigente: `git show main:tools/architecture/baseline.txt
+   > /tmp/baseline-old.txt`.
+4. Copia `tools/architecture` del `<tag>` (en Rust, de la plantilla del stack)
+   sin tocar `baseline.txt`, y conserva lo que el proyecto adapta (anótalo en
+   el PR). Vacía las entradas (deja la cabecera nueva), corre los tests de
+   arquitectura y escribe una entrada por cada violación reportada.
+5. Compara con el script de esta skill: `python3
+   "${CLAUDE_SKILL_DIR}/scripts/compare_baseline.py" /tmp/baseline-old.txt
+   tools/architecture/baseline.txt` (`${CLAUDE_SKILL_DIR}` es el directorio de
+   este archivo, no el del proyecto). Agrupa en: se mantienen, cambian de clave (mapeo viejo → nuevo),
+   desaparecen, bajan o suben de conteo, y nuevas.
+6. **Si algo desaparece o baja (salida 1), detente y avisa.** Sin cambios de
+   código, nada debería cerrarse: puede ser un cierre en falso (la versión nueva
+   dejó de detectar la violación). No lo expliques tú; lo decide el usuario
+   con evidencia.
+7. Cada entrada nueva o que sube necesita un ID del inventario (uno existente o
+   el siguiente libre de su regla) y una rebanada que la cierre. Actualiza §2,
+   §5.6 y la fila de §5.10.
+8. El análisis completo del script va en el cuerpo del PR. El PR, como en las
+   rebanadas, solo si el usuario lo pidió.

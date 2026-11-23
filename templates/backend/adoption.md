@@ -97,7 +97,8 @@ Datos verificados que condicionan el plan:
 
 ### 5.1 Reglas transversales
 
-- **Trinquete.** `baseline.txt` solo se achica. Si un archivo que se mueve o
+- **Trinquete.** `baseline.txt` solo se achica, salvo en una sincronización con el
+  harness (§5.10). Si un archivo que se mueve o
   renombra figura en la línea base, la violación se corrige en el lugar y la
   entrada se borra antes de mover. Antes de abrir cada PR: <comando de los
   tests de arquitectura del stack; en Rust, `cargo test -p architecture`>.
@@ -180,6 +181,15 @@ En cada uno, antes de abrir la rebanada siguiente:
 4. Comparar tamaño y tokens reales de §5.8 con lo estimado, y partir lo que
    viene si algo quedó más grande de lo previsto.
 5. Reescribir aquí lo que cambie del plan, en un PR de solo documentación.
+
+### 5.10 Sincronizaciones con el harness
+
+Una por PR propio, sin cambios de código (`/craft-backend:adoption sincronizar
+<tag>`). El análisis completo de `compare_baseline.py` va en el PR; aquí, el
+resumen.
+
+| Fecha | Tag | PR | Entradas antes → después | Se mantienen | Cambian de clave | Nuevas (IDs) |
+|---|---|---|---|---|---|---|
 
 ## 6. Fricciones con el harness
 
