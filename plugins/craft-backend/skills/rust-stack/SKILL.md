@@ -37,6 +37,10 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
   ```
   Puertos entrantes con argumento por valor: `fn execute(&self, command: C) -> BoxFuture<'_, …>`.
   Implementación: `Box::pin(async move { … })`, o `Box::pin(ready(x))` si es síncrona.
+  En una adopción con el puerto todavía síncrono, su batería de contrato ya nace
+  con `pub async fn` por caso y la macro con `run: block_on`, sin `.await`: al
+  pasar a `BoxFuture` solo se agregan los `.await` (ver "Puerto todavía
+  síncrono" en `references/rust.md`).
 - **RS-4: `cargo test -p architecture`** verifica dependencias y nombres. Si falla,
   corrige el código, **no el test**. `tools/architecture/baseline.txt` (trinquete)
   solo se achica: nunca agregues una línea; borra o actualiza la que el test pida.

@@ -1,5 +1,13 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Baterías de contrato con el puerto todavía síncrono** (TDD-2, RS-3): en
+  una adopción, la batería nace con su forma final (`async fn` por caso y la
+  macro con `run: block_on`). Al pasar el puerto a `BoxFuture` solo se agregan
+  los `.await`; la macro y sus invocaciones no cambian.
+
 ## 1.0.0-rc.2.2 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.2.2, `craft-web` 1.0.0-rc.1 (sin cambios).
