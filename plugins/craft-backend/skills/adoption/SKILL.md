@@ -37,9 +37,11 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
    detente y pide al usuario que reabra con `CRAFT_BACKEND_BASELINE_INIT=1 claude
    --continue`. Las entradas salen de los tests, no a mano: en Rust,
    `ARCH_BASELINE_PRINT=1 cargo test -p architecture --no-fail-fast --
-   --nocapture 2>&1 | sed -n 's/^baseline: //p' | sort`, con `--no-fail-fast`
-   (sin él, el informe se corta en el primer binario que falla). Cada entrada
-   se concilia con un hallazgo del inventario.
+   --nocapture 2>&1 | grep -o 'baseline: .*' | sed 's/^baseline: //' | sort >
+   /tmp/baseline-entries.txt`, con `--no-fail-fast` (sin él, el informe se
+   corta en el primer binario que falla). Agrégalas a `baseline.txt` con Write,
+   nunca por shell (`>>`): el hook tiene que verlas. Cada entrada se concilia
+   con un hallazgo del inventario.
 5. Llena "Ritual de rebanada" en §5.1 con las convenciones del proyecto: lo que
    digan su `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` o un comando de rebanada
    propio (`.claude/commands/`). Lo que no esté, pregúntalo.
@@ -117,9 +119,9 @@ excepción a "solo se achica", y por eso tiene su propio procedimiento:
 4. Copia `tools/architecture` del `<tag>` (en Rust, de la plantilla del stack)
    sin tocar `baseline.txt` ni `material-exempt.txt`, y conserva lo que el proyecto adapta (anótalo en
    el PR). Vacía las entradas (deja la cabecera nueva) y escribe las que
-   imprimen los tests, como en el paso 4 de "Empezar" (en Rust,
-   `ARCH_BASELINE_PRINT=1 … --no-fail-fast … | sed -n 's/^baseline: //p' |
-   sort >> tools/architecture/baseline.txt`). No las escribas a mano.
+   imprimen los tests, como en el paso 4 de "Empezar": el volcado a
+   `/tmp/baseline-entries.txt` y después Write, nunca `>>`. No las escribas a
+   mano.
    Si un test falla por una exención de `material-exempt.txt` (el tag renombró
    el test o el texto del conjunto), detente: propón al usuario la línea
    renombrada según el CHANGELOG, y él la escribe.

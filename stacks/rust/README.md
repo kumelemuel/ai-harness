@@ -463,13 +463,18 @@ registra y el trinquete impide que crezcan:
    del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests de
    dependencias (por ejemplo `#dev-dependencies.tokio`). `n` es cuántas
    violaciones de esa clave se admiten, 1 si se omite.
-   Las entradas no se escriben a mano: con la línea base vaciada hasta la cabecera,
+   Las entradas no se escriben a mano. Con la línea base vaciada hasta la cabecera:
    ```
    ARCH_BASELINE_PRINT=1 cargo test -p architecture --no-fail-fast -- --nocapture 2>&1 \
-     | sed -n 's/^baseline: //p' | sort >> tools/architecture/baseline.txt
+     | grep -o 'baseline: .*' | sed 's/^baseline: //' | sort > /tmp/baseline-entries.txt
    ```
+   y las entradas se agregan a `baseline.txt` con la herramienta de edición (Write), no
+   con `>>`: así las ve el hook `pre-edit`, que exige `CRAFT_BACKEND_BASELINE_INIT=1`.
    Cada test imprime `baseline: <test> <clave> [n]` por clave, con el conteo ya
-   calculado (`ratchet.rs::ver_1_baseline_lines_*`). `--no-fail-fast` es
+   calculado, en una sola escritura (`ratchet.rs::ver_1_baseline_lines_*` y
+   `ver_1_baseline_print_only_with_the_variable`). `grep -o` y no `sed -n 's/^…//p'`:
+   con un solo hilo de test, libtest deja `test <nombre> ... ` en la misma línea. Una
+   clave de `[target.'cfg(…)'.dependencies]` va sin espacios. `--no-fail-fast` es
    obligatorio: sin él, `cargo test` se corta en el primer binario de test que
    falla y las entradas de los demás no aparecen. La variable no cambia el
    resultado: el test falla igual, así que olvidarla activa no apaga el trinquete.

@@ -7,7 +7,16 @@
   entradas de `baseline.txt` que tolerarían lo que encontró, con el conteo. El
   llenado inicial y `sincronizar` ya no pasan el informe a mano, y piden
   `--no-fail-fast`: sin él, el informe se corta en el primer binario que falla.
-  La variable no cambia el resultado del test.
+  La variable no cambia el resultado del test. Las entradas van a un temporal
+  y se agregan con Write, para que el hook `pre-edit` las vea.
+
+### Cambiado
+- **Claves de dependencias de `[target.'cfg(…)'.*]` sin espacios** (VER-1):
+  `ruta/Cargo.toml#target.'cfg(target_os = "linux")'.dependencies.x` pasa a
+  `ruta/Cargo.toml#target.'cfg(target_os="linux")'.dependencies.x`. Con
+  espacios, la línea base la cortaba y nunca la toleraba. Solo afecta a
+  proyectos con entradas de ese tipo: si las tienen, sincronizar
+  (`/craft-backend:adoption sincronizar <tag>`).
 
 ## 1.0.0-rc.2.3 — 2026-11-25
 
