@@ -9,6 +9,7 @@ publish.workspace = true
 kernel.workspace = true
 edge-http.workspace = true
 infrastructure-stderr.workspace = true
+infrastructure-uuid.workspace = true
 communities-application.workspace = true
 communities-infrastructure.workspace = true
 communities-api.workspace = true

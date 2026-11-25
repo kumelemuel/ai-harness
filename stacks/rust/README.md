@@ -32,7 +32,9 @@ kernel/                         Result nativo, Fault, Failure, BoxFuture, marcad
 edge/http/                      Borde compartido: Problem Details, AuthenticatedAccount, unexpected(). → kernel
 infrastructure/{tecnología}/    Infraestructura compartida: adaptadores de las capacidades del kernel
                                 (infrastructure/stderr: StderrFaultReporterAdapter;
-                                infrastructure/system: SystemClockAdapter). → kernel
+                                infrastructure/system: SystemClockAdapter;
+                                infrastructure/uuid: UuidIdGeneratorAdapter). → kernel
+                                Nunca en un contexto (hex_8_capability_adapters_*).
 contexts/{ctx}/
 ├── domain/                     → kernel
 ├── application/                → kernel, {ctx}-domain
@@ -47,7 +49,7 @@ contexts/{ctx}/
 │       ├── errors.rs           hojas compartidas (ERR-2)
 │       ├── testing.rs          dobles (Fake…Adapter) + block_on, feature `testing`
 │       └── testing/contracts/  {puerto}.rs: batería de contrato + macro {puerto}_contract!
-├── infrastructure/             → kernel, {ctx}-domain, {ctx}-application (+ uuid, sqlx…)
+├── infrastructure/             → kernel, {ctx}-domain, {ctx}-application (+ sqlx…)
 └── api/                        → kernel, {ctx}-application, edge-http (+ axum, serde). Nunca domain.
     └── src/                    {Ctx}Api { use cases, faults }.protected()/public() → Router
 apps/server/  (o app/)          composition root: cablea, no implementa
@@ -128,7 +130,7 @@ Los tests de dependencias (HEX-1, HEX-2) resuelven los renombres
 | Value object | Newtype con `new(String) -> Result<Self, Invalid…>`; implementa `kernel::ValueObject` |
 | Servicio de dominio (HEX-7) | Tipo sin campos con funciones asociadas: `pub struct PasswordPolicy;` con `pub fn validate(password: &str) -> Result<(), WeakPassword>`. Sin `Arc<dyn …>` ni `BoxFuture`: los datos los carga el handler |
 | Composition root (HEX-2) | `apps/server/src/contexts/{ctx}.rs`: construye adaptadores y handlers y devuelve el `{Ctx}Api { … }` armado. `main.rs` solo compone los `Router`. `config.rs` lee el entorno una vez; un secreto obligatorio que falta detiene el arranque, nunca tiene un valor por defecto, y `Config` no deriva `Debug` |
-| Capacidades del kernel (HEX-8) | `kernel::Clock`, `kernel::IdGenerator` y `kernel::FaultReporter` (traits). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo: `UuidIdGeneratorAdapter` en `communities-infrastructure`, `StderrFaultReporterAdapter` en `infrastructure-stderr` (registra toda la cadena de `source()`), `SystemClockAdapter` en `infrastructure-system`. `Clock` todavía no lo usa ningún contexto de la plantilla: el composition root lo cablea con el primero que lo necesite. `uuid` y `chrono` nunca en el núcleo. |
+| Capacidades del kernel (HEX-8) | `kernel::Clock`, `kernel::IdGenerator` y `kernel::FaultReporter` (traits). Sin sufijo de rol. Los adaptadores siguen HEX-5 con el nombre completo, y viven en la infraestructura compartida, nunca en un contexto (`hex_8_capability_adapters_are_shared_infrastructure`): `UuidIdGeneratorAdapter` en `infrastructure-uuid`, `StderrFaultReporterAdapter` en `infrastructure-stderr` (registra toda la cadena de `source()`), `SystemClockAdapter` en `infrastructure-system`. `Clock` todavía no lo usa ningún contexto de la plantilla: el composition root lo cablea con el primero que lo necesite. `uuid` y `chrono` nunca en el núcleo. |
 
 ---
 

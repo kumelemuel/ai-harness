@@ -3,8 +3,9 @@ use communities_application::commands::create_community::CreateCommunityHandler;
 use communities_application::subscribers::RecordCommunityHistorySubscriber;
 use communities_infrastructure::{
     InMemoryCommunityAdapter, InMemoryCommunityHistoryAdapter, InProcessCommunityEventAdapter,
-    NoOpModerationAdapter, UuidIdGeneratorAdapter,
+    NoOpModerationAdapter,
 };
+use infrastructure_uuid::UuidIdGeneratorAdapter;
 use kernel::FaultReporter;
 use std::sync::Arc;
 

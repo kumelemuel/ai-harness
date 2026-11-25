@@ -817,6 +817,47 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
     );
 }
 
+/// HEX-8: el adaptador de una capacidad del kernel es infraestructura
+/// compartida (`infrastructure/*`), no de un contexto: lo usan todos, y vive
+/// una sola vez. Los dobles (`Fixed…`, `Spy…`) de los tests no cuentan.
+#[test]
+fn hex_8_capability_adapters_are_shared_infrastructure() {
+    let mut violations = Vec::new();
+    let mut implementations = 0;
+    for krate in crates() {
+        for (file, imp, test) in trait_impls(&krate) {
+            let Some((_, path, _)) = &imp.trait_ else {
+                continue;
+            };
+            let capability = last_segment(path);
+            if test || !CAPABILITIES.contains(&capability.as_str()) {
+                continue;
+            }
+            implementations += 1;
+            let shared = krate.layer == Layer::Infrastructure && krate.context.is_none();
+            if !shared {
+                violations.push(format!(
+                    "{}: implementa `{capability}`, una capacidad del kernel, en `{}`: \
+                     su adaptador va en un crate de infrastructure/*",
+                    relative(&file),
+                    krate.name
+                ));
+            }
+        }
+    }
+
+    assert_no_violations(
+        "hex_8_capability_adapters_are_shared_infrastructure",
+        "HEX-8: los adaptadores de las capacidades del kernel viven en infrastructure/*, \
+         fuera de los contextos",
+        &[(
+            "implementaciones de producción de capacidades del kernel",
+            implementations,
+        )],
+        violations,
+    );
+}
+
 #[test]
 fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
     let mut violations = Vec::new();

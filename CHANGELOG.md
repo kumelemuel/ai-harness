@@ -1,5 +1,17 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Crate `infrastructure-uuid`** (HEX-8): `UuidIdGeneratorAdapter` sale de
+  `communities-infrastructure`, con sus primeros tests (UUID v4, sin
+  repetidos), y `uuid` deja de ser dependencia del contexto. Un segundo
+  contexto que genere ids usa el mismo adaptador.
+- **Test `hex_8_capability_adapters_are_shared_infrastructure`** (HEX-8): una
+  implementación de producción de `Clock`, `IdGenerator` o `FaultReporter`
+  dentro de un contexto es una violación. Los dobles de test no cuentan.
+  Proyectos adoptados: puede agregar entradas a la línea base al sincronizar.
+
 ## 1.0.0-rc.2.4 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.2.4, `craft-web` 1.0.0-rc.1 (sin cambios).

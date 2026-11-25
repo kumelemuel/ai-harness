@@ -21,6 +21,7 @@ iam-api = { path = "contexts/iam/api" }
 edge-http = { path = "edge/http" }
 infrastructure-stderr = { path = "infrastructure/stderr" }
 infrastructure-system = { path = "infrastructure/system" }
+infrastructure-uuid = { path = "infrastructure/uuid" }
 
 # Externos (solo los usan los anillos exteriores; ver tools/architecture)
 axum = "0.8"
