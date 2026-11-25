@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 1.0.0-rc.2.1 — 2026-11-25
+
+Plugins: `craft-backend` 1.0.0-rc.2.1, `craft-web` 1.0.0-rc.1 (sin cambios).
 
 ### Agregado
 - **Exenciones de material** (VER-1): `tools/architecture/material-exempt.txt`
