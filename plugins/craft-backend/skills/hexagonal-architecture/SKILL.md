@@ -38,6 +38,8 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
 **Dependencias (HEX-1, HEX-2, HEX-3)**
 - `domain` → `application` → `api` | `infrastructure`. Solo hacia adentro.
 - `api` ve **solo** `application`: nunca importa `domain` ni `infrastructure`.
+  De `application`, solo el contrato del caso de uso (`ports/inbound`,
+  `Command`/`Query`, `Response`, `Error`), nunca `ports/outbound`.
 - `infrastructure` puede ver `application` y `domain`; nunca `api`.
 - `domain` y `application`: solo lenguaje estándar + kernel. Sin anotaciones de
   framework ni librerías utilitarias.
