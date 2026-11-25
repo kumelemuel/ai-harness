@@ -4,7 +4,7 @@ mod common;
 
 use common::{
     BASELINE, Baseline, MATERIAL_EXEMPT, exemption_problems, material_report, parse,
-    parse_baseline, parse_exemptions, ratchet_report, root, rust_files,
+    parse_baseline, parse_exemptions, ratchet_report, root, rust_files, verdict,
 };
 use std::collections::BTreeSet;
 use std::fs;
@@ -142,6 +142,9 @@ fn ver_1_baseline_report_lines_reach_the_hook() {
 struct Calls {
     current: Option<String>,
     tests: BTreeSet<String>,
+    /// Funciones que llaman a `assert_no_violations`: las únicas que leen
+    /// `material-exempt.txt`.
+    asserting: BTreeSet<String>,
     mismatches: Vec<String>,
 }
 
@@ -159,6 +162,7 @@ impl<'ast> Visit<'ast> for Calls {
         let is_assert =
             matches!(&*call.func, syn::Expr::Path(p) if p.path.is_ident("assert_no_violations"));
         if is_assert {
+            self.asserting.extend(self.current.clone());
             let id = match call.args.first() {
                 Some(syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(s),
@@ -325,7 +329,9 @@ fn ver_1_material_exemption_problems_name_the_line() {
     assert_eq!(problems.len(), 4, "{problems:?}");
 }
 
-/// Las exenciones del proyecto tienen el formato y nombran tests que existen.
+/// Las exenciones del proyecto tienen el formato y nombran tests que existen
+/// y que revisan material (llaman a `assert_no_violations`): si no, nadie la
+/// contrasta con un conjunto y nunca se pide borrarla.
 #[test]
 fn ver_1_material_exemptions_name_tests() {
     let dir = root().join("tools/architecture/tests");
@@ -339,7 +345,7 @@ fn ver_1_material_exemptions_name_tests() {
     let text = fs::read_to_string(root().join("tools/architecture").join(MATERIAL_EXEMPT))
         .unwrap_or_default();
 
-    let problems = exemption_problems(&text, &calls.tests);
+    let problems = exemption_problems(&text, &calls.asserting);
 
     assert!(
         problems.is_empty(),
@@ -350,4 +356,38 @@ fn ver_1_material_exemptions_name_tests() {
             .collect::<Vec<_>>()
             .join("\n")
     );
+}
+
+fn fixture(name: &str) -> std::path::PathBuf {
+    root().join("tools/architecture/tests/fixtures").join(name)
+}
+
+/// `assert_no_violations` lee las exenciones y la línea base del directorio:
+/// el conjunto exento pasa con la variable, el no exento falla.
+#[test]
+fn ver_1_verdict_reads_the_exemptions_of_the_directory() {
+    let dir = fixture("exemptions");
+
+    let exempt = verdict(&dir, "err_1_x", "ERR-1: x", &[("puertos", 0)], &[], true);
+    let not_exempt = verdict(&dir, "err_1_x", "ERR-1: x", &[("hojas", 0)], &[], true);
+
+    assert_eq!(exempt, "");
+    assert!(not_exempt.contains("  - 0 hojas"), "{not_exempt}");
+}
+
+/// Y la línea base del mismo directorio.
+#[test]
+fn ver_1_verdict_reads_the_baseline_of_the_directory() {
+    let dir = fixture("exemptions");
+
+    let report = verdict(
+        &dir,
+        "err_2_x",
+        "ERR-1: x",
+        &[("puertos", 0)],
+        &violations(&["c/src/d.rs:3: tolerada"]),
+        true,
+    );
+
+    assert_eq!(report, "");
 }

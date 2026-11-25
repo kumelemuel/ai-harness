@@ -194,6 +194,11 @@ class ExemptionGrowth(unittest.TestCase):
         )
         self.assertEqual(craft_hooks.exemption_growth(EXEMPT, "# vacío\n"), [])
 
+    def test_completing_a_malformed_line_is_growth(self) -> None:
+        # Rust ignora una línea sin motivo: completarla activa la exención.
+        self.assertEqual(craft_hooks.exemption_growth("a | b\n", "a | b | motivo\n"), ["a | b"])
+        self.assertEqual(craft_hooks.exemption_growth("a | b |\n", "a | b | motivo\n"), ["a | b"])
+
 
 class PreEditExemptions(unittest.TestCase):
     """`material-exempt.txt`: el agente no agrega exenciones, ni con el trinquete abierto."""

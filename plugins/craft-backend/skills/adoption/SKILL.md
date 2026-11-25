@@ -114,6 +114,9 @@ excepción a "solo se achica", y por eso tiene su propio procedimiento:
    sin tocar `baseline.txt` ni `material-exempt.txt`, y conserva lo que el proyecto adapta (anótalo en
    el PR). Vacía las entradas (deja la cabecera nueva), corre los tests de
    arquitectura y escribe una entrada por cada violación reportada.
+   Si un test falla por una exención de `material-exempt.txt` (el tag renombró
+   el test o el texto del conjunto), detente: propón al usuario la línea
+   renombrada según el CHANGELOG, y él la escribe.
 5. Compara con el script de esta skill: `python3
    "${CLAUDE_SKILL_DIR}/scripts/compare_baseline.py" /tmp/baseline-old.txt
    tools/architecture/baseline.txt` (`${CLAUDE_SKILL_DIR}` es el directorio de

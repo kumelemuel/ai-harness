@@ -232,14 +232,19 @@ def baseline_growth(old: str, new: str) -> list[str]:
 
 
 def exemptions(text: str) -> set[tuple[str, str]]:
-    """`(test, conjunto)` de `material-exempt.txt` (`<test> | <conjunto> | <motivo>`)."""
+    """`(test, conjunto)` de las exenciones activas de `material-exempt.txt`.
+
+    Como `parse_exemptions` en Rust, solo cuentan las líneas con tres campos no
+    vacíos (`<test> | <conjunto> | <motivo>`): completar una línea mal formada
+    la activa, así que es una exención nueva."""
     found = set()
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
         fields = [f.strip() for f in line.split("|")]
-        found.add((fields[0], fields[1] if len(fields) > 1 else ""))
+        if len(fields) == 3 and all(fields):
+            found.add((fields[0], fields[1]))
     return found
 
 

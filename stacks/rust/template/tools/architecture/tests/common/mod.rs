@@ -552,7 +552,8 @@ pub fn material_report(material: &[(&str, usize)], exempt: &Exemptions, required
 }
 
 /// Problemas de formato de `material-exempt.txt`: tres campos no vacíos, un
-/// test de `tools/architecture` y sin `(test, conjunto)` repetidos.
+/// test de `tests` (los que llaman a `assert_no_violations`) y sin
+/// `(test, conjunto)` repetidos.
 pub fn exemption_problems(text: &str, tests: &std::collections::BTreeSet<String>) -> Vec<String> {
     let mut problems = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
@@ -567,7 +568,8 @@ pub fn exemption_problems(text: &str, tests: &std::collections::BTreeSet<String>
             ));
         } else if !tests.contains(fields[0]) {
             problems.push(format!(
-                "{at}: `{}` no es un test de tools/architecture",
+                "{at}: `{}` no es un test de tools/architecture que revise material \
+                 (`assert_no_violations`)",
                 fields[0]
             ));
         } else if !seen.insert((fields[0], fields[1])) {
@@ -575,11 +577,6 @@ pub fn exemption_problems(text: &str, tests: &std::collections::BTreeSet<String>
         }
     }
     problems
-}
-
-fn exemptions_for(id: &str) -> Exemptions {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(MATERIAL_EXEMPT);
-    parse_exemptions(&fs::read_to_string(path).unwrap_or_default(), id)
 }
 
 /// Línea base del trinquete: `tools/architecture/baseline.txt`.
@@ -676,9 +673,42 @@ pub fn ratchet_report(id: &str, baseline: &Baseline, violations: &[String]) -> S
     lines.iter().map(|l| format!("{l}\n")).collect()
 }
 
-fn baseline_for(id: &str) -> Baseline {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(BASELINE);
-    parse_baseline(&fs::read_to_string(path).unwrap_or_default(), id)
+/// Informe completo de un test, vacío si pasa: el material contra las
+/// exenciones de `dir/material-exempt.txt` y las violaciones contra
+/// `dir/baseline.txt`. `assert_no_violations` lo llama con
+/// `tools/architecture` y `ARCH_REQUIRE_MATERIAL`; los tests, con un fixture.
+pub fn verdict(
+    dir: &Path,
+    id: &str,
+    rule: &str,
+    material: &[(&str, usize)],
+    violations: &[String],
+    required: bool,
+) -> String {
+    let read = |name: &str| fs::read_to_string(dir.join(name)).unwrap_or_default();
+    let rule_id = rule.split(':').next().unwrap_or(rule);
+    for (what, count) in material {
+        eprintln!("{rule_id}: revisó {count} {what}");
+    }
+    let exempt = parse_exemptions(&read(MATERIAL_EXEMPT), id);
+    for (what, reason) in &exempt.sets {
+        eprintln!("{rule_id}: {what} exento por {MATERIAL_EXEMPT}: {reason}");
+    }
+    let baseline = parse_baseline(&read(BASELINE), id);
+    let tolerated: usize = baseline
+        .iter()
+        .map(|(key, allowed)| {
+            violations
+                .iter()
+                .filter(|v| location(v) == key)
+                .count()
+                .min(*allowed)
+        })
+        .sum();
+    if tolerated > 0 {
+        eprintln!("{rule_id}: {tolerated} violaciones toleradas por {BASELINE}");
+    }
+    material_report(material, &exempt, required) + &ratchet_report(id, &baseline, violations)
 }
 
 /// Cierra un test de arquitectura con trinquete sobre la línea base.
@@ -699,30 +729,7 @@ pub fn assert_no_violations(
     material: &[(&str, usize)],
     violations: Vec<String>,
 ) {
-    let rule_id = rule.split(':').next().unwrap_or(rule);
-    for (what, count) in material {
-        eprintln!("{rule_id}: revisó {count} {what}");
-    }
-    let exempt = exemptions_for(id);
-    for (what, reason) in &exempt.sets {
-        eprintln!("{rule_id}: {what} exento por {MATERIAL_EXEMPT}: {reason}");
-    }
-    let material = material_report(material, &exempt, material_required());
-    assert!(material.is_empty(), "\n{rule}\n{material}");
-    let baseline = baseline_for(id);
-    let tolerated: usize = baseline
-        .iter()
-        .map(|(key, allowed)| {
-            violations
-                .iter()
-                .filter(|v| location(v) == key)
-                .count()
-                .min(*allowed)
-        })
-        .sum();
-    if tolerated > 0 {
-        eprintln!("{rule_id}: {tolerated} violaciones toleradas por {BASELINE}");
-    }
-    let report = ratchet_report(id, &baseline, &violations);
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let report = verdict(dir, id, rule, material, &violations, material_required());
     assert!(report.is_empty(), "\n{rule}\n{report}");
 }
