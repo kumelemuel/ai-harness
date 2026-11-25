@@ -463,6 +463,16 @@ registra y el trinquete impide que crezcan:
    del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests de
    dependencias (por ejemplo `#dev-dependencies.tokio`). `n` es cuántas
    violaciones de esa clave se admiten, 1 si se omite.
+   Las entradas no se escriben a mano: con la línea base vaciada hasta la cabecera,
+   ```
+   ARCH_BASELINE_PRINT=1 cargo test -p architecture --no-fail-fast -- --nocapture 2>&1 \
+     | sed -n 's/^baseline: //p' | sort >> tools/architecture/baseline.txt
+   ```
+   Cada test imprime `baseline: <test> <clave> [n]` por clave, con el conteo ya
+   calculado (`ratchet.rs::ver_1_baseline_lines_*`). `--no-fail-fast` es
+   obligatorio: sin él, `cargo test` se corta en el primer binario de test que
+   falla y las entradas de los demás no aparecen. La variable no cambia el
+   resultado: el test falla igual, así que olvidarla activa no apaga el trinquete.
 2. **Solo se achica.** El test falla si aparece una clave que no está en la
    línea base o si una clave supera su `n`. También falla si una entrada ya no
    viola (`borrar de baseline.txt: …`) o viola menos (`actualizar en

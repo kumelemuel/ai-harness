@@ -1,5 +1,14 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **`ARCH_BASELINE_PRINT=1`** (VER-1): cada test de arquitectura imprime las
+  entradas de `baseline.txt` que tolerarían lo que encontró, con el conteo. El
+  llenado inicial y `sincronizar` ya no pasan el informe a mano, y piden
+  `--no-fail-fast`: sin él, el informe se corta en el primer binario que falla.
+  La variable no cambia el resultado del test.
+
 ## 1.0.0-rc.2.3 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.2.3, `craft-web` 1.0.0-rc.1 (sin cambios).
