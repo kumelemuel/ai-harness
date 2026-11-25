@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 1.0.0-rc.2.8 — 2026-11-25
+
+Plugins: `craft-backend` 1.0.0-rc.2.8, `craft-web` 1.0.0-rc.1 (sin cambios).
 
 ### Agregado
 - **Marcadores sin ítems** (HEX-8): `hex_8_model_markers_have_no_items` falla
