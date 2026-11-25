@@ -25,6 +25,12 @@ Prohibido:
 - Si el gate de Stop te bloquea en rojo intencional o con un test que crees
   incorrecto, no lo modifiques: explica el estado y termina.
 
+**Firma que pasa a ser falible** (un puerto empieza a devolver `Result`): el
+commit de la firma falla fuerte con el error, `.expect("pendiente: propagar el
+Fault con su test")`, nunca `let _ =` ni `.unwrap_or_default()` (ERR-1). El
+`?` llega en el commit siguiente, con el test de falla en rojo contra el commit
+padre.
+
 ## Por dónde empezar (TDD-2)
 
 Un caso de uso nuevo empieza por el test de dominio o del handler, nunca por el
@@ -55,6 +61,13 @@ endpoint ni por la persistencia.
   - Pasan la **batería de contrato** del puerto, la misma que sus adaptadores
     reales. Un puerto nuevo nace con su batería. Si el puerto declara errores,
     la batería incluye un caso por variante.
+  - Si el puerto puede fallar, el doble tiene `failing()` (todas las
+    operaciones). Si un caso de uso llama a más de una operación del puerto,
+    también `failing_on(operación)` (solo esa; las demás cumplen el contrato).
+- **Una prueba de falla por cada llamada a un puerto que puede fallar**, en
+  handlers, suscriptores y workflows. Para un `Fault`,
+  `fails_with_unexpected_when_<operación>_fails`, con `failing_on` si no es la
+  primera llamada. Para un error declarado, el test de su variante (ERR-2).
 - El adaptador en memoria de `infrastructure` es de producción, no un doble.
 - Los tests de dominio y de caso de uso no levantan el framework.
 - Los tests de caso de uso afirman sobre `Result`, no sobre excepciones.

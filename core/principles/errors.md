@@ -19,6 +19,7 @@ Formato de cada principio: ver [README](README.md).
 - Búsquedas `find*` devuelven opcional; el handler convierte "vacío" en `NotFound` solo cuando el caso de uso exige existencia.
 - Si un caso de uso no tiene árbol A, no tiene tipo de error.
 - Ningún error del árbol A se convierte en árbol B de forma implícita: si un fallo de negocio debe tratarse como excepcional (p. ej. datos persistidos corruptos), la conversión se escribe a mano y con contexto.
+- Un fallo excepcional nunca se convierte en éxito ni en un valor de reemplazo. La única forma transitoria de no propagarlo es fallar fuerte, en el commit que vuelve falible la firma de un puerto y hasta el siguiente, que trae la propagación con su test (`TDD-1`).
 
 **Fundamento.** La firma es el contrato: quien llama no puede olvidar un fallo de negocio. Mezclar los dos árboles obliga a capturar lo que no se puede manejar o permite ignorar lo que sí.
 
