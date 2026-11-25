@@ -86,6 +86,6 @@ fn http_is_read_once_as_api() {
     assert_eq!(files_of("iam", Layer::Api), ["infrastructure/http/mod.rs"]);
     assert_eq!(
         files_of("iam", Layer::Infrastructure),
-        ["infrastructure/mod.rs"]
+        ["infrastructure/ids.rs", "infrastructure/mod.rs"]
     );
 }

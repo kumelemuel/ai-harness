@@ -229,7 +229,7 @@ Agregar una exige cambiar esta lista y el test del kernel en el mismo commit.
 
 **Violaciones típicas.** Mover un agregado al kernel "porque dos servicios lo usan". Agregar un puerto con vocabulario de negocio (`CommunityLookup`) al kernel para compartirlo entre contextos. Una capacidad que no está en la lista. Un adaptador de capacidad sin sufijo (`UuidIdGenerator`). El adaptador de una capacidad dentro de la infraestructura de un contexto.
 
-**Verificación.** Test de arquitectura propio del kernel: no tiene dependencias, y todo trait público es un marcador de modelo o una capacidad de la lista. Los nombres de los adaptadores los cubre el test de HEX-5. En Rust: `tests/kernel.rs::hex_8_*` y `tests/naming.rs::hex_5_adapters_*`.
+**Verificación.** Test de arquitectura propio del kernel: no tiene dependencias, y todo trait público es un marcador de modelo o una capacidad de la lista. Los nombres de los adaptadores los cubre el test de HEX-5. Otro test exige que los adaptadores de las capacidades vivan fuera de los contextos (los dobles de test no cuentan). En Rust: `tests/kernel.rs::hex_8_*`, `tests/naming.rs::hex_5_adapters_*` y `tests/naming.rs::hex_8_capability_adapters_are_shared_infrastructure`.
 
 ---
 

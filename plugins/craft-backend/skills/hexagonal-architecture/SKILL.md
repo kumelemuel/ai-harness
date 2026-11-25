@@ -116,7 +116,8 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   firma solo de tipos estándar y del kernel. Sin sufijo de rol: es la única
   excepción a HEX-3 y HEX-5. Agregar una exige cambiar HEX-8.
 - Sus adaptadores sí siguen HEX-5, con el nombre completo como Concepto:
-  `UuidIdGeneratorAdapter`, `SystemClockAdapter`.
+  `UuidIdGeneratorAdapter`, `SystemClockAdapter`. Viven en la infraestructura
+  compartida (solo ve el kernel), nunca en la de un contexto.
 - Nunca agregados, puertos de un contexto ni datos sensibles. Que varios
   contextos usen un trait no basta para llevarlo al kernel.
 

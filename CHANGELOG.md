@@ -9,8 +9,12 @@
   contexto que genere ids usa el mismo adaptador.
 - **Test `hex_8_capability_adapters_are_shared_infrastructure`** (HEX-8): una
   implementación de producción de `Clock`, `IdGenerator` o `FaultReporter`
-  dentro de un contexto es una violación. Los dobles de test no cuentan.
-  Proyectos adoptados: puede agregar entradas a la línea base al sincronizar.
+  dentro de un contexto es una violación (también en legacy, y con un alias
+  del import). Los dobles de test no cuentan. Proyectos adoptados: puede
+  agregar entradas a la línea base al sincronizar, y un proyecto sin
+  adaptadores de capacidades deja vacío su conjunto de material (con
+  `ARCH_REQUIRE_MATERIAL=1`, una exención en `material-exempt.txt` hasta el
+  primero).
 
 ## 1.0.0-rc.2.4 — 2026-11-25
 
