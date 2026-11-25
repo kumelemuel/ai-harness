@@ -1,6 +1,6 @@
 {
   "name": "craft-backend",
-  "version": "1.0.0-rc.2.7",
+  "version": "1.0.0-rc.2.8",
   "description": "Convenciones de artesanía para backends: arquitectura hexagonal, DDD táctico y TDD.",
   "author": {
     "name": "Kumelemuel"

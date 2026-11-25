@@ -86,7 +86,13 @@ impl Crate {
             .map(|p| rust_files(&p))
             .unwrap_or_default()
             .into_iter()
-            .filter(|f| !self.skip.as_ref().is_some_and(|s| f.starts_with(s)))
+            .filter(|f| {
+                // El submódulo de otra capa, como directorio o como archivo (`http.rs`).
+                !self
+                    .skip
+                    .as_ref()
+                    .is_some_and(|s| f.starts_with(s) || *f == s.with_extension("rs"))
+            })
             .collect();
         if sub == "src" {
             files.extend(self.module_file.iter().filter(|f| f.is_file()).cloned());
