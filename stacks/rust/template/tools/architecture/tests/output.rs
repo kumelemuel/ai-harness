@@ -40,11 +40,31 @@ struct TestOnly<'a> {
     file: &'a Path,
     lines: Vec<(usize, usize)>,
     files: Vec<PathBuf>,
+    /// Qué `cfg` marca código de test: `requires_test` (solo compila con
+    /// `test`) o `mentions_test` (también los dobles de `feature = "testing"`).
+    is_test: fn(&syn::Attribute) -> bool,
+}
+
+/// ¿El atributo es un `cfg` que menciona `test`, también dentro de `any`?
+/// `cfg(any(test, feature = "testing"))` sí: son los dobles.
+fn mentions_test(attr: &syn::Attribute) -> bool {
+    fn has_test(tokens: TokenStream) -> bool {
+        tokens.into_iter().any(|t| match t {
+            TokenTree::Ident(i) => i == "test",
+            TokenTree::Group(g) => has_test(g.stream()),
+            _ => false,
+        })
+    }
+    attr.path().is_ident("cfg")
+        && attr
+            .meta
+            .require_list()
+            .is_ok_and(|l| has_test(l.tokens.clone()))
 }
 
 impl TestOnly<'_> {
     fn mark(&mut self, attrs: &[syn::Attribute], span: proc_macro2::Span) {
-        if attrs.iter().any(requires_test) {
+        if attrs.iter().any(self.is_test) {
             self.lines.push((span.start().line, span.end().line));
         }
     }
@@ -84,7 +104,7 @@ impl<'ast> Visit<'ast> for TestOnly<'_> {
         self.mark(attrs, syn::spanned::Spanned::span(node));
         if let syn::Item::Mod(m) = node
             && m.content.is_none()
-            && attrs.iter().any(requires_test)
+            && attrs.iter().any(self.is_test)
         {
             let dir = self.module_dir();
             let name = m.ident.to_string();
@@ -149,6 +169,7 @@ fn err_4_core_does_not_write_to_output() {
                 file,
                 lines: Vec::new(),
                 files: Vec::new(),
+                is_test: requires_test,
             };
             let whole_file = syntax.attrs.iter().any(requires_test); // `#![cfg(test)]`
             test_only.visit_file(&syntax);
@@ -201,7 +222,7 @@ fn unnamed_expects(tokens: TokenStream, found: &mut Vec<(usize, String)>) {
     for (i, token) in tokens.iter().enumerate() {
         match token {
             TokenTree::Ident(ident)
-                if ident == "expect"
+                if (ident == "expect" || ident == "expect_err")
                     && i > 0
                     && matches!(&tokens[i - 1], TokenTree::Punct(p) if p.as_char() == '.') =>
             {
@@ -213,10 +234,11 @@ fn unnamed_expects(tokens: TokenStream, found: &mut Vec<(usize, String)>) {
                 match args.as_slice() {
                     [TokenTree::Literal(lit)] => {
                         let text = lit.to_string();
-                        let message = text.trim_start_matches('"');
-                        if !text.starts_with('"')
-                            || !EXPECT_PREFIXES.iter().any(|p| message.starts_with(p))
-                        {
+                        // `"…"`, `r"…"` o `r#"…"#`: el valor, sin comillas ni escapes.
+                        let named = syn::parse_str::<syn::LitStr>(&text).is_ok_and(|m| {
+                            EXPECT_PREFIXES.iter().any(|p| m.value().starts_with(p))
+                        });
+                        if !named {
                             found.push((line, text));
                         }
                     }
@@ -230,8 +252,11 @@ fn unnamed_expects(tokens: TokenStream, found: &mut Vec<(usize, String)>) {
 }
 
 /// RS-2: un `expect` de producción nombra el invariante que se rompió
-/// (`"invariante: …"`). Recorre `src/` de todas las capas, sin lo que es de
-/// test: `#[cfg(test)]`, sus módulos y los dobles (`testing`).
+/// (`"invariante: …"`). Recorre `src/` del kernel, los contextos, `edge/*`, la
+/// infraestructura compartida y `apps/*` (no `tools/*`), sin lo que está bajo
+/// un `cfg` que menciona `test`: los tests y los dobles
+/// (`#[cfg(any(test, feature = "testing"))] mod testing;`), por su atributo y no
+/// por su nombre. Un método propio llamado `expect` también cuenta.
 #[test]
 fn rs_2_expect_names_the_invariant() {
     let mut violations = Vec::new();
@@ -246,17 +271,15 @@ fn rs_2_expect_names_the_invariant() {
                 file,
                 lines: Vec::new(),
                 files: Vec::new(),
+                is_test: mentions_test,
             };
-            let whole_file = syntax.attrs.iter().any(requires_test);
+            let whole_file = syntax.attrs.iter().any(mentions_test);
             test_only.visit_file(&syntax);
             test_files.append(&mut test_only.files);
             per_file.push((file, whole_file, test_only.lines));
         }
         for (file, whole_file, lines) in per_file {
-            let doubles = file
-                .components()
-                .any(|c| matches!(c.as_os_str().to_str(), Some("testing" | "testing.rs")));
-            if whole_file || doubles || test_files.iter().any(|t| file.starts_with(t)) {
+            if whole_file || test_files.iter().any(|t| file.starts_with(t)) {
                 continue;
             }
             checked += 1;
@@ -334,6 +357,20 @@ mod expects {
             found(r#"fn f() { g(a.expect("x")); m!(b.expect("y")); }"#),
             ["\"x\"", "\"y\""]
         );
+    }
+
+    #[test]
+    fn a_raw_string_with_the_prefix_passes() {
+        assert_eq!(
+            found(r##"fn f() { a.expect(r"invariante: x"); b.expect(r#"invariante: "y""#); }"##),
+            Vec::<String>::new()
+        );
+    }
+
+    /// `expect_err` también entra en pánico.
+    #[test]
+    fn expect_err_is_checked_too() {
+        assert_eq!(found(r#"fn f() { r.expect_err("boom"); }"#), ["\"boom\""]);
     }
 
     #[test]

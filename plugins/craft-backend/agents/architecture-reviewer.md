@@ -85,7 +85,12 @@ arquitectura:
    `unwrap`. Revisa cada `panic!`, `expect`, `unreachable!` y `todo!` del diff:
    el mensaje de `expect` empieza con `"invariante: …"` y nombra cuál, y nunca
    cubre un fallo de negocio (árbol A) ni uno técnico que debería ser `Fault`.
-   Los tests y `testing.rs` están exentos.
+   Los tests y `testing.rs` están exentos. `tests/output.rs::rs_2_*` ya exige el
+   prefijo: tu parte es que el invariante lo sea. `"pendiente: …"` solo vale en
+   el commit que vuelve falible la firma de un puerto (TDD-1), y en el commit
+   siguiente del rango lo reemplaza el `?` con su test de falla. Un
+   `"pendiente:"` que llega al final del rango, o que no está sobre una llamada
+   a un puerto que acaba de volverse falible, es RS-2.
 
 Después revisa dependencias, vocabulario y nombres (HEX-1, HEX-2, HEX-3, HEX-4,
 HEX-5, HEX-6 y HEX-8). Si el

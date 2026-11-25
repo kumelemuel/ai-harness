@@ -5,17 +5,23 @@
 ### Agregado
 - **Marcadores sin ítems** (HEX-8): `hex_8_model_markers_have_no_items` falla
   si un marcador de modelo del kernel declara métodos, tipos o constantes
-  asociados. Los supertraits se admiten.
+  asociados, también en un módulo en línea, o si exige una capacidad como
+  supertrait.
 - **`expect` con su invariante** (RS-2): `rs_2_expect_names_the_invariant`
-  falla si un `expect` de producción no empieza con `"invariante:"`. También
-  admite `"pendiente:"`, la forma transitoria de TDD-1, que el revisor no deja
-  sobrevivir a la rebanada.
+  falla si un `expect` o `expect_err` de producción (kernel, contextos, `edge`,
+  infraestructura compartida y `apps`) no empieza con `"invariante:"`. También
+  admite `"pendiente:"`, la forma transitoria de TDD-1. El revisor lo acepta
+  solo en el commit que vuelve falible la firma, y lo reporta si llega al final
+  del rango.
 
 ### Cambiado
 - **`AggregateRoot` del kernel de la plantilla queda vacío** (HEX-8): pierde
   `type Id` y `fn id`, que nada usaba de forma genérica. `Community` conserva
   su `id()` propio. Un proyecto que copió el kernel con esos ítems ve una
   entrada nueva al sincronizar.
+- **Contextos legacy:** un `src/infrastructure/http.rs` (archivo) se lee solo
+  como Api, como el directorio. Antes caía también en Infrastructure.
+
 
 ## 1.0.0-rc.2.7 — 2026-11-25
 

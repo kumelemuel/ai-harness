@@ -53,7 +53,7 @@ cambiaron de mecanismo.
 | HEX-7 | Ningún tipo de `domain` ni de `application` (fuera de `ports/outbound`) se llama `…Service` | `test` | `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role` |
 | HEX-8 | El kernel no tiene dependencias | `test` | `tests/kernel.rs::hex_8_kernel_depends_only_on_std` |
 | HEX-8 | Traits del kernel: marcadores o capacidades de la lista cerrada | `test` | `tests/kernel.rs::hex_8_kernel_traits_are_model_markers_or_listed_capabilities` |
-| HEX-8 | Un marcador de modelo no tiene ítems | `test` | `tests/kernel.rs::hex_8_model_markers_have_no_items` |
+| HEX-8 | Un marcador de modelo no tiene ítems ni exige una capacidad | `test` | `tests/kernel.rs::hex_8_model_markers_have_no_items`, `tests/kernel.rs::hex_8_marker_violations_cover_inline_modules_and_supertraits` |
 | HEX-8 | Los adaptadores de las capacidades viven en la infraestructura compartida, fuera de los contextos | `test` | `tests/naming.rs::hex_8_capability_adapters_are_shared_infrastructure`, `tests/naming.rs::hex_8_capability_adapters_are_checked_in_legacy_contexts`, `tests/naming.rs::hex_8_renames_resolve_to_the_original_name` |
 | ERR-1 | Los errores de `domain` no implementan `std::error::Error` | `test` | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` |
 | ERR-1 | Los errores de `application` (hojas, contratos, puertos) tampoco | `test` | `tests/errors.rs::err_1_application_errors_do_not_implement_std_error` |
@@ -91,7 +91,7 @@ cambiaron de mecanismo.
 | RS-1 | Las dependencias de cada miembro heredan del workspace (`workspace = true`) | `test` | `tests/dependencies.rs::rs_1_dependencies_inherit_from_the_workspace` |
 | RS-2 | `unwrap` prohibido | `herramienta` | Clippy, `unwrap_used = "deny"` en `[workspace.lints]` |
 | RS-2 | Un `expect` de producción nombra el invariante (`"invariante:"`, o `"pendiente:"` transitorio de TDD-1) | `test` | `tests/output.rs::rs_2_expect_names_the_invariant`, `tests/output.rs::expects::a_message_without_the_prefix_is_found` |
-| RS-2 | `panic!` y `expect` solo para invariantes rotos (que el invariante lo sea) | `revisor:architecture-reviewer` | Prioridad 6 del revisor |
+| RS-2 | `panic!` y `expect` solo para invariantes rotos (que el invariante lo sea), y ningún `"pendiente:"` al final del rango | `revisor:architecture-reviewer` | Prioridad 6 del revisor |
 | RS-3 | Puertos async con `BoxFuture`, sin `async-trait` en el núcleo | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | RS-4 | Tests de arquitectura con `toml` y `syn` | `test` | `tests/naming.rs`, `tests/dependencies.rs`, `tests/errors.rs`, `tests/ports.rs`, `tests/output.rs`, `tests/kernel.rs` |
 | WEB-1 | Las páginas on-demand son exactamente las declaradas | `test` | `routes.test.ts` |

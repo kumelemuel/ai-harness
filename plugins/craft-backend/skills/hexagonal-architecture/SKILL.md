@@ -115,8 +115,8 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   árboles de error, los marcadores (`ValueObject`, `Entity`, `AggregateRoot`,
   `Identifier`, `DomainEvent`; `DomainError`/`ApplicationError` solo si el
   lenguaje los necesita para cerrar jerarquías entre módulos, como en Java) y las
-  capacidades técnicas transversales. Los marcadores no tienen ítems: ni
-  métodos ni tipos asociados (`pub trait AggregateRoot {}`). Un
+  capacidades técnicas transversales. Los marcadores no tienen ítems (ni
+  métodos ni tipos asociados): un marcador vacío. Un
   evento con instante lo recibe de `Clock`, nunca de una librería de fechas.
 - Capacidades: lista **cerrada**, `Clock`, `IdGenerator`, `FaultReporter`.
   Técnicas, sin vocabulario de negocio, usadas por más de un contexto y con
