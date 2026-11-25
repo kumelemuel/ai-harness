@@ -150,6 +150,7 @@ pub enum Failure<E> {
 | Error de dominio | Solo `Debug` + `Display`; **no implementa `Error`**. Así `?` no lo convierte en `Fault`. Si un dato persistido ya no cumple la regla, es dato corrupto: se convierte a mano y con contexto, `.map_err(\|e\| Fault::new(format!("slug persistido inválido: {e}")))?` |
 | Error de dominio → hoja | `.map_err(\|_\| Failure::expected(Validation { field: "slug" }))?`. Sin envolver: nunca `FromDomain(InvalidCommunitySlug)`. |
 | Puerto sin errores declarados | `Result<T, Fault>`; en el handler, `.await?` lo convierte en `Failure::Unexpected` |
+| Firma que pasa a ser falible (TDD-1) | En el commit de la firma, `.expect("pendiente: propagar el Fault con su test")`: falla fuerte, como el adaptador que antes no podía reportarlo. Nunca `let _ =` ni `.unwrap_or_default()`. El `.await?` llega en el commit siguiente, con `fails_with_unexpected_when_<operación>_fails` |
 | Caso de uso sin árbol A (ERR-1) | `BoxFuture<'_, Result<Response, Fault>>`: sin tipo de error ni `Failure` |
 | Puerto con errores declarados (ERR-3) | `Result<T, Failure<{Contrato}Error>>`; el handler traduce con `.map_err(\|f\| f.map_expected(…))`. En la plantilla: `ModerationGateway::review_content` devuelve `Result<ModerationVerdict, Failure<ModerationError>>`, y `CreateCommunityHandler` traduce `Unavailable` a la hoja `DependencyUnavailable` y un `Rejected` a la hoja `ContentRejected` |
 | Falla técnica en un adaptador | `?` convierte cualquier `E: Error` en `Fault` (`impl From<E> for Fault`) |
@@ -224,8 +225,8 @@ genéricos en los caminos calientes sin cambiar los principios.
   `CreateCommunityHandler` llama a `find_by_slug` y después a `save`: con `failing()` el test
   nunca llega a `save`. Cada llamada a un puerto que puede fallar tiene su
   `fails_with_unexpected_when_<operación>_fails` (TDD-2); `SpyCommunityEventAdapter::failing()`
-  cubre `publish`. Un puerto de una sola operación (`CommunityHistoryRepository` para el
-  suscriptor) no necesita `failing_on` mientras su caso de uso llame a una sola.
+  cubre `publish`. Un caso de uso que llama a una sola operación del puerto
+  (`RecordCommunityHistorySubscriber` solo llama a `append`) no necesita `failing_on`.
 - **`InMemoryCommunityAdapter`** es un adaptador de producción (correr sin base de datos), no un
   doble. Pasa la misma batería que el fake.
 - **`block_on`** del módulo `testing`: ejecutor mínimo con `std` (`Waker::noop`). Solo para

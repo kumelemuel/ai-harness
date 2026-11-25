@@ -193,7 +193,7 @@ mod tests {
             &events,
         );
         let failing = publishing(
-            &Arc::new(FakeCommunityAdapter::failing()),
+            &Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::Save)),
             &Arc::new(FakeModerationAdapter::approving()),
             &events,
         );
@@ -247,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn repository_failure_is_unexpected_not_a_business_error() {
+    fn fails_with_unexpected_when_find_by_slug_fails() {
         let repository = Arc::new(FakeCommunityAdapter::failing());
 
         let result = block_on(handler(&repository).execute(command("rust-chile", "Rust Chile")));

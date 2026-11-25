@@ -51,6 +51,8 @@ pub enum CommunityOperation {
 /// siguen el contrato (buscan lo guardado, `save` guarda).
 pub struct FakeCommunityAdapter {
     communities: Mutex<Vec<Community>>,
+    /// `failing()`: todas, también las que se agreguen al puerto.
+    failing_all: bool,
     failing: Vec<CommunityOperation>,
 }
 
@@ -58,6 +60,7 @@ impl FakeCommunityAdapter {
     pub fn empty() -> Self {
         Self {
             communities: Mutex::new(Vec::new()),
+            failing_all: false,
             failing: Vec::new(),
         }
     }
@@ -66,7 +69,7 @@ impl FakeCommunityAdapter {
     /// operaciones.
     pub fn failing() -> Self {
         Self {
-            failing: vec![CommunityOperation::FindBySlug, CommunityOperation::Save],
+            failing_all: true,
             ..Self::empty()
         }
     }
@@ -85,7 +88,7 @@ impl FakeCommunityAdapter {
     }
 
     fn outage(&self, operation: CommunityOperation) -> Result<(), Fault> {
-        if self.failing.contains(&operation) {
+        if self.failing_all || self.failing.contains(&operation) {
             return Err(Fault::new("fake repository outage"));
         }
         Ok(())
