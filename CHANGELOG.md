@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0-rc.2.7 — 2026-11-25
+
+Plugins: `craft-backend` 1.0.0-rc.2.7, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Agregado
+- **Imports de los adaptadores driving** (HEX-1):
+  `hex_1_driving_adapters_see_only_use_cases` falla si `api` (o
+  `infrastructure/http` en legacy) nombra el dominio o un puerto saliente, en
+  un `use` o en una ruta del código. En legacy, Cargo no lo impedía.
+- **Tipos de los puertos salientes en `dtos/`** (HEX-6):
+  `hex_6_outbound_port_types_live_in_dtos` falla si la firma de un puerto
+  saliente usa un tipo de `application` definido fuera de
+  `ports/outbound/dtos/`.
+
 ## 1.0.0-rc.2.6 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.2.6, `craft-web` 1.0.0-rc.1 (sin cambios).

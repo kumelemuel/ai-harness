@@ -37,6 +37,7 @@ nombres de capa y la dirección de dependencias no.
 
 - Las capas son, de adentro hacia afuera: `domain` → `application` → `api` | `infrastructure`. Una capa solo depende de capas interiores.
 - `api` (adaptadores *driving*) depende **solo** de `application`, nunca de `domain`.
+- De `application`, `api` usa solo el contrato del caso de uso: su puerto entrante, `Command`/`Query`, `Response` y `Error` (HEX-4). Nunca los puertos salientes, que son del handler.
 - `infrastructure` (adaptadores *driven*) puede depender de `application` y de `domain`.
 - `api` e `infrastructure` son pares del mismo anillo y **no se importan entre sí**.
 - El punto de arranque (`bootstrap`) puede verlo todo, pero nadie depende de él.
@@ -46,7 +47,7 @@ nombres de capa y la dirección de dependencias no.
 
 **Violaciones típicas.** Un controller que inyecta un repositorio para "ahorrarse" un caso de uso. Un `TokenVerifier` en un módulo compartido que ven todos los contextos, o un contexto que importa la identidad de otro para leer la cuenta autenticada. Un adaptador de persistencia que devuelve un DTO HTTP. Un controller que importa un value object del dominio para construir el `Command`.
 
-**Verificación.** Test de arquitectura que falla el build (`VER-1`): `api` no importa `domain` ni `infrastructure`; `infrastructure` no importa `api`.
+**Verificación.** Test de arquitectura que falla el build (`VER-1`): `api` no importa `domain` ni `infrastructure`; `infrastructure` no importa `api`. Un adaptador driving tampoco nombra los puertos salientes de `application`: llama al caso de uso, no a lo que el caso de uso usa. Las dependencias declaradas no bastan cuando el adaptador comparte unidad de compilación con el dominio (un contexto sin separar): el test lee también los imports y las referencias del código. En Rust: `tests/dependencies.rs::hex_1_*` y `tests/naming.rs::hex_1_*`.
 
 ---
 
@@ -145,7 +146,7 @@ La otra excepción: las capacidades técnicas transversales del kernel (HEX-8) n
 
 **Regla.**
 
-- Los DTOs de un puerto saliente no se anidan en la interfaz: viven en `ports/outbound/dtos`, agrupados en un contenedor por contrato (`{Contrato}Payloads`).
+- Los DTOs de un puerto saliente no se anidan en la interfaz: viven en `ports/outbound/dtos`, agrupados en un contenedor por contrato (`{Contrato}Payloads`). También su error declarado (`{Contrato}Error`, `ERR-3`), nunca una hoja de los errores de `application`: esa traducción es del handler.
 - Cada frontera tiene su vocabulario, y ningún sufijo se repite entre fronteras:
 
 | Frontera | Entrada | Salida | Dónde |
@@ -162,7 +163,7 @@ La otra excepción: las capacidades técnicas transversales del kernel (HEX-8) n
 
 **Violaciones típicas.** `ReviewContentCommand` como DTO de un gateway, en lugar de `ReviewContentRequest`. `ModerationResult` como payload de éxito, en lugar de `ModerationVerdict`. Un controller que recibe un `CreateCommunityRequest` (colisiona con el vocabulario del puerto saliente) o devuelve el `Response` del caso de uso tal cual.
 
-**Verificación.** Test de arquitectura: ningún tipo en `ports/outbound/dtos` termina en `Command`, `Query`, `Response` ni `Result`; en `api`, los tipos `*Request`/`*Response` llevan el nombre del transporte.
+**Verificación.** Test de arquitectura: ningún tipo en `ports/outbound/dtos` termina en `Command`, `Query`, `Response` ni `Result`; en `api`, los tipos `*Request`/`*Response` llevan el nombre del transporte. Todo tipo de `application` que aparece en la firma de un puerto saliente (un DTO, un error declarado) está definido en `ports/outbound/dtos`; el puerto puede usar además el dominio, el kernel y los tipos estándar.
 
 ---
 

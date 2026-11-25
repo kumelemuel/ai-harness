@@ -30,6 +30,7 @@ cambiaron de mecanismo.
 |----|---------|-----------|---------|
 | HEX-1 | Dependencias hacia adentro, `api` solo ve su `application` y `edge`, sin cruces entre contextos | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` |
 | HEX-1 | Autenticación: ningún contexto depende del de identidad; la cuenta cruza como tipo del borde | `test` | `tests/dependencies.rs::hex_1_dependencies_point_inward` (un `{ctx}-api` que declara `iam-application` falla) |
+| HEX-1 | Un adaptador driving no nombra el dominio ni un puerto saliente, también en legacy | `test` | `tests/naming.rs::hex_1_driving_adapters_see_only_use_cases`, `tests/naming.rs::hex_1_driving_adapters_are_checked_in_legacy_contexts` |
 | HEX-2 | Núcleo solo con el estándar y el kernel | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | HEX-2 | Frameworks de servidor solo en el borde | `test` | `tests/dependencies.rs::hex_2_server_frameworks_only_at_the_edge` |
 | HEX-3 | El dominio no usa las primitivas de E/S del kernel | `test` | `tests/ports.rs::hex_3_domain_does_not_use_kernel_io_primitives` |
@@ -43,6 +44,7 @@ cambiaron de mecanismo.
 | HEX-4 | Workflows en `workflows/`, sin `UseCase`, invisibles para `api` | `test` | `tests/naming.rs::hex_4_workflows_are_internal_to_application` |
 | HEX-5 | Puertos salientes con sufijo de rol o nombre propio de la lista (`UnitOfWork`), nunca `Port` | `test` | `tests/naming.rs::hex_5_outbound_ports_are_named_by_role` |
 | HEX-5 | Adaptadores `{Tecnología}{Concepto}Adapter` en infraestructura, sin prefijos de doble | `test` | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` |
+| HEX-6 | Los tipos de application en la firma de un puerto saliente están en `ports/outbound/dtos` | `test` | `tests/naming.rs::hex_6_outbound_port_types_live_in_dtos`, `tests/naming.rs::hex_6_outbound_port_types_are_checked_in_legacy_contexts` |
 | HEX-6 | DTOs de puerto saliente sin `Command`, `Query`, `Response` ni `Result` | `test` | `tests/naming.rs::hex_6_outbound_dtos_do_not_use_reserved_vocabulary` |
 | HEX-6 | Tipos de transporte con el nombre del transporte | `test` | `tests/naming.rs::hex_6_transport_types_carry_the_transport_name` |
 | HEX-7 | Lógica de negocio fuera del dominio | `revisor:architecture-reviewer` | Prioridad 1 del revisor: `if` de negocio, cálculos y transiciones en handlers o adaptadores |
