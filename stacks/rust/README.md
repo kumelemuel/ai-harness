@@ -320,35 +320,46 @@ batería.
 2. Invoca la macro en `testing.rs`, contra el doble, y ve los casos en rojo.
 3. Implementa el doble hasta que pasen. Después, cada adaptador invoca la macro en su archivo.
 
+- En crates de test de integración, `#![allow(clippy::unwrap_used)]` al inicio del archivo.
+
 **Puerto todavía síncrono (adopción).** En una adopción, un puerto puede seguir devolviendo
-`Result<T, Fault>` sin `BoxFuture` hasta su rebanada de asincronía (RS-3). Su batería nace
-igual con la forma final: casos `pub async fn` y macro con `run`, invocada con
-`run: block_on`. Dentro de los casos, las llamadas al puerto van sin `.await`:
+`Result<T, Fault>` sin `BoxFuture` hasta su *rebanada de asincronía*: la rebanada del plan de
+adopción que lo pasa a `BoxFuture`. Es una desviación de RS-3 y se registra como tal en el
+inventario de `docs/harness-adoption.md`. Su batería nace igual con la forma final: casos
+`pub async fn`, helpers `async fn` y macro con `run`, invocada con `run: block_on`. Las
+llamadas al puerto, en los helpers, van sin `.await`:
 
 ```rust
 // testing/contracts/community_repository.rs, con el puerto síncrono
-pub async fn saves_and_finds_by_slug<R: CommunityRepository>(new_adapter: impl Fn() -> R) {
-    let adapter = new_adapter();
-    let saved = community("rust-chile");
-    adapter.save(&saved).expect("contrato: save no falla con el adaptador sano");
-    // … y sin `.await` en el resto de las llamadas
+#![expect(
+    clippy::unused_async,
+    reason = "puerto todavía síncrono: se quita en su rebanada de asincronía"
+)]
+
+async fn save(adapter: &impl CommunityRepository, community: &Community) {
+    adapter
+        .save(community)
+        .expect("contrato: save no falla con el adaptador sano");
 }
 
-// testing.rs y cada adaptador: la invocación ya es la definitiva
-crate::community_repository_contract! {
-    new_adapter: FakeCommunityAdapter::empty(),
-    run: block_on,
+pub async fn finds_a_saved_community_by_slug<R: CommunityRepository>(new_adapter: impl Fn() -> R) {
+    let adapter = new_adapter();
+    let saved = community("c-1", "rust-chile");
+    save(&adapter, &saved).await;
+    // …
 }
 ```
 
-Cuando el puerto pase a `BoxFuture`, solo cambian los casos: cada llamada gana su `.await`.
-La macro y sus invocaciones, repartidas por el doble y cada adaptador, no se tocan. Una batería
-síncrona sin `run` obliga a reescribir los casos, la macro y cada invocación en esa rebanada.
-`async fn` sin `.await` compila sin advertencias con el clippy por defecto. Con
-`clippy::pedantic`, `unused_async` la marca: `#[allow(clippy::unused_async)]` en el módulo de
-la batería, con un comentario, hasta la rebanada de asincronía.
-
-- En crates de test de integración, `#![allow(clippy::unwrap_used)]` al inicio del archivo.
+Cuando el puerto pase a `BoxFuture`, cambian los helpers (cada llamada al puerto gana su
+`.await`) y desaparece el `#![expect]`. Mientras algún `async fn` no espere nada, el `expect`
+se cumple con el clippy por defecto. Cuando ya no queda ninguno, `unfulfilled_lint_expectations`
+falla con `-D warnings` y obliga a borrarlo. La macro y las invocaciones del doble y de los
+adaptadores que resuelven de inmediato (en memoria) no cambian. Un adaptador con E/S que hoy
+bloquea pasa con `run: block_on`; en la rebanada de asincronía cambia a un runtime real (la
+forma con `tokio` de arriba). Antes no: si el adaptador síncrono usa por dentro un runtime de
+`tokio`, un `run` de `tokio` alrededor entra en pánico (no se puede iniciar un runtime dentro de
+otro). Una batería síncrona sin `run` obliga a reescribir, en esa rebanada, los casos, la macro y
+cada invocación.
 
 ---
 

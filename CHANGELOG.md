@@ -4,9 +4,11 @@
 
 ### Agregado
 - **Baterías de contrato con el puerto todavía síncrono** (TDD-2, RS-3): en
-  una adopción, la batería nace con su forma final (`async fn` por caso y la
-  macro con `run: block_on`). Al pasar el puerto a `BoxFuture` solo se agregan
-  los `.await`; la macro y sus invocaciones no cambian.
+  una adopción, la batería nace con su forma final (`async fn` y la macro con
+  `run: block_on`, con `#![expect(clippy::unused_async)]`). Al pasar el puerto a
+  `BoxFuture` se agregan los `.await` y se borra el `expect`. La macro y las
+  invocaciones del doble y de los adaptadores en memoria no cambian. Los
+  adaptadores con E/S pasan su `run` a un runtime real.
 
 ## 1.0.0-rc.2.2 — 2026-11-25
 
