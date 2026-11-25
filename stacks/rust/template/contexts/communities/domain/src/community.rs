@@ -95,13 +95,7 @@ impl Community {
     }
 }
 
-impl AggregateRoot for Community {
-    type Id = CommunityId;
-
-    fn id(&self) -> &CommunityId {
-        &self.id
-    }
-}
+impl AggregateRoot for Community {}
 
 #[cfg(test)]
 mod tests {

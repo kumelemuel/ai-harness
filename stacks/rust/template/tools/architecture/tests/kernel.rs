@@ -95,3 +95,49 @@ fn hex_8_kernel_traits_are_model_markers_or_listed_capabilities() {
         violations,
     );
 }
+
+/// HEX-8: un marcador de modelo no impone API. Es un trait sin ítems (sin
+/// métodos, tipos ni constantes asociados); los supertraits sí se admiten
+/// (`ValueObject: Clone + Eq`). Cada tipo expone lo suyo.
+#[test]
+fn hex_8_model_markers_have_no_items() {
+    let kernel = kernel();
+    let mut violations = Vec::new();
+    let mut markers = 0;
+    for path in kernel.files("src") {
+        for item in &parse(&path).items {
+            let syn::Item::Trait(t) = item else {
+                continue;
+            };
+            let name = t.ident.to_string();
+            if !MODEL_MARKERS.contains(&name.as_str()) {
+                continue;
+            }
+            markers += 1;
+            let items: Vec<String> = t.items.iter().map(trait_item_name).collect();
+            if !items.is_empty() {
+                violations.push(format!(
+                    "{}:{}: el marcador `{name}` declara {items:?}: un marcador no tiene ítems",
+                    relative(&path),
+                    t.ident.span().start().line
+                ));
+            }
+        }
+    }
+
+    assert_no_violations(
+        "hex_8_model_markers_have_no_items",
+        "HEX-8: un marcador de modelo del kernel es un trait sin ítems",
+        &[("marcadores de modelo del kernel", markers)],
+        violations,
+    );
+}
+
+fn trait_item_name(item: &syn::TraitItem) -> String {
+    match item {
+        syn::TraitItem::Fn(f) => format!("fn {}", f.sig.ident),
+        syn::TraitItem::Type(t) => format!("type {}", t.ident),
+        syn::TraitItem::Const(c) => format!("const {}", c.ident),
+        _ => "un ítem".into(),
+    }
+}

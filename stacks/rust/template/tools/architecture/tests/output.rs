@@ -187,3 +187,160 @@ fn err_4_core_does_not_write_to_output() {
         violations,
     );
 }
+
+/// Prefijos admitidos en el mensaje de un `expect` de producción (RS-2):
+/// `invariante:` nombra el invariante roto. `pendiente:` es la forma
+/// transitoria de TDD-1 (una firma que pasa a ser falible falla fuerte hasta
+/// que llega su propagación) y no sobrevive a la rebanada: lo ve el revisor.
+const EXPECT_PREFIXES: &[&str] = &["invariante:", "pendiente:"];
+
+/// `.expect(…)` de un archivo cuyo mensaje no es un literal con uno de los
+/// prefijos: `(línea, mensaje o "no es un literal")`.
+fn unnamed_expects(tokens: TokenStream, found: &mut Vec<(usize, String)>) {
+    let tokens: Vec<TokenTree> = tokens.into_iter().collect();
+    for (i, token) in tokens.iter().enumerate() {
+        match token {
+            TokenTree::Ident(ident)
+                if ident == "expect"
+                    && i > 0
+                    && matches!(&tokens[i - 1], TokenTree::Punct(p) if p.as_char() == '.') =>
+            {
+                let Some(TokenTree::Group(args)) = tokens.get(i + 1) else {
+                    continue;
+                };
+                let args: Vec<TokenTree> = args.stream().into_iter().collect();
+                let line = ident.span().start().line;
+                match args.as_slice() {
+                    [TokenTree::Literal(lit)] => {
+                        let text = lit.to_string();
+                        let message = text.trim_start_matches('"');
+                        if !text.starts_with('"')
+                            || !EXPECT_PREFIXES.iter().any(|p| message.starts_with(p))
+                        {
+                            found.push((line, text));
+                        }
+                    }
+                    _ => found.push((line, "no es un literal".into())),
+                }
+            }
+            TokenTree::Group(group) => unnamed_expects(group.stream(), found),
+            _ => {}
+        }
+    }
+}
+
+/// RS-2: un `expect` de producción nombra el invariante que se rompió
+/// (`"invariante: …"`). Recorre `src/` de todas las capas, sin lo que es de
+/// test: `#[cfg(test)]`, sus módulos y los dobles (`testing`).
+#[test]
+fn rs_2_expect_names_the_invariant() {
+    let mut violations = Vec::new();
+    let mut checked = 0;
+    for krate in crates() {
+        let files = krate.files("src");
+        let mut test_files: Vec<PathBuf> = Vec::new();
+        let mut per_file = Vec::new();
+        for file in &files {
+            let syntax = parse(file);
+            let mut test_only = TestOnly {
+                file,
+                lines: Vec::new(),
+                files: Vec::new(),
+            };
+            let whole_file = syntax.attrs.iter().any(requires_test);
+            test_only.visit_file(&syntax);
+            test_files.append(&mut test_only.files);
+            per_file.push((file, whole_file, test_only.lines));
+        }
+        for (file, whole_file, lines) in per_file {
+            let doubles = file
+                .components()
+                .any(|c| matches!(c.as_os_str().to_str(), Some("testing" | "testing.rs")));
+            if whole_file || doubles || test_files.iter().any(|t| file.starts_with(t)) {
+                continue;
+            }
+            checked += 1;
+            let text = fs::read_to_string(file).expect("invariante: archivo legible");
+            let tokens: TokenStream = text.parse().expect("invariante: tokens válidos");
+            let mut found = Vec::new();
+            unnamed_expects(tokens, &mut found);
+            for (line, message) in found {
+                if !lines.iter().any(|(a, b)| (*a..=*b).contains(&line)) {
+                    violations.push(format!(
+                        "{}:{line}: `expect({message})` — el mensaje nombra el invariante: \
+                         `expect(\"invariante: …\")`; una falla técnica es `Fault`, no un pánico",
+                        relative(file)
+                    ));
+                }
+            }
+        }
+    }
+    assert_no_violations(
+        "rs_2_expect_names_the_invariant",
+        "RS-2: cada `expect` de producción empieza con \"invariante:\" (o \"pendiente:\", \
+         transitorio, TDD-1)",
+        &[("archivos de producción", checked)],
+        violations,
+    );
+}
+
+mod expects {
+    use super::*;
+
+    fn found(code: &str) -> Vec<String> {
+        let mut found = Vec::new();
+        unnamed_expects(
+            code.parse().expect("invariante: tokens de prueba"),
+            &mut found,
+        );
+        found.into_iter().map(|(_, m)| m).collect()
+    }
+
+    #[test]
+    fn a_named_invariant_passes() {
+        assert_eq!(
+            found(r#"fn f() { x.lock().expect("invariante: mutex sin envenenar"); }"#),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_pending_propagation_passes() {
+        assert_eq!(
+            found(r#"fn f() { port.save().expect("pendiente: propagar el Fault con su test"); }"#),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_message_without_the_prefix_is_found() {
+        assert_eq!(
+            found(r#"fn f() { x.lock().expect("mutex poisoned"); }"#),
+            ["\"mutex poisoned\""]
+        );
+    }
+
+    #[test]
+    fn a_message_that_is_not_a_literal_is_found() {
+        assert_eq!(
+            found(r#"fn f() { x.expect(&format!("{y}")); }"#),
+            ["no es un literal"]
+        );
+    }
+
+    #[test]
+    fn nested_calls_and_macros_are_found() {
+        assert_eq!(
+            found(r#"fn f() { g(a.expect("x")); m!(b.expect("y")); }"#),
+            ["\"x\"", "\"y\""]
+        );
+    }
+
+    #[test]
+    fn a_method_named_expect_without_a_dot_is_ignored() {
+        assert_eq!(
+            found(r#"fn expect(m: &str) {} fn f() { expect("x"); }"#),
+            Vec::<String>::new()
+        );
+    }
+}
