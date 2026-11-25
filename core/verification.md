@@ -50,6 +50,7 @@ cambiaron de mecanismo.
 | HEX-7 | Ningún tipo de `domain` ni de `application` (fuera de `ports/outbound`) se llama `…Service` | `test` | `tests/naming.rs::hex_7_service_suffix_is_only_an_outbound_role` |
 | HEX-8 | El kernel no tiene dependencias | `test` | `tests/kernel.rs::hex_8_kernel_depends_only_on_std` |
 | HEX-8 | Traits del kernel: marcadores o capacidades de la lista cerrada | `test` | `tests/kernel.rs::hex_8_kernel_traits_are_model_markers_or_listed_capabilities` |
+| HEX-8 | Los adaptadores de las capacidades viven en la infraestructura compartida, fuera de los contextos | `test` | `tests/naming.rs::hex_8_capability_adapters_are_shared_infrastructure`, `tests/naming.rs::hex_8_capability_adapters_are_checked_in_legacy_contexts`, `tests/naming.rs::hex_8_renames_resolve_to_the_original_name` |
 | ERR-1 | Los errores de `domain` no implementan `std::error::Error` | `test` | `tests/errors.rs::err_1_domain_errors_do_not_implement_std_error` |
 | ERR-1 | Los errores de `application` (hojas, contratos, puertos) tampoco | `test` | `tests/errors.rs::err_1_application_errors_do_not_implement_std_error` |
 | ERR-1 | Excepciones para fallos de negocio, conversiones amplias entre árboles | `revisor:architecture-reviewer` | Prioridad 3 del revisor |

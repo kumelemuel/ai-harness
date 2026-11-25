@@ -817,6 +817,114 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
     );
 }
 
+/// Alias de un archivo: `use kernel::IdGenerator as Ids;` → `Ids` → `IdGenerator`.
+fn renames_of(syntax: &syn::File) -> std::collections::BTreeMap<String, String> {
+    fn walk(tree: &syn::UseTree, out: &mut std::collections::BTreeMap<String, String>) {
+        match tree {
+            syn::UseTree::Path(p) => walk(&p.tree, out),
+            syn::UseTree::Rename(r) => {
+                out.insert(r.rename.to_string(), r.ident.to_string());
+            }
+            syn::UseTree::Group(g) => g.items.iter().for_each(|i| walk(i, out)),
+            _ => {}
+        }
+    }
+    let mut out = std::collections::BTreeMap::new();
+    for item in &syntax.items {
+        if let syn::Item::Use(u) = item {
+            walk(&u.tree, &mut out);
+        }
+    }
+    out
+}
+
+/// HEX-8: violaciones de ubicación de los adaptadores de capacidades en `all`,
+/// y cuántas implementaciones de producción revisó.
+fn capability_violations(all: &[Crate]) -> (Vec<String>, usize) {
+    let mut violations = Vec::new();
+    let mut implementations = 0;
+    for krate in all {
+        let mut renames = std::collections::BTreeMap::new();
+        for (file, imp, test) in trait_impls(krate) {
+            let Some((_, path, _)) = &imp.trait_ else {
+                continue;
+            };
+            let renamed = renames
+                .entry(file.clone())
+                .or_insert_with(|| renames_of(&parse(&file)));
+            let written = last_segment(path);
+            let capability = renamed.get(&written).cloned().unwrap_or(written);
+            if test || !CAPABILITIES.contains(&capability.as_str()) {
+                continue;
+            }
+            implementations += 1;
+            let shared = krate.layer == Layer::Infrastructure && krate.context.is_none();
+            if !shared {
+                violations.push(format!(
+                    "{}: implementa `{capability}`, una capacidad del kernel, en `{}`: \
+                     su adaptador va en un crate de infrastructure/*",
+                    relative(&file),
+                    krate.name
+                ));
+            }
+        }
+    }
+    (violations, implementations)
+}
+
+/// HEX-8: el adaptador de una capacidad del kernel es infraestructura
+/// compartida (`infrastructure/*`), no de un contexto: lo usan todos, y vive
+/// una sola vez. Los dobles (`Fixed…`, `Spy…`) de los tests no cuentan.
+#[test]
+fn hex_8_capability_adapters_are_shared_infrastructure() {
+    let (violations, implementations) = capability_violations(&crates());
+
+    assert_no_violations(
+        "hex_8_capability_adapters_are_shared_infrastructure",
+        "HEX-8: los adaptadores de las capacidades del kernel viven en infrastructure/*, \
+         fuera de los contextos",
+        &[(
+            "implementaciones de producción de capacidades del kernel",
+            implementations,
+        )],
+        violations,
+    );
+}
+
+/// En legacy, la capa virtual `infrastructure` es de un contexto, y un alias
+/// del import no esconde la capacidad.
+#[test]
+fn hex_8_capability_adapters_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, implementations) = capability_violations(&common::crates_at(&fixture));
+
+    assert_eq!(implementations, 1, "{violations:#?}");
+    assert!(
+        violations
+            .iter()
+            .any(|v| v.contains("implementa `IdGenerator`") && v.contains("en `iam`")),
+        "{violations:#?}"
+    );
+}
+
+#[test]
+fn hex_8_renames_resolve_to_the_original_name() {
+    let syntax: syn::File = syn::parse_str(
+        "use kernel::{Clock, IdGenerator as Ids};\nuse shared::{FaultReporter as Faults};",
+    )
+    .expect("invariante: archivo de prueba válido");
+
+    let renames = renames_of(&syntax);
+
+    assert_eq!(renames.get("Ids").map(String::as_str), Some("IdGenerator"));
+    assert_eq!(
+        renames.get("Faults").map(String::as_str),
+        Some("FaultReporter")
+    );
+    assert_eq!(renames.get("Clock"), None);
+}
+
 #[test]
 fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
     let mut violations = Vec::new();

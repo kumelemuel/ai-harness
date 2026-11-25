@@ -223,13 +223,13 @@ La lista es **cerrada**:
 Agregar una exige cambiar esta lista y el test del kernel en el mismo commit.
 
 - **Nombre:** sustantivo de agente por lo que hace, sin sufijo de rol y nunca `Port`. Es la única excepción a HEX-5 para puertos y la única a HEX-3 para su ubicación.
-- **Adaptadores:** siguen HEX-5. Como la capacidad no tiene sufijo de rol que quitar, el Concepto es su nombre completo: `UuidIdGeneratorAdapter`, `SystemClockAdapter`.
+- **Adaptadores:** siguen HEX-5. Como la capacidad no tiene sufijo de rol que quitar, el Concepto es su nombre completo: `UuidIdGeneratorAdapter`, `SystemClockAdapter`. Viven en la infraestructura compartida, fuera de los contextos: todos los contextos usan la misma capacidad, y su adaptador existe una sola vez.
 
 **Fundamento.** Un sitio único para los bloques de construcción evita copiar contratos sin acoplar contextos entre sí. Si crece, se vuelve un acoplamiento disfrazado. Por eso las capacidades tienen criterio y lista cerrada: "varios contextos lo usan" no basta, porque un puerto de negocio compartido es justo el acoplamiento que el kernel debe evitar. Sin sufijo de rol, porque el rol de una capacidad no varía. Un `Clock` no es ni persistencia ni un tercero: es el reloj.
 
-**Violaciones típicas.** Mover un agregado al kernel "porque dos servicios lo usan". Agregar un puerto con vocabulario de negocio (`CommunityLookup`) al kernel para compartirlo entre contextos. Una capacidad que no está en la lista. Un adaptador de capacidad sin sufijo (`UuidIdGenerator`).
+**Violaciones típicas.** Mover un agregado al kernel "porque dos servicios lo usan". Agregar un puerto con vocabulario de negocio (`CommunityLookup`) al kernel para compartirlo entre contextos. Una capacidad que no está en la lista. Un adaptador de capacidad sin sufijo (`UuidIdGenerator`). El adaptador de una capacidad dentro de la infraestructura de un contexto.
 
-**Verificación.** Test de arquitectura propio del kernel: no tiene dependencias, y todo trait público es un marcador de modelo o una capacidad de la lista. Los nombres de los adaptadores los cubre el test de HEX-5. En Rust: `tests/kernel.rs::hex_8_*` y `tests/naming.rs::hex_5_adapters_*`.
+**Verificación.** Test de arquitectura propio del kernel: no tiene dependencias, y todo trait público es un marcador de modelo o una capacidad de la lista. Los nombres de los adaptadores los cubre el test de HEX-5. Otro test exige que los adaptadores de las capacidades vivan fuera de los contextos (los dobles de test no cuentan). En Rust: `tests/kernel.rs::hex_8_*`, `tests/naming.rs::hex_5_adapters_*` y `tests/naming.rs::hex_8_capability_adapters_are_shared_infrastructure`.
 
 ---
 
