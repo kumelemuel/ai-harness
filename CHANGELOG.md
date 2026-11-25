@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 1.0.0-rc.2.4 — 2026-11-25
+
+Plugins: `craft-backend` 1.0.0-rc.2.4, `craft-web` 1.0.0-rc.1 (sin cambios).
 
 ### Agregado
 - **`ARCH_BASELINE_PRINT=1`** (VER-1): cada test de arquitectura imprime las
