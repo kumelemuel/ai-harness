@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 1.0.0-rc.2.5 — 2026-11-25
+
+Plugins: `craft-backend` 1.0.0-rc.2.5, `craft-web` 1.0.0-rc.1 (sin cambios).
 
 ### Agregado
 - **Crate `infrastructure-uuid`** (HEX-8): `UuidIdGeneratorAdapter` sale de
