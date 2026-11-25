@@ -1,5 +1,22 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Firma de los puertos entrantes** (HEX-4, ERR-2):
+  `hex_4_use_case_signatures_are_their_own_contract` exige que `execute`
+  reciba un solo `{Verb}{Noun}Command` o `{Verb}{Noun}Query` y devuelva
+  `Result<{Verb}{Noun}Response, Failure<{Verb}{Noun}Error>>` (o `Fault` sin
+  árbol A), con los tres tipos definidos junto al handler. Falla con un segundo
+  argumento (la identidad va en el comando) y con un error compartido entre
+  casos.
+- **El dominio del kernel es dominio en los contratos** (HEX-4): un `Command`,
+  `Response` o puerto entrante que expone `kernel::domain::…` (en legacy,
+  `shared::domain::…`) es una violación de
+  `hex_4_use_case_contracts_do_not_expose_domain_types`.
+- Proyectos adoptados: las dos reglas pueden agregar entradas a la línea base
+  al sincronizar.
+
 ## 1.0.0-rc.2.5 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.2.5, `craft-web` 1.0.0-rc.1 (sin cambios).
