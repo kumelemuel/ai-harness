@@ -218,6 +218,14 @@ genéricos en los caminos calientes sin cambiar los principios.
   `hex_5_adapters_*` recorre `src/` y `tests/` de todos los crates. Es de test todo `tests/`,
   lo que está bajo un `cfg` que menciona `test` (incluido `testing`) y lo que está dentro de
   una función `#[test]`.
+- **Fallas por operación.** `FakeCommunityAdapter::failing()` hace fallar todas las operaciones;
+  `FakeCommunityAdapter::empty().failing_on(CommunityOperation::Save)`, solo esa, y las demás
+  siguen el contrato (`CommunityOperation` es un `enum` con una variante por método del puerto).
+  `CreateCommunityHandler` llama a `find_by_slug` y después a `save`: con `failing()` el test
+  nunca llega a `save`. Cada llamada a un puerto que puede fallar tiene su
+  `fails_with_unexpected_when_<operación>_fails` (TDD-2); `SpyCommunityEventAdapter::failing()`
+  cubre `publish`. Un puerto de una sola operación (`CommunityHistoryRepository` para el
+  suscriptor) no necesita `failing_on` mientras su caso de uso llame a una sola.
 - **`InMemoryCommunityAdapter`** es un adaptador de producción (correr sin base de datos), no un
   doble. Pasa la misma batería que el fake.
 - **`block_on`** del módulo `testing`: ejecutor mínimo con `std` (`Waker::noop`). Solo para

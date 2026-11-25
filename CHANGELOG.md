@@ -1,5 +1,19 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Falla por operación en los dobles** (TDD-2): `FakeCommunityAdapter`
+  conserva `failing()` y gana `failing_on(CommunityOperation)`, que hace
+  fallar una sola operación mientras las demás cumplen el contrato.
+  `SpyCommunityEventAdapter::failing()` cubre `publish`. Con `failing()` solo,
+  el `?` de `save` y el de `publish` del handler de la plantilla no tenían test.
+- **Una prueba de falla por cada llamada a un puerto que puede fallar**
+  (TDD-2), en el principio, la skill `tdd` y el revisor.
+- **Orden de los commits cuando una firma pasa a ser falible** (TDD-1): el
+  commit de la firma descarta el error de forma explícita, y el `?` llega
+  después, con su test en rojo contra el commit padre.
+
 ## 1.0.0-rc.2.1 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.2.1, `craft-web` 1.0.0-rc.1 (sin cambios).

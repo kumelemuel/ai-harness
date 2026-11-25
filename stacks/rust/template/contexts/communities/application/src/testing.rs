@@ -36,25 +36,45 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
     }
 }
 
+/// Operación de `CommunityRepository`, para hacer fallar solo esa en un
+/// `FakeCommunityAdapter`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommunityOperation {
+    FindBySlug,
+    Save,
+}
+
+/// Doble de `CommunityRepository`: guarda en memoria, o falla.
+///
+/// `failing()` hace fallar todas las operaciones. Para que un handler llegue a
+/// una llamada posterior a la primera y falle esa, `failing_on(op)`: las demás
+/// siguen el contrato (buscan lo guardado, `save` guarda).
 pub struct FakeCommunityAdapter {
     communities: Mutex<Vec<Community>>,
-    failing: bool,
+    failing: Vec<CommunityOperation>,
 }
 
 impl FakeCommunityAdapter {
     pub fn empty() -> Self {
         Self {
             communities: Mutex::new(Vec::new()),
-            failing: false,
+            failing: Vec::new(),
         }
     }
 
-    /// Simula una falla técnica no declarada (árbol B).
+    /// Simula una falla técnica no declarada (árbol B) en todas las
+    /// operaciones.
     pub fn failing() -> Self {
         Self {
-            communities: Mutex::new(Vec::new()),
-            failing: true,
+            failing: vec![CommunityOperation::FindBySlug, CommunityOperation::Save],
+            ..Self::empty()
         }
+    }
+
+    /// Además, `operation` responde un `Fault` (árbol B).
+    pub fn failing_on(mut self, operation: CommunityOperation) -> Self {
+        self.failing.push(operation);
+        self
     }
 
     pub fn saved(&self) -> Vec<Community> {
@@ -64,8 +84,11 @@ impl FakeCommunityAdapter {
             .clone()
     }
 
-    fn outage<T>(&self) -> Result<T, Fault> {
-        Err(Fault::new("fake repository outage"))
+    fn outage(&self, operation: CommunityOperation) -> Result<(), Fault> {
+        if self.failing.contains(&operation) {
+            return Err(Fault::new("fake repository outage"));
+        }
+        Ok(())
     }
 }
 
@@ -74,18 +97,14 @@ impl CommunityRepository for FakeCommunityAdapter {
         &'a self,
         slug: &'a CommunitySlug,
     ) -> BoxFuture<'a, Result<Option<Community>, Fault>> {
-        let result = if self.failing {
-            self.outage()
-        } else {
-            Ok(self.saved().into_iter().find(|c| c.slug() == slug))
-        };
+        let result = self
+            .outage(CommunityOperation::FindBySlug)
+            .map(|()| self.saved().into_iter().find(|c| c.slug() == slug));
         Box::pin(ready(result))
     }
 
     fn save<'a>(&'a self, community: &'a Community) -> BoxFuture<'a, Result<(), Fault>> {
-        let result = if self.failing {
-            self.outage()
-        } else {
+        let result = self.outage(CommunityOperation::Save).map(|()| {
             let mut communities = self
                 .communities
                 .lock()
@@ -95,8 +114,7 @@ impl CommunityRepository for FakeCommunityAdapter {
                 Some(existing) => *existing = community.clone(),
                 None => communities.push(community.clone()),
             }
-            Ok(())
-        };
+        });
         Box::pin(ready(result))
     }
 }
@@ -218,9 +236,18 @@ impl CommunityHistoryRepository for FakeCommunityHistoryAdapter {
 #[derive(Default)]
 pub struct SpyCommunityEventAdapter {
     published: Mutex<Vec<CommunityEvent>>,
+    failing: bool,
 }
 
 impl SpyCommunityEventAdapter {
+    /// Registra lo que recibe y responde un `Fault` (árbol B).
+    pub fn failing() -> Self {
+        Self {
+            failing: true,
+            ..Self::default()
+        }
+    }
+
     pub fn published(&self) -> Vec<CommunityEvent> {
         self.published
             .lock()
@@ -235,7 +262,12 @@ impl CommunityEventPublisher for SpyCommunityEventAdapter {
             .lock()
             .expect("invariante: spy sin envenenar")
             .extend_from_slice(events);
-        Box::pin(ready(Ok(())))
+        let result = if self.failing {
+            Err(Fault::new("fake publisher outage"))
+        } else {
+            Ok(())
+        };
+        Box::pin(ready(result))
     }
 }
 

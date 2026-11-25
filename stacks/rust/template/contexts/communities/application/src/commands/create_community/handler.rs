@@ -104,7 +104,7 @@ mod tests {
     use super::*;
     use crate::errors::{ContentRejected, DependencyUnavailable};
     use crate::testing::{
-        FakeCommunityAdapter, FakeModerationAdapter, FixedIdGeneratorAdapter,
+        CommunityOperation, FakeCommunityAdapter, FakeModerationAdapter, FixedIdGeneratorAdapter,
         SpyCommunityEventAdapter, block_on,
     };
     use communities_domain::CommunityEvent;
@@ -251,6 +251,40 @@ mod tests {
         let repository = Arc::new(FakeCommunityAdapter::failing());
 
         let result = block_on(handler(&repository).execute(command("rust-chile", "Rust Chile")));
+
+        assert!(matches!(result, Err(Failure::Unexpected(_))));
+    }
+
+    /// Una prueba de falla por cada llamada a un puerto que puede fallar
+    /// (TDD-2): `failing()` corta en `find_by_slug`, y `save` necesita que
+    /// la búsqueda cumpla el contrato.
+    #[test]
+    fn fails_with_unexpected_when_save_fails() {
+        let repository =
+            Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::Save));
+        let events = Arc::new(SpyCommunityEventAdapter::default());
+        let handler = publishing(
+            &repository,
+            &Arc::new(FakeModerationAdapter::approving()),
+            &events,
+        );
+
+        let result = block_on(handler.execute(command("rust-chile", "Rust Chile")));
+
+        assert!(matches!(result, Err(Failure::Unexpected(_))));
+        assert!(events.published().is_empty(), "no publica lo que no guardó");
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_publish_fails() {
+        let events = Arc::new(SpyCommunityEventAdapter::failing());
+        let handler = publishing(
+            &Arc::new(FakeCommunityAdapter::empty()),
+            &Arc::new(FakeModerationAdapter::approving()),
+            &events,
+        );
+
+        let result = block_on(handler.execute(command("rust-chile", "Rust Chile")));
 
         assert!(matches!(result, Err(Failure::Unexpected(_))));
     }

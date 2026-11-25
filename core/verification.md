@@ -70,6 +70,8 @@ cambiaron de mecanismo.
 | TDD-2 | Dobles con prefijo `Fake`, `Fixed`, `Stub` o `Spy` (presencia del prefijo) | `test` | `tests/naming.rs::hex_5_adapters_are_named_by_technology_and_concept` |
 | TDD-2 | Semántica de los prefijos: `Fake` con estado, `Fixed` y `Stub` con respuesta fija, `Spy` registra las llamadas | `revisor:architecture-reviewer` | Prioridad 5 del revisor: el prefijo de cada doble del diff dice lo que hace |
 | TDD-2 | Doble y adaptadores cumplen el mismo contrato | `herramienta` | `cargo test`: las baterías `{puerto}_contract!` corren contra el doble y cada adaptador. Sus casos los genera una macro: el verificador no puede citarlos |
+| TDD-1 | La propagación de una firma que pasa a ser falible llega con su test, después del commit de la firma | `revisor:architecture-reviewer` | Prioridad 5 del revisor: orden de los commits |
+| TDD-2 | Una prueba de falla por cada llamada a un puerto que puede fallar | `revisor:architecture-reviewer` | Prioridad 5 del revisor. Ejemplo en la plantilla: `fails_with_unexpected_when_save_fails` y `fails_with_unexpected_when_publish_fails` (`failing_on`) |
 | TDD-2 | Forma de los tests: sin contenedor, fakes en vez de mocks, reglas no probadas por el endpoint | `revisor:architecture-reviewer` | Prioridad 5 del revisor |
 | VER-1 | Los tests de arquitectura corren en CI y no pasan en vacío | `herramienta` | `.github/workflows/harness.yml`, job `rust`, con `ARCH_REQUIRE_MATERIAL=1` |
 | VER-1 | Lo citado existe y cada regla tiene mecanismo | `herramienta` | `scripts/check_harness.py` (`MISSING-TEST` y `VERIF-*`), job `consistency` |

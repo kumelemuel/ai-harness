@@ -62,6 +62,12 @@ arquitectura:
    - Si el rango tiene más de un commit, revisa el orden con
      `git log --reverse --name-only <rango>`. El test aparece antes que la
      producción o en el mismo commit, nunca después.
+   - Una firma de puerto que pasa a ser falible: el commit de la firma
+     descarta el error de forma explícita, y el `?` llega después, con su test
+     de falla. Un `?` en el commit de la firma, sin su test, es TDD-1.
+   - Cada llamada de un handler a un puerto que puede fallar tiene un test que
+     la hace fallar a ella (`failing_on`) y afirma el resultado. Una llamada
+     cuyo `?` se puede borrar sin que ningún test falle es TDD-2.
    - También: tests modificados para pasar sin justificación, y contenedor o
      mocks de librería en tests de núcleo (TDD-2).
    - **TDD-2: semántica de los prefijos de dobles.** El test de nombres
