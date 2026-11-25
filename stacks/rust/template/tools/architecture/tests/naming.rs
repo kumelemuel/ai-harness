@@ -1399,6 +1399,231 @@ fn hex_8_renames_resolve_to_the_original_name() {
     assert_eq!(renames.get("Clock"), None);
 }
 
+/// HEX-1: violaciones de los adaptadores driving (`api`, también la capa
+/// virtual `infrastructure/http` de un contexto legacy) que nombran el dominio
+/// o un puerto saliente, y cuántos archivos revisó.
+fn driving_import_violations(all: &[Crate]) -> (Vec<String>, usize) {
+    /// Rutas de un archivo (en `use` y en el código), sin los módulos de test.
+    #[derive(Default)]
+    struct Paths(Vec<(usize, Vec<String>)>);
+    impl<'ast> Visit<'ast> for Paths {
+        fn visit_path(&mut self, path: &'ast syn::Path) {
+            let segments = path.segments.iter().map(|s| s.ident.to_string()).collect();
+            let line = path
+                .segments
+                .first()
+                .map_or(0, |s| s.ident.span().start().line);
+            self.0.push((line, segments));
+            syn::visit::visit_path(self, path);
+        }
+        fn visit_item_use(&mut self, u: &'ast syn::ItemUse) {
+            let line = u.use_token.span.start().line;
+            for (leaf, _) in use_leaves(&u.tree) {
+                self.0.push((line, leaf));
+            }
+        }
+    }
+
+    let mut violations = Vec::new();
+    let mut files = 0;
+    for api in all.iter().filter(|c| c.layer == Layer::Api) {
+        // El dominio y la application del mismo contexto, como los ve `api`.
+        let (domain, application): (Vec<String>, Vec<String>) = if api.legacy {
+            (
+                vec!["crate".into(), "domain".into()],
+                vec!["crate".into(), "application".into()],
+            )
+        } else {
+            let of = |layer| {
+                all.iter()
+                    .find(|c| c.layer == layer && c.context == api.context && c.context.is_some())
+                    .map(|c| vec![c.name.replace('-', "_")])
+                    .unwrap_or_default()
+            };
+            (of(Layer::Domain), of(Layer::Application))
+        };
+        for path in api.files("src") {
+            files += 1;
+            let syntax = parse(&path);
+            let module = api.legacy.then(|| module_path(&api.dir.join("src"), &path));
+            let names = DomainNames {
+                root: domain.clone(),
+                local: Vec::new(),
+                glob: false,
+                module,
+            };
+            let mut paths = Paths::default();
+            for item in items_of(&syntax.items) {
+                paths.visit_item(item);
+            }
+            let file = relative(&path);
+            let mut seen = std::collections::BTreeSet::new();
+            for (line, segments) in paths.0 {
+                let absolute = names.absolute(&segments);
+                let shown = segments.join("::");
+                let message = if !domain.is_empty() && absolute.starts_with(&domain) {
+                    format!(
+                        "nombra el dominio (`{shown}`): un adaptador driving solo ve el UseCase"
+                    )
+                } else if !application.is_empty()
+                    && absolute.starts_with(&application)
+                    && absolute.windows(2).any(|w| w == ["ports", "outbound"])
+                {
+                    format!(
+                        "nombra un puerto saliente (`{shown}`): un adaptador driving llama al \
+                         UseCase, nunca a los puertos de los que depende el handler"
+                    )
+                } else {
+                    continue;
+                };
+                if seen.insert((line, shown)) {
+                    violations.push(format!("{file}:{line}: {message}"));
+                }
+            }
+        }
+    }
+    (violations, files)
+}
+
+/// HEX-6: violaciones de los tipos de `application` que aparecen en la firma
+/// de un puerto saliente sin estar definidos en `ports/outbound/dtos/`, y
+/// cuántos puertos revisó.
+fn outbound_type_violations(all: &[Crate]) -> (Vec<String>, usize) {
+    let mut violations = Vec::new();
+    let mut ports = 0;
+    for app in all.iter().filter(|c| c.layer == Layer::Application) {
+        let (Some(outbound), Some(dtos)) = (
+            app.path("src/ports/outbound"),
+            app.path("src/ports/outbound/dtos"),
+        ) else {
+            continue;
+        };
+        // Tipos de `application` definidos fuera de `dtos/` y fuera de los dobles.
+        let elsewhere: std::collections::BTreeSet<String> = app
+            .files("src")
+            .into_iter()
+            .filter(|f| !f.starts_with(&dtos))
+            .filter(|f| {
+                !f.components()
+                    .any(|c| c.as_os_str() == "testing" || c.as_os_str() == "testing.rs")
+            })
+            .flat_map(|f| {
+                let syntax = parse(&f);
+                items_of(&syntax.items)
+                    .into_iter()
+                    .filter_map(|item| match item {
+                        syn::Item::Struct(s) => Some(s.ident.to_string()),
+                        syn::Item::Enum(e) => Some(e.ident.to_string()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        for path in rust_files(&outbound)
+            .into_iter()
+            .filter(|f| !f.starts_with(&dtos))
+        {
+            let syntax = parse(&path);
+            let file = relative(&path);
+            for item in items_of(&syntax.items) {
+                let syn::Item::Trait(t) = item else {
+                    continue;
+                };
+                ports += 1;
+                let mut found = std::collections::BTreeSet::new();
+                for trait_item in &t.items {
+                    let syn::TraitItem::Fn(f) = trait_item else {
+                        continue;
+                    };
+                    struct Names<'a>(&'a mut std::collections::BTreeSet<String>);
+                    impl<'ast> Visit<'ast> for Names<'_> {
+                        fn visit_path_segment(&mut self, s: &'ast syn::PathSegment) {
+                            self.0.insert(s.ident.to_string());
+                            syn::visit::visit_path_segment(self, s);
+                        }
+                    }
+                    let mut names = std::collections::BTreeSet::new();
+                    Names(&mut names).visit_signature(&f.sig);
+                    for name in names.into_iter().filter(|n| elsewhere.contains(n)) {
+                        found.insert((f.sig.ident.span().start().line, name));
+                    }
+                }
+                for (line, name) in found {
+                    violations.push(format!(
+                        "{file}:{line}: `{name}`, en la firma de `{}`, está definido en \
+                         application fuera de ports/outbound/dtos/: los tipos de un puerto \
+                         saliente viven en dtos/",
+                        t.ident
+                    ));
+                }
+            }
+        }
+    }
+    (violations, ports)
+}
+
+/// HEX-1: un adaptador driving llama al UseCase. No nombra el dominio (en
+/// legacy comparte crate con él, así que Cargo no lo impide) ni los puertos
+/// salientes, que son del handler.
+#[test]
+fn hex_1_driving_adapters_see_only_use_cases() {
+    let (violations, files) = driving_import_violations(&crates());
+
+    assert_no_violations(
+        "hex_1_driving_adapters_see_only_use_cases",
+        "HEX-1: un adaptador driving no nombra el dominio ni un puerto saliente",
+        &[("archivos de api", files)],
+        violations,
+    );
+}
+
+/// HEX-6: los tipos propios de un puerto saliente (DTOs y errores declarados)
+/// viven en `ports/outbound/dtos/`. El puerto puede usar el dominio, el kernel
+/// y `std`.
+#[test]
+fn hex_6_outbound_port_types_live_in_dtos() {
+    let (violations, ports) = outbound_type_violations(&crates());
+
+    assert_no_violations(
+        "hex_6_outbound_port_types_live_in_dtos",
+        "HEX-6: los tipos de application en la firma de un puerto saliente están en \
+         ports/outbound/dtos/",
+        &[("puertos salientes", ports)],
+        violations,
+    );
+}
+
+#[test]
+fn hex_1_driving_adapters_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, _) = driving_import_violations(&common::crates_at(&fixture));
+
+    let found = |needle: &str| violations.iter().any(|v| v.contains(needle));
+    assert!(
+        found("nombra el dominio (`crate::domain::Account`)"),
+        "{violations:#?}"
+    );
+    assert!(
+        found("nombra un puerto saliente (`crate::application::ports::outbound"),
+        "{violations:#?}"
+    );
+}
+
+#[test]
+fn hex_6_outbound_port_types_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, ports) = outbound_type_violations(&common::crates_at(&fixture));
+
+    assert_eq!(ports, 1, "{violations:#?}");
+    assert_eq!(violations.len(), 1, "{violations:#?}");
+    assert!(
+        violations[0].contains("`HashedPassword`"),
+        "{violations:#?}"
+    );
+}
+
 #[test]
 fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
     let mut violations = Vec::new();
