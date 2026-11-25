@@ -2,7 +2,10 @@
 
 mod common;
 
-use common::{BASELINE, Baseline, parse, parse_baseline, ratchet_report, root, rust_files};
+use common::{
+    BASELINE, Baseline, MATERIAL_EXEMPT, exemption_problems, material_report, parse,
+    parse_baseline, parse_exemptions, ratchet_report, root, rust_files,
+};
 use std::collections::BTreeSet;
 use std::fs;
 use syn::visit::Visit;
@@ -211,6 +214,136 @@ fn ver_1_baseline_ids_match_tests() {
     assert!(
         problems.is_empty(),
         "\nVER-1: ids del trinquete\n{}\n",
+        problems
+            .iter()
+            .map(|p| format!("  - {p}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+}
+
+/// Exenciones de material (VER-1): `<test> | <conjunto> | <motivo>`.
+#[test]
+fn ver_1_material_exemptions_read_only_their_test() {
+    let text = "# comentario\n\
+                err_1_x | errores declarados de puertos | los puertos devuelven Fault\n\
+                hex_4_y | implementaciones | sin eventos (D4)\n";
+
+    let exempt = parse_exemptions(text, "err_1_x");
+
+    assert_eq!(
+        exempt.into_iter().collect::<Vec<_>>(),
+        [(
+            "errores declarados de puertos".to_string(),
+            "los puertos devuelven Fault".to_string()
+        )]
+    );
+}
+
+/// Un conjunto vacío y exento no falla aunque se exija material.
+#[test]
+fn ver_1_material_exempt_empty_set_passes() {
+    let exempt = parse_exemptions("err_1_x | puertos | sin errores declarados", "err_1_x");
+
+    let report = material_report(&[("hojas", 3), ("puertos", 0)], &exempt, true);
+
+    assert_eq!(report, "");
+}
+
+/// Sin exención, el conjunto vacío sigue fallando con la variable.
+#[test]
+fn ver_1_material_empty_set_without_exemption_fails() {
+    let report = material_report(&[("hojas", 3), ("puertos", 0)], &Default::default(), true);
+
+    assert!(report.contains("  - 0 puertos"), "{report}");
+    assert!(!report.contains("hojas"), "{report}");
+}
+
+/// Una exención que ya no hace falta se borra, como una entrada de la línea
+/// base: falla aunque no se exija material.
+#[test]
+fn ver_1_material_exemption_of_a_non_empty_set_asks_to_delete_it() {
+    let exempt = parse_exemptions("err_1_x | puertos | sin errores declarados", "err_1_x");
+
+    let report = material_report(&[("puertos", 2)], &exempt, false);
+
+    assert!(
+        report.contains("  - borrar de material-exempt.txt: err_1_x | puertos"),
+        "{report}"
+    );
+}
+
+/// Una exención de un conjunto que el test no recorre no exime nada.
+#[test]
+fn ver_1_material_exemption_of_an_unknown_set_fails() {
+    let exempt = parse_exemptions("err_1_x | puerto | errata", "err_1_x");
+
+    let report = material_report(&[("puertos", 0)], &exempt, false);
+
+    assert!(
+        report.contains("`puerto` no es un conjunto de este test"),
+        "{report}"
+    );
+}
+
+/// Formato: tres campos no vacíos, un test existente, sin repetidos.
+#[test]
+fn ver_1_material_exemption_problems_name_the_line() {
+    let tests = ["err_1_x".to_string()].into_iter().collect();
+    let text = "err_1_x | puertos\n\
+                err_1_x | puertos |   \n\
+                otro_test | a | motivo\n\
+                err_1_x | b | uno\n\
+                err_1_x | b | dos\n";
+
+    let problems = exemption_problems(text, &tests);
+
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.starts_with(&format!("{MATERIAL_EXEMPT}:1: "))),
+        "{problems:?}"
+    );
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.starts_with(&format!("{MATERIAL_EXEMPT}:2: "))),
+        "{problems:?}"
+    );
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.starts_with(&format!("{MATERIAL_EXEMPT}:3: `otro_test`"))),
+        "{problems:?}"
+    );
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.starts_with(&format!("{MATERIAL_EXEMPT}:5: "))),
+        "{problems:?}"
+    );
+    assert_eq!(problems.len(), 4, "{problems:?}");
+}
+
+/// Las exenciones del proyecto tienen el formato y nombran tests que existen.
+#[test]
+fn ver_1_material_exemptions_name_tests() {
+    let dir = root().join("tools/architecture/tests");
+    let mut calls = Calls::default();
+    for path in rust_files(&dir)
+        .into_iter()
+        .filter(|p| !p.starts_with(dir.join("fixtures")))
+    {
+        calls.visit_file(&parse(&path));
+    }
+    let text = fs::read_to_string(root().join("tools/architecture").join(MATERIAL_EXEMPT))
+        .unwrap_or_default();
+
+    let problems = exemption_problems(&text, &calls.tests);
+
+    assert!(
+        problems.is_empty(),
+        "\nVER-1: exenciones de material\n{}\n",
         problems
             .iter()
             .map(|p| format!("  - {p}"))

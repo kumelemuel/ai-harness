@@ -1,5 +1,15 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+- **Exenciones de material** (VER-1): `tools/architecture/material-exempt.txt`
+  exime de `ARCH_REQUIRE_MATERIAL=1` un conjunto que en una adopción queda
+  vacío para siempre (sin eventos, puertos sin errores declarados), con motivo
+  obligatorio. Solo se achica: si el conjunto deja de estar vacío, el test pide
+  borrarla. El hook `pre-edit` bloquea al agente cualquier exención nueva,
+  también con el trinquete abierto.
+
 ## 1.0.0-rc.2 — 2026-11-23
 
 Plugins: `craft-backend` 1.0.0-rc.2 y `craft-web` 1.0.0-rc.1 (sin cambios).
