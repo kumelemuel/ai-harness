@@ -1,0 +1,15 @@
+# Exenciones de material de tools/architecture (VER-1).
+#
+# Formato: `<test> | <conjunto> | <motivo>`. `<test>` es el nombre de la
+# función del test; `<conjunto>` es el texto exacto que el test informa
+# (`revisó 0 <conjunto>`, visible con `--nocapture`). El motivo es
+# obligatorio: por qué ese conjunto queda vacío para siempre en este proyecto.
+#
+# Con `ARCH_REQUIRE_MATERIAL=1`, un conjunto vacío falla, salvo que esté aquí.
+# Una exención no apaga la regla: si el conjunto deja de estar vacío, la regla
+# actúa y el test pide borrar la exención. También falla una exención de un
+# conjunto que el test no recorre, sin motivo, repetida, o de un test que no
+# existe o que no revisa material.
+#
+# Solo la agrega el usuario, a mano (el hook `pre-edit` bloquea al agente).
+# En un proyecto nuevo y en la plantilla queda vacía.

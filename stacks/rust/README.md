@@ -351,6 +351,25 @@ nombra la regla y lo que faltó. Sin la variable pasa, porque en un proyecto rec
 puede ser legítimo que todavía no haya, por ejemplo, `queries/`. El CI del harness la activa
 sobre la plantilla; el CI mínimo de abajo, el que hereda un proyecto, no.
 
+**Exenciones de material (`material-exempt.txt`).** Un proyecto que activa la variable puede
+tener un conjunto vacío para siempre: sin eventos, no hay implementaciones de un
+`EventSubscriber`; con todos los puertos en `Fault`, no hay errores declarados de puertos. En
+vez de apagar la variable, se exime ese conjunto, uno por línea:
+
+```
+hex_4_event_subscribers_are_named_and_placed | implementaciones de un EventSubscriber en application (fuera de tests) | sin eventos de dominio (decisión D4)
+```
+
+El conjunto es el texto exacto que el test informa (`revisó 0 …` con `--nocapture`), y el
+motivo es obligatorio. La exención funciona como la línea base, solo se achica: si el conjunto
+deja de estar vacío, el test eximido pide borrarla (falla con o sin la variable), y también
+falla si el conjunto no es suyo. `ratchet.rs::ver_1_material_exemptions_name_tests` falla si
+la línea no tiene motivo, si se repite o si el test no existe o no revisa material (no llama a
+`assert_no_violations`). El hook `pre-edit` bloquea al agente cualquier exención nueva,
+también con `CRAFT_BACKEND_BASELINE_INIT=1`: la escribe el usuario a mano. La plantilla la trae
+vacía. Si una versión del harness renombra un test o el texto de un conjunto, el CHANGELOG lo
+dice con el mapeo viejo → nuevo, como con las claves de `baseline.txt`.
+
 **Hooks del plugin.** Se activan solos en cualquier workspace con
 `tools/architecture/Cargo.toml`; fuera de eso no hacen nada. Se pueden apagar con
 `CRAFT_BACKEND_HOOKS=0` (ambos) o `CRAFT_BACKEND_STOP_GATE=0` (solo Stop). El gate de

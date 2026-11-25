@@ -178,6 +178,78 @@ class PreEdit(unittest.TestCase):
         self.assertEqual(code, 0)
 
 
+EXEMPT = "# Exenciones\nerr_1_x | puertos | los puertos devuelven Fault\n"
+
+
+class ExemptionGrowth(unittest.TestCase):
+    def test_a_new_exemption_is_growth(self) -> None:
+        new = EXEMPT + "hex_4_y | implementaciones | sin eventos\n"
+        self.assertEqual(
+            craft_hooks.exemption_growth(EXEMPT, new), ["hex_4_y | implementaciones"]
+        )
+
+    def test_changing_the_reason_deleting_and_spacing_are_not_growth(self) -> None:
+        self.assertEqual(
+            craft_hooks.exemption_growth(EXEMPT, "err_1_x|puertos|otro motivo\n"), []
+        )
+        self.assertEqual(craft_hooks.exemption_growth(EXEMPT, "# vacío\n"), [])
+
+    def test_completing_a_malformed_line_is_growth(self) -> None:
+        # Rust ignora una línea sin motivo: completarla activa la exención.
+        self.assertEqual(craft_hooks.exemption_growth("a | b\n", "a | b | motivo\n"), ["a | b"])
+        self.assertEqual(craft_hooks.exemption_growth("a | b |\n", "a | b | motivo\n"), ["a | b"])
+
+
+class PreEditExemptions(unittest.TestCase):
+    """`material-exempt.txt`: el agente no agrega exenciones, ni con el trinquete abierto."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.exempt = Path(self.tmp.name) / "tools" / "architecture" / "material-exempt.txt"
+        self.exempt.parent.mkdir(parents=True)
+        (self.exempt.parent / "Cargo.toml").write_text('[package]\nname = "architecture"\n')
+        self.exempt.write_text(EXEMPT, encoding="utf-8")
+        self.env = mock.patch.dict(os.environ, {}, clear=False)
+        self.env.start()
+        os.environ.pop("CRAFT_BACKEND_BASELINE_INIT", None)
+
+    def tearDown(self) -> None:
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def run_hook(self, tool_input: dict) -> tuple[int, str]:
+        stderr = io.StringIO()
+        payload = {"tool_name": "Write", "tool_input": tool_input, "cwd": self.tmp.name}
+        with redirect_stderr(stderr):
+            code = craft_hooks.pre_edit(payload)
+        return code, stderr.getvalue()
+
+    def test_adding_an_exemption_is_blocked(self) -> None:
+        code, message = self.run_hook({
+            "file_path": str(self.exempt),
+            "content": EXEMPT + "hex_4_y | implementaciones | sin eventos\n",
+        })
+        self.assertEqual(code, 2)
+        self.assertIn("hex_4_y | implementaciones", message)
+        self.assertIn("el usuario", message)
+
+    def test_adding_is_blocked_even_with_the_ratchet_open(self) -> None:
+        os.environ["CRAFT_BACKEND_BASELINE_INIT"] = "1"
+        code, _ = self.run_hook({
+            "file_path": str(self.exempt),
+            "content": EXEMPT + "hex_4_y | implementaciones | sin eventos\n",
+        })
+        self.assertEqual(code, 2)
+
+    def test_deleting_an_exemption_passes(self) -> None:
+        code, _ = self.run_hook({"file_path": str(self.exempt), "content": "# Exenciones\n"})
+        self.assertEqual(code, 0)
+
+    def test_creating_the_file_with_an_exemption_is_blocked(self) -> None:
+        self.exempt.unlink()
+        code, _ = self.run_hook({"file_path": str(self.exempt), "content": "a | b | c\n"})
+        self.assertEqual(code, 2)
+
 class SessionStart(unittest.TestCase):
     """Una sesión con `CRAFT_BACKEND_BASELINE_INIT=1` tiene el trinquete abierto: avisa."""
 

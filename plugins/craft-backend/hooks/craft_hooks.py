@@ -5,7 +5,9 @@ session-start  Al abrir la sesión: si `CRAFT_BACKEND_BASELINE_INIT=1` está
            activa, avisa al usuario y al agente que el trinquete está abierto.
 pre-edit   Antes de editar `tools/architecture/baseline.txt`: bloquea la
            edición si agrega entradas o sube un conteo (la línea base solo
-           se achica).
+           se achica). En `tools/architecture/material-exempt.txt`, bloquea
+           cualquier exención nueva, también con el trinquete abierto: las
+           agrega el usuario a mano.
 post-edit  Tras editar un .rs o Cargo.toml en un workspace Rust con
            `tools/architecture`: formatea el archivo y corre los tests de
            arquitectura. Si fallan, devuelve las violaciones al agente.
@@ -199,6 +201,7 @@ def post_edit(payload: dict) -> int:
 
 
 BASELINE_NAME = "baseline.txt"
+EXEMPT_NAME = "material-exempt.txt"
 
 
 def baseline_entries(text: str) -> dict[tuple[str, str], int]:
@@ -228,6 +231,28 @@ def baseline_growth(old: str, new: str) -> list[str]:
     return grown
 
 
+def exemptions(text: str) -> set[tuple[str, str]]:
+    """`(test, conjunto)` de las exenciones activas de `material-exempt.txt`.
+
+    Como `parse_exemptions` en Rust, solo cuentan las líneas con tres campos no
+    vacíos (`<test> | <conjunto> | <motivo>`): completar una línea mal formada
+    la activa, así que es una exención nueva."""
+    found = set()
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        fields = [f.strip() for f in line.split("|")]
+        if len(fields) == 3 and all(fields):
+            found.add((fields[0], fields[1]))
+    return found
+
+
+def exemption_growth(old: str, new: str) -> list[str]:
+    """Exenciones de `new` que no están en `old`."""
+    return [f"{test} | {what}" for test, what in sorted(exemptions(new) - exemptions(old))]
+
+
 def edited_text(tool: str, tool_input: dict, current: str) -> str | None:
     """Contenido del archivo después de la edición, o `None` si no se puede saber."""
     if tool == "Write":
@@ -243,25 +268,40 @@ def edited_text(tool: str, tool_input: dict, current: str) -> str | None:
 
 
 def pre_edit(payload: dict) -> int:
-    """Bloquea una edición que agrande `tools/architecture/baseline.txt` (VER-1)."""
+    """Bloquea una edición que agrande `tools/architecture/baseline.txt` o que
+    agregue una exención a `tools/architecture/material-exempt.txt` (VER-1)."""
     tool_input = payload.get("tool_input") or {}
     path = Path(tool_input.get("file_path") or "")
     if not path.is_absolute():
         path = Path(payload.get("cwd") or ".") / path
     path = path.resolve()
     tools = path.parent
-    if (path.name != BASELINE_NAME or tools.name != ARCH_PACKAGE
+    if (path.name not in (BASELINE_NAME, EXEMPT_NAME) or tools.name != ARCH_PACKAGE
             or tools.parent.name != "tools" or not (tools / "Cargo.toml").is_file()):
         return 0
-    if os.environ.get("CRAFT_BACKEND_BASELINE_INIT") == "1":
+    exempt = path.name == EXEMPT_NAME
+    if not exempt and os.environ.get("CRAFT_BACKEND_BASELINE_INIT") == "1":
         return 0
     current = path.read_text(encoding="utf-8") if path.is_file() else ""
     new = edited_text(payload.get("tool_name", ""), tool_input, current)
     if new is None:
         return feedback(
-            "craft-backend no pudo calcular el resultado de esta edición de baseline.txt "
-            "(el texto a reemplazar no coincide), así que no puede comprobar que la línea "
-            "base no crezca. Usa Write con el contenido completo."
+            f"craft-backend no pudo calcular el resultado de esta edición de {path.name} "
+            "(el texto a reemplazar no coincide), así que no puede comprobar que no "
+            "crezca. Usa Write con el contenido completo."
+        )
+    if exempt:
+        added = exemption_growth(current, new)
+        if not added:
+            return 0
+        return feedback(
+            f"{EXEMPT_NAME} no lo amplía el agente (VER-1): esta edición agrega exenciones "
+            "de material:\n\n"
+            + "\n".join(f"  - {entry}" for entry in added)
+            + "\n\nUna exención apaga ARCH_REQUIRE_MATERIAL=1 para un conjunto: la decide el "
+            "usuario y la escribe él a mano, con su motivo. Detente y propónla con la "
+            "evidencia de que el conjunto queda vacío para siempre. No la escribas por "
+            "shell. Borrar exenciones sí está permitido."
         )
     grown = baseline_growth(current, new)
     if not grown:

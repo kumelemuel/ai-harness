@@ -467,6 +467,118 @@ fn material_required() -> bool {
     std::env::var(REQUIRE_MATERIAL).is_ok_and(|v| v == "1")
 }
 
+/// Exenciones de material: `tools/architecture/material-exempt.txt`.
+pub const MATERIAL_EXEMPT: &str = "material-exempt.txt";
+
+/// Exenciones de un test: conjunto → motivo.
+#[derive(Debug, Default)]
+pub struct Exemptions {
+    id: String,
+    sets: BTreeMap<String, String>,
+}
+
+impl IntoIterator for Exemptions {
+    type Item = (String, String);
+    type IntoIter = std::collections::btree_map::IntoIter<String, String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.sets.into_iter()
+    }
+}
+
+/// Campos de una línea de exenciones: `<test> | <conjunto> | <motivo>`.
+fn exemption_fields(line: &str) -> Option<Vec<&str>> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with('#') {
+        return None;
+    }
+    Some(line.split('|').map(str::trim).collect())
+}
+
+/// Exenciones de `id` en el texto de `material-exempt.txt`. Las líneas mal
+/// formadas las reporta `exemption_problems`, no esta función.
+pub fn parse_exemptions(text: &str, id: &str) -> Exemptions {
+    let sets = text
+        .lines()
+        .filter_map(exemption_fields)
+        .filter(|f| f.len() == 3 && f[0] == id && !f[1].is_empty() && !f[2].is_empty())
+        .map(|f| (f[1].to_string(), f[2].to_string()))
+        .collect();
+    Exemptions {
+        id: id.to_string(),
+        sets,
+    }
+}
+
+/// Informe de material de un test; vacío si está bien.
+///
+/// - Un conjunto vacío falla con `required` (`ARCH_REQUIRE_MATERIAL=1`),
+///   salvo que esté exento.
+/// - Una exención de un conjunto con elementos pide borrarla, y una de un
+///   conjunto que el test no recorre es un error. Las dos fallan siempre: la
+///   exención solo se achica, como la línea base.
+pub fn material_report(material: &[(&str, usize)], exempt: &Exemptions, required: bool) -> String {
+    let mut lines = Vec::new();
+    let missing: Vec<&str> = material
+        .iter()
+        .filter(|(what, count)| *count == 0 && !exempt.sets.contains_key(*what))
+        .map(|(what, _)| *what)
+        .collect();
+    if required && !missing.is_empty() {
+        lines.push(format!(
+            "  - sin material ({REQUIRE_MATERIAL}=1): la regla no encontró sobre qué actuar"
+        ));
+        lines.extend(missing.iter().map(|what| format!("  - 0 {what}")));
+    }
+    for what in exempt.sets.keys() {
+        match material.iter().find(|(w, _)| w == what) {
+            None => lines.push(format!(
+                "  - {MATERIAL_EXEMPT}: `{what}` no es un conjunto de este test ({})",
+                material
+                    .iter()
+                    .map(|(w, _)| format!("`{w}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
+            Some((_, count)) if *count > 0 => lines.push(format!(
+                "  - borrar de {MATERIAL_EXEMPT}: {} | {what} ({count} elementos: la exención ya \
+                 no hace falta)",
+                exempt.id
+            )),
+            Some(_) => {}
+        }
+    }
+    lines.iter().map(|l| format!("{l}\n")).collect()
+}
+
+/// Problemas de formato de `material-exempt.txt`: tres campos no vacíos, un
+/// test de `tests` (los que llaman a `assert_no_violations`) y sin
+/// `(test, conjunto)` repetidos.
+pub fn exemption_problems(text: &str, tests: &std::collections::BTreeSet<String>) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for (number, line) in text.lines().enumerate() {
+        let Some(fields) = exemption_fields(line) else {
+            continue;
+        };
+        let at = format!("{MATERIAL_EXEMPT}:{}", number + 1);
+        if fields.len() != 3 || fields.iter().any(|f| f.is_empty()) {
+            problems.push(format!(
+                "{at}: formato `<test> | <conjunto> | <motivo>`, los tres no vacíos"
+            ));
+        } else if !tests.contains(fields[0]) {
+            problems.push(format!(
+                "{at}: `{}` no es un test de tools/architecture que revise material \
+                 (`assert_no_violations`)",
+                fields[0]
+            ));
+        } else if !seen.insert((fields[0], fields[1])) {
+            problems.push(format!("{at}: `{} | {}` repetida", fields[0], fields[1]));
+        }
+    }
+    problems
+}
+
 /// Línea base del trinquete: `tools/architecture/baseline.txt`.
 pub const BASELINE: &str = "baseline.txt";
 
@@ -561,47 +673,28 @@ pub fn ratchet_report(id: &str, baseline: &Baseline, violations: &[String]) -> S
     lines.iter().map(|l| format!("{l}\n")).collect()
 }
 
-fn baseline_for(id: &str) -> Baseline {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(BASELINE);
-    parse_baseline(&fs::read_to_string(path).unwrap_or_default(), id)
-}
-
-/// Cierra un test de arquitectura con trinquete sobre la línea base.
-///
-/// - `material`: cada conjunto que recorrió la regla, `(qué, cuántos)`. Se
-///   informa siempre (visible con `--nocapture`). Con `ARCH_REQUIRE_MATERIAL=1`,
-///   un conjunto vacío es un fallo que nombra la regla y lo que faltó.
-/// - `id`: el nombre de la función del test, primera columna de `baseline.txt`.
-/// - `violations`: lo que la regla encontró mal. Cada una empieza por su clave
-///   (la ruta, o `ruta/Cargo.toml#dep`) seguida de `:`.
-///
-/// Trinquete: falla si aparece una violación cuya clave no está en la línea
-/// base, o si una entrada de la línea base ya no viola. Así solo se achica.
-pub fn assert_no_violations(
+/// Informe completo de un test, vacío si pasa: el material contra las
+/// exenciones de `dir/material-exempt.txt` y las violaciones contra
+/// `dir/baseline.txt`. `assert_no_violations` lo llama con
+/// `tools/architecture` y `ARCH_REQUIRE_MATERIAL`; los tests, con un fixture.
+pub fn verdict(
+    dir: &Path,
     id: &str,
     rule: &str,
     material: &[(&str, usize)],
-    violations: Vec<String>,
-) {
+    violations: &[String],
+    required: bool,
+) -> String {
+    let read = |name: &str| fs::read_to_string(dir.join(name)).unwrap_or_default();
     let rule_id = rule.split(':').next().unwrap_or(rule);
     for (what, count) in material {
         eprintln!("{rule_id}: revisó {count} {what}");
     }
-    let missing: Vec<&str> = material
-        .iter()
-        .filter(|(_, count)| *count == 0)
-        .map(|(what, _)| *what)
-        .collect();
-    assert!(
-        missing.is_empty() || !material_required(),
-        "\n{rule}\nSin material ({REQUIRE_MATERIAL}=1): la regla no encontró sobre qué actuar.\n{}\n",
-        missing
-            .iter()
-            .map(|what| format!("  - 0 {what}"))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-    let baseline = baseline_for(id);
+    let exempt = parse_exemptions(&read(MATERIAL_EXEMPT), id);
+    for (what, reason) in &exempt.sets {
+        eprintln!("{rule_id}: {what} exento por {MATERIAL_EXEMPT}: {reason}");
+    }
+    let baseline = parse_baseline(&read(BASELINE), id);
     let tolerated: usize = baseline
         .iter()
         .map(|(key, allowed)| {
@@ -615,6 +708,28 @@ pub fn assert_no_violations(
     if tolerated > 0 {
         eprintln!("{rule_id}: {tolerated} violaciones toleradas por {BASELINE}");
     }
-    let report = ratchet_report(id, &baseline, &violations);
+    material_report(material, &exempt, required) + &ratchet_report(id, &baseline, violations)
+}
+
+/// Cierra un test de arquitectura con trinquete sobre la línea base.
+///
+/// - `material`: cada conjunto que recorrió la regla, `(qué, cuántos)`. Se
+///   informa siempre (visible con `--nocapture`). Con `ARCH_REQUIRE_MATERIAL=1`,
+///   un conjunto vacío es un fallo que nombra la regla y lo que faltó, salvo
+///   que `material-exempt.txt` lo exima (`material_report`).
+/// - `id`: el nombre de la función del test, primera columna de `baseline.txt`.
+/// - `violations`: lo que la regla encontró mal. Cada una empieza por su clave
+///   (la ruta, o `ruta/Cargo.toml#dep`) seguida de `:`.
+///
+/// Trinquete: falla si aparece una violación cuya clave no está en la línea
+/// base, o si una entrada de la línea base ya no viola. Así solo se achica.
+pub fn assert_no_violations(
+    id: &str,
+    rule: &str,
+    material: &[(&str, usize)],
+    violations: Vec<String>,
+) {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let report = verdict(dir, id, rule, material, &violations, material_required());
     assert!(report.is_empty(), "\n{rule}\n{report}");
 }

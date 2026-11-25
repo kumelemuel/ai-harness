@@ -1,0 +1,2 @@
+err_1_x | puertos | fixture: los puertos devuelven Fault
+err_2_x | puertos | fixture: con línea base

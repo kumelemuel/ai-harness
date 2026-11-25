@@ -63,6 +63,10 @@ del stack (en Rust, `rust-stack`). **Cárgalas antes de tocar código.**
   de implementar. En un refactor de arquitectura, borra o baja su entrada de la línea base, confirma que el test falla con esa violación y corrige hasta verde.
 - La línea base **solo se achica**. Si un archivo que mueves tiene entradas, o
   aparece una violación nueva, detente y avisa. Nunca agregues líneas.
+- Al activar `ARCH_REQUIRE_MATERIAL=1`, un conjunto que quedará vacío para
+  siempre (sin eventos, puertos sin errores declarados) se exime en
+  `tools/architecture/material-exempt.txt`. Nunca lo escribes tú: propón la
+  línea y su motivo, y el usuario la agrega a mano (el hook te bloquea).
 - La red de seguridad (tests de caracterización) no se modifica, salvo los
   cambios de contrato de §5.5 para esta rebanada.
 - Sigue el "Ritual de rebanada" de §5.1 (commits, limpieza). Si falta, usa la
@@ -107,9 +111,12 @@ excepción a "solo se achica", y por eso tiene su propio procedimiento:
 3. Guarda la línea base vigente: `git show main:tools/architecture/baseline.txt
    > /tmp/baseline-old.txt`.
 4. Copia `tools/architecture` del `<tag>` (en Rust, de la plantilla del stack)
-   sin tocar `baseline.txt`, y conserva lo que el proyecto adapta (anótalo en
+   sin tocar `baseline.txt` ni `material-exempt.txt`, y conserva lo que el proyecto adapta (anótalo en
    el PR). Vacía las entradas (deja la cabecera nueva), corre los tests de
    arquitectura y escribe una entrada por cada violación reportada.
+   Si un test falla por una exención de `material-exempt.txt` (el tag renombró
+   el test o el texto del conjunto), detente: propón al usuario la línea
+   renombrada según el CHANGELOG, y él la escribe.
 5. Compara con el script de esta skill: `python3
    "${CLAUDE_SKILL_DIR}/scripts/compare_baseline.py" /tmp/baseline-old.txt
    tools/architecture/baseline.txt` (`${CLAUDE_SKILL_DIR}` es el directorio de
