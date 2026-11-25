@@ -3,8 +3,9 @@
 mod common;
 
 use common::{
-    BASELINE, Baseline, MATERIAL_EXEMPT, exemption_problems, material_report, parse,
-    parse_baseline, parse_exemptions, ratchet_report, root, rust_files, verdict,
+    BASELINE, Baseline, MATERIAL_EXEMPT, baseline_lines, baseline_print, dependency_key,
+    exemption_problems, material_report, parse, parse_baseline, parse_exemptions, ratchet_report,
+    root, rust_files, verdict,
 };
 use std::collections::BTreeSet;
 use std::fs;
@@ -390,4 +391,81 @@ fn ver_1_verdict_reads_the_baseline_of_the_directory() {
     );
 
     assert_eq!(report, "");
+}
+
+/// Con `ARCH_BASELINE_PRINT=1`, cada test imprime su parte de la línea base:
+/// una entrada por clave, con el conteo si pasa de 1, en el formato de
+/// `baseline.txt` y con el prefijo que filtra el procedimiento.
+#[test]
+fn ver_1_baseline_lines_count_violations_by_key() {
+    let lines = baseline_lines(
+        "hex_2_y",
+        &violations(&[
+            "c/src/d.rs:3: una",
+            "a/Cargo.toml#dependencies.b: x usa `b`",
+            "c/src/d.rs:9: otra",
+        ]),
+    );
+
+    assert_eq!(
+        lines,
+        [
+            "baseline: hex_2_y a/Cargo.toml#dependencies.b",
+            "baseline: hex_2_y c/src/d.rs 2",
+        ]
+    );
+}
+
+/// Lo que imprime se lee igual que la línea base: el test que lo generó la
+/// tolera completa.
+#[test]
+fn ver_1_baseline_lines_round_trip_through_the_ratchet() {
+    let found = violations(&["c/src/d.rs:3: una", "c/src/d.rs:9: otra", "e/src/f.rs:1: x"]);
+    let text: String = baseline_lines("hex_2_y", &found)
+        .iter()
+        .map(|l| format!("{}\n", l.trim_start_matches("baseline: ")))
+        .collect();
+
+    let report = ratchet_report("hex_2_y", &parse_baseline(&text, "hex_2_y"), &found);
+
+    assert_eq!(report, "");
+}
+
+/// Una clave de `[target.'cfg(…)'.dependencies]` no lleva espacios: la línea
+/// base separa los campos por espacios.
+#[test]
+fn ver_1_baseline_dependency_keys_of_a_target_round_trip() {
+    let key = dependency_key(
+        std::path::Path::new("contexts/x"),
+        "target.'cfg(target_os = \"linux\")'.dependencies",
+        "tokio",
+    );
+    let found = violations(&[
+        &format!("{key}: x usa `tokio`"),
+        "a/Cargo.toml#dependencies.b: x",
+    ]);
+    let text: String = baseline_lines("hex_2_core", &found)
+        .iter()
+        .map(|l| format!("{}\n", l.trim_start_matches("baseline: ")))
+        .collect();
+
+    assert!(!key.contains(' '), "{key}");
+    assert_eq!(
+        ratchet_report("hex_2_core", &parse_baseline(&text, "hex_2_core"), &found),
+        ""
+    );
+}
+
+/// Lo que `assert_no_violations` escribe con la variable: solo con `1`, un
+/// bloque con una línea por entrada.
+#[test]
+fn ver_1_baseline_print_only_with_the_variable() {
+    let found = violations(&["c/src/d.rs:3: una"]);
+
+    assert_eq!(
+        baseline_print(Some("1"), "hex_2_y", &found),
+        "baseline: hex_2_y c/src/d.rs\n"
+    );
+    assert_eq!(baseline_print(Some("0"), "hex_2_y", &found), "");
+    assert_eq!(baseline_print(None, "hex_2_y", &found), "");
 }

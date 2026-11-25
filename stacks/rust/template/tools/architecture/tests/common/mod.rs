@@ -593,7 +593,11 @@ pub fn location(violation: &str) -> &str {
 pub type Baseline = BTreeMap<String, usize>;
 
 /// Clave de una violación de dependencias: manifiesto, sección y paquete.
+///
+/// Sin espacios: la línea base separa sus campos por espacios, y la sección
+/// de `[target.'cfg(target_os = "linux")'.dependencies]` los tiene.
 pub fn dependency_key(dir: &Path, section: &str, dep: &str) -> String {
+    let section: String = section.split_whitespace().collect();
     format!("{}/Cargo.toml#{section}.{dep}", dir.display())
 }
 
@@ -711,6 +715,41 @@ pub fn verdict(
     material_report(material, &exempt, required) + &ratchet_report(id, &baseline, violations)
 }
 
+/// Entradas de `baseline.txt` que tolerarían `violations`, con el prefijo
+/// `baseline: `.
+pub fn baseline_lines(id: &str, violations: &[String]) -> Vec<String> {
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for v in violations {
+        *counts.entry(location(v)).or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .map(|(key, n)| match n {
+            1 => format!("baseline: {id} {key}"),
+            n => format!("baseline: {id} {key} {n}"),
+        })
+        .collect()
+}
+
+/// Variable que imprime, por test, las entradas de `baseline.txt` que
+/// tolerarían lo que encontró (`baseline: <test> <clave> [n]`). Para volver a
+/// llenar la línea base (adopción o sincronización). No cambia el resultado:
+/// el test falla igual, así que olvidarla activa no apaga el trinquete.
+pub const BASELINE_PRINT: &str = "ARCH_BASELINE_PRINT";
+
+/// Bloque que `assert_no_violations` escribe con `ARCH_BASELINE_PRINT`.
+/// Vacío salvo con `1`. Un solo bloque, para escribirlo de una vez: con
+/// `--nocapture`, los tests en paralelo escriben a la vez en stderr.
+pub fn baseline_print(flag: Option<&str>, id: &str, violations: &[String]) -> String {
+    if flag != Some("1") {
+        return String::new();
+    }
+    baseline_lines(id, violations)
+        .iter()
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
 /// Cierra un test de arquitectura con trinquete sobre la línea base.
 ///
 /// - `material`: cada conjunto que recorrió la regla, `(qué, cuántos)`. Se
@@ -729,6 +768,16 @@ pub fn assert_no_violations(
     material: &[(&str, usize)],
     violations: Vec<String>,
 ) {
+    let flag = std::env::var(BASELINE_PRINT).ok();
+    let block = baseline_print(flag.as_deref(), id, &violations);
+    if !block.is_empty() {
+        use std::io::Write;
+        // Una sola escritura: que otro test no parta una línea.
+        std::io::stderr()
+            .lock()
+            .write_all(block.as_bytes())
+            .expect("invariante: stderr escribible");
+    }
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let report = verdict(dir, id, rule, material, &violations, material_required());
     assert!(report.is_empty(), "\n{rule}\n{report}");
