@@ -393,6 +393,41 @@ usuario. Por corrida: renombrar 3, 5 y 3; buscar por slug 0, 4 y 0.
 sus dos `StubUseCase`. Aclara además que un `Fake` puede exponer lo que
 recibió.
 
+### Candidata 1.0.0-rc.3 (contra 1.0.0-rc.2)
+
+`main` en `32e2ca3` (1.0.0-rc.2.8) contra `v1.0.0-rc.2` (`451fec9`) con
+`--harness-ref`, 2026-11-25, las dos configuraciones en paralelo kata por kata.
+Sonnet implementa; en la revisión, Haiku en la sesión y el revisor en Opus (su
+`model:`). Entre las dos cambian las skills `tdd`, `rust-stack`,
+`hexagonal-architecture` y `adoption`, el revisor (prioridades 5 y 6), el hook
+`pre-edit` y los principios TDD, ERR-1, HEX-1, HEX-4, HEX-6 y HEX-8. La
+plantilla sale del clon en las dos.
+
+| Kata | Configuración | Aceptación | Costo | Turnos | Archivos leídos |
+|---|---|---|---|---|---|
+| rust-rename-community | main | 3/3 | $0.73 ($0.67–$0.87) | 61 (56–67) | 7 (1–24) |
+| rust-rename-community | control | 3/3 | $0.77 ($0.73–$1.10) | 50 (1–73) | 15 (0–18) |
+| rust-community-by-slug | main | 3/3 | $0.50 ($0.49–$0.51) | 56 (52–59) | 20 (10–22) |
+| rust-community-by-slug | control | 3/3 | $0.54 ($0.54–$0.60) | 58 (57–66) | 20 (19–24) |
+| review-planted-subagent | main | 3/3 | $0.24 ($0.23–$0.29) | 4 (3–4) | 0 |
+| review-planted-subagent | control | 3/3 | $0.27 ($0.25–$0.31) | 3 (3–5) | 1 (1–2) |
+
+- Renombre y revisión: los rangos se solapan, ningún efecto establecido.
+- **Slug: los rangos no se solapan** ($0.49–$0.51 frente a $0.54–$0.60): con
+  la regla de 3 corridas, `main` es más barato en esta kata. Las diferencias
+  de texto que podrían explicarlo son varias (cambian varias skills a la vez),
+  así que el efecto no se atribuye a ninguna en particular. La corrida 3 de
+  cada configuración se repitió en otra ventana (429), las dos juntas.
+- El revisor detectó las cuatro violaciones plantadas (HEX-7, ERR-2, RS-2,
+  TDD-1) en las 6 corridas.
+- Un bloqueo del gate de Stop por corrida de revisión, en las dos
+  configuraciones: `rs_2_expect_names_the_invariant`, la regla nueva, detecta
+  el `expect` plantado (RS-2). Depende de la plantilla, no de los plugins.
+- La primera ventana se cortó por el límite de uso (429): 18 corridas
+  inválidas, repetidas con la misma etiqueta. Costo total, con las inválidas:
+  $9.63. Los archivos de resultados se renombraron a `1.0.0-rc3-*.json`; la
+  etiqueta dentro del JSON es `1.0.0-1.0.0-rc3-*`.
+
 ### Candidata 1.0.0-rc.2 (contra 1.0.0-rc.1)
 
 `main` en `9810b44` (1.0.0-rc.2) contra `v1.0.0-rc.1` (`e9526c8`) con

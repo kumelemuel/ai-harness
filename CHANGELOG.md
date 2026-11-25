@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0-rc.3 — 2026-11-25
+
+Plugins: `craft-backend` 1.0.0-rc.3 y `craft-web` 1.0.0-rc.1 (sin cambios).
+
+Candidata a 1.0.0. Cierra las fricciones de §6 de la adopción en
+kumenity-backend-rust (1.0.0-rc.2.1 a 1.0.0-rc.2.8): exenciones de material,
+falla por operación y orden de commits de una firma falible, baterías con
+puertos síncronos, volcado de la línea base, `infrastructure-uuid` y seis
+reglas nuevas de `tools/architecture`. Sin cambios de contenido respecto de
+1.0.0-rc.2.8.
+
+### Katas
+- `main` (1.0.0-rc.2.8) contra `v1.0.0-rc.2` como control intercalado: 3/3 en
+  las tres katas en las dos configuraciones. Renombre $0.73 frente a $0.77,
+  revisión $0.24 frente a $0.27: rangos solapados. Slug $0.50 frente a $0.54,
+  sin solapar: `main` más barato, sin atribuirlo a un cambio. El revisor
+  detecta las cuatro violaciones plantadas en las 6 corridas
+  (`evals/README.md`).
+
 ## 1.0.0-rc.2.8 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.2.8, `craft-web` 1.0.0-rc.1 (sin cambios).
