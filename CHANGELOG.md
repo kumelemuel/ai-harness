@@ -1,6 +1,8 @@
 # Changelog
 
-## Sin publicar
+## 1.0.0-rc.2.3 — 2026-11-25
+
+Plugins: `craft-backend` 1.0.0-rc.2.3, `craft-web` 1.0.0-rc.1 (sin cambios).
 
 ### Agregado
 - **Baterías de contrato con el puerto todavía síncrono** (TDD-2, RS-3): en
