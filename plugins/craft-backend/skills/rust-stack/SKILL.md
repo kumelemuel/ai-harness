@@ -37,6 +37,12 @@ modificar algo** (las que no estén cargadas): esta skill no repite sus reglas.
   ```
   Puertos entrantes con argumento por valor: `fn execute(&self, command: C) -> BoxFuture<'_, …>`.
   Implementación: `Box::pin(async move { … })`, o `Box::pin(ready(x))` si es síncrona.
+  En una adopción con el puerto todavía síncrono (desviación de RS-3 registrada
+  en el inventario), su batería de contrato ya nace con `async fn` y la macro
+  con `run: block_on`, sin `.await`, y `#![expect(clippy::unused_async)]` en el
+  módulo. Al pasar a `BoxFuture` se agregan los `.await`, se borra el `expect`
+  y el `run` de los adaptadores con E/S pasa a un runtime real (ver "Puerto
+  todavía síncrono" en `references/rust.md`).
 - **RS-4: `cargo test -p architecture`** verifica dependencias y nombres. Si falla,
   corrige el código, **no el test**. `tools/architecture/baseline.txt` (trinquete)
   solo se achica: nunca agregues una línea; borra o actualiza la que el test pida.
