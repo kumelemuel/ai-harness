@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0-rc.3.5 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.5, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Cambiado
+- **`unexpected()` admite un `code`** (ERR-4): reporta el `Fault` y devuelve el
+  500 genérico como `UnexpectedProblem`, que solo admite `.with_code(…)`. Un
+  proyecto que conserva `code` en el Problem Details le agrega el suyo
+  (`.with_code(codes::INTERNAL_ERROR)`) sin duplicar `unexpected()` en cada
+  contexto, y sigue sin poder agregar un detalle del `Fault`. Incompatible: cada llamada agrega `.into_response()` (el compilador
+  las señala; `#[must_use]` avisa si se descarta).
+
 ## 1.0.0-rc.3.4 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.4, `craft-web` 1.0.0-rc.1 (sin cambios).

@@ -158,7 +158,7 @@ pub enum Failure<E> {
 | Falla técnica en un adaptador | `?` convierte cualquier `E: Error` en `Fault` (`impl From<E> for Fault`) |
 | No encontrado | `find_*` devuelve `Option`; el handler decide si es `NotFound` o `Conflict` |
 | Invariante roto / bug | `panic!` o `.expect("invariante: …")`. **`unwrap` está prohibido** (clippy `unwrap_used = "deny"`): no dice qué invariante se rompió. |
-| Borde (ERR-4) | `match` exhaustivo, sin brazo comodín (tampoco sobre `Field`): `Expected(e)` → helper por hoja que devuelve `edge_http::Problem` con su `code`; `Unexpected(f)` → `edge_http::unexpected` (reporta + 500 genérico); `panic!` → `CatchPanicLayer` |
+| Borde (ERR-4) | `match` exhaustivo, sin brazo comodín (tampoco sobre `Field`): `Expected(e)` → helper por hoja que devuelve `edge_http::Problem` con su `code`; `Unexpected(f)` → `edge_http::unexpected(&f, reporter)`, que reporta y devuelve el 500 genérico como `UnexpectedProblem`: solo admite `.with_code(…)` (el contexto que conserva `code` en el 500, `codes::INTERNAL_ERROR`), nunca un detalle, y solo `unexpected` lo construye, así que no hay 500 sin reporte; después, `.into_response()`; `panic!` → `CatchPanicLayer` |
 | Código estable para clientes | `Problem::conflict(…).with_code("COMMUNITIES_SLUG_ALREADY_EXISTS")`. Los códigos viven en `{ctx}-api/src/codes.rs`: son vocabulario de transporte |
 
 **Por qué `Fault` no implementa `Error`.** Permite el `impl<E: Error> From<E> for Fault`
