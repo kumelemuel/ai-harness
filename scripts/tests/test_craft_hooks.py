@@ -250,6 +250,95 @@ class PreEditExemptions(unittest.TestCase):
         code, _ = self.run_hook({"file_path": str(self.exempt), "content": "a | b | c\n"})
         self.assertEqual(code, 2)
 
+class PostEdit(unittest.TestCase):
+    """El aviso tras una edición en rojo: puede ser un estado intermedio."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        (root / "Cargo.toml").write_text("[workspace]\nmembers = []\n")
+        (root / "tools" / "architecture").mkdir(parents=True)
+        (root / "tools" / "architecture" / "Cargo.toml").write_text('[package]\nname = "architecture"\n')
+        self.edited = root / "contexts" / "x" / "src" / "response.rs"
+        self.edited.parent.mkdir(parents=True)
+        self.edited.write_text("pub struct XResponse;\n")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def run_hook(self, output: str) -> tuple[int, str]:
+        failed = craft_hooks.subprocess.CompletedProcess([], 101, stdout=output, stderr="")
+        passed = craft_hooks.subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        stderr = io.StringIO()
+        with mock.patch.object(
+            craft_hooks, "run", side_effect=lambda cmd, *a, **k: failed if cmd[0] == "cargo" else passed
+        ), redirect_stderr(stderr):
+            code = craft_hooks.post_edit({"tool_input": {"file_path": str(self.edited)}})
+        return code, stderr.getvalue()
+
+    def test_a_violation_is_reported_with_the_rule(self) -> None:
+        code, message = self.run_hook("  - contexts/x/src/ports.rs:3: responde `()`\n")
+        self.assertEqual(code, 2)
+        self.assertIn("responde `()`", message)
+
+    def test_the_message_allows_an_intermediate_state_of_the_same_change(self) -> None:
+        _, message = self.run_hook("  - contexts/x/src/ports.rs:3: responde `()`\n")
+        self.assertIn("estado intermedio", message)
+        # La red solo existe sin commit: el Stop no corre con el árbol limpio.
+        self.assertIn("sin commit", message)
+        self.assertIn("no hagas commit", message)
+        self.assertIn("Si no, corrige", message)
+        self.assertIn("No modifiques tools/architecture", message)
+
+
+class Stop(unittest.TestCase):
+    """La premisa del mensaje de `post-edit`: el Stop corre solo con cambios
+    Rust sin commit, y un rojo de arquitectura no es un rojo intencional."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        (root / "Cargo.toml").write_text("[workspace]\nmembers = []\n")
+        (root / "tools" / "architecture").mkdir(parents=True)
+        (root / "tools" / "architecture" / "Cargo.toml").write_text('[package]\nname = "architecture"\n')
+        self.env = mock.patch.dict(os.environ, {}, clear=False)
+        self.env.start()
+        os.environ.pop("CRAFT_BACKEND_STOP_GATE", None)
+
+    def tearDown(self) -> None:
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def run_hook(self, status: str) -> tuple[int, str]:
+        def fake(cmd: list[str], *args, **kwargs):
+            if cmd[0] == "git":
+                return craft_hooks.subprocess.CompletedProcess(cmd, 0, stdout=status, stderr="")
+            if cmd[:2] == ["cargo", "test"]:
+                return craft_hooks.subprocess.CompletedProcess(
+                    cmd, 101, stdout="  - contexts/x/src/ports.rs:3: responde `()`\n", stderr=""
+                )
+            return craft_hooks.subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        stderr = io.StringIO()
+        with mock.patch.object(craft_hooks, "run", side_effect=fake), redirect_stderr(stderr):
+            code = craft_hooks.stop({"cwd": self.tmp.name})
+        return code, stderr.getvalue()
+
+    def test_uncommitted_rust_changes_run_the_tests(self) -> None:
+        code, message = self.run_hook(" M contexts/x/src/ports.rs\n")
+        self.assertEqual(code, 2)
+        self.assertIn("responde `()`", message)
+
+    def test_an_architecture_failure_is_not_an_intentional_red(self) -> None:
+        _, message = self.run_hook(" M contexts/x/src/ports.rs\n")
+        self.assertIn("tools/architecture", message)
+        self.assertIn("nunca es un rojo intencional", message)
+
+    def test_a_clean_tree_does_not_run_anything(self) -> None:
+        code, message = self.run_hook("")
+        self.assertEqual((code, message), (0, ""))
+
+
 class SessionStart(unittest.TestCase):
     """Una sesión con `CRAFT_BACKEND_BASELINE_INIT=1` tiene el trinquete abierto: avisa."""
 

@@ -10,7 +10,10 @@ pre-edit   Antes de editar `tools/architecture/baseline.txt`: bloquea la
            agrega el usuario a mano.
 post-edit  Tras editar un .rs o Cargo.toml en un workspace Rust con
            `tools/architecture`: formatea el archivo y corre los tests de
-           arquitectura. Si fallan, devuelve las violaciones al agente.
+           arquitectura. Si fallan, devuelve las violaciones al agente. Puede
+           ser un estado intermedio de un cambio de varios archivos: el
+           mensaje lo dice, y el control de Stop vuelve a correrlos si el
+           cambio sigue sin commit.
 stop       Antes de que el agente termine, si hay cambios Rust sin commit:
            clippy -D warnings (solo crates que siguen la arquitectura) +
            cargo test --workspace. Si fallan, no lo deja terminar.
@@ -190,7 +193,12 @@ def post_edit(payload: dict) -> int:
             "Tests de arquitectura (VER-1) en rojo tras editar "
             f"{path.relative_to(root) if path.is_relative_to(root) else path}:\n\n"
             f"{found}\n\n"
-            "Corrige el código para cumplir la regla citada; no modifiques "
+            "Si es un estado intermedio de un cambio que abarca varios archivos y "
+            "un paso siguiente del mismo cambio cierra la violación, sigue con ese "
+            "paso, sin commit entre medio: el control de Stop solo vuelve a correr "
+            "los tests con cambios Rust sin commit, así que no hagas commit con "
+            "estos tests en rojo. Si no, corrige el código para cumplir la regla "
+            "citada. No modifiques "
             "tools/architecture para que pase. La única edición permitida es "
             "borrar o actualizar en baseline.txt las líneas que el test pida."
         )
@@ -379,6 +387,8 @@ def stop(payload: dict) -> int:
                 f"Antes de terminar: `{' '.join(command)}` falla ({name}).\n\n"
                 f"{detail}\n\n"
                 "Si el fallo lo causó tu cambio, corrígelo antes de terminar (VER-1). "
+                "Un fallo de los tests de tools/architecture nunca es un rojo intencional: "
+                "corrígelo. "
                 "Si el rojo es intencional (fase roja de TDD) o crees que el test está mal, "
                 "no lo modifiques: explica el estado y por qué, y termina. Este control "
                 "bloquea una sola vez por turno (TDD-1)."

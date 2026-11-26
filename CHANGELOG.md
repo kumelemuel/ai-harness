@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0-rc.3.8 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.8, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Cambiado
+- **`post-edit` admite estados intermedios** (VER-1): el hook corre los tests de
+  arquitectura tras cada archivo editado, y en un cambio de varios archivos
+  avisaba con una violación que el paso siguiente iba a cerrar, como si fuera un
+  error del cambio. El mensaje ahora dice que, si un paso siguiente del mismo
+  cambio la cierra, el agente siga sin hacer commit: el control de `Stop` solo
+  vuelve a correr los tests con cambios Rust sin commit. El mensaje de `Stop`
+  dice que un fallo de `tools/architecture` nunca es un rojo intencional.
+  Primeros tests de los dos hooks (`PostEdit`, `Stop`).
+
 ## 1.0.0-rc.3.7 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.7, `craft-web` 1.0.0-rc.1 (sin cambios).
