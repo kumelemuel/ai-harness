@@ -9,7 +9,9 @@ use communities_api::CommunitiesApi;
 use communities_application::commands::create_community::{
     CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse,
 };
-use communities_application::errors::{Conflict, ContentRejected, DependencyUnavailable};
+use communities_application::errors::{
+    Conflict, ContentRejected, DependencyUnavailable, Field, Validation,
+};
 use communities_application::ports::inbound::CreateCommunityUseCase;
 use edge_http::AuthenticatedAccount;
 use kernel::{BoxFuture, Failure, Fault, FaultReporter};
@@ -91,6 +93,40 @@ async fn created_returns_201_with_http_response() {
     assert!(body.contains(r#""id":"c-1""#), "{body}");
 }
 
+/// Un código por campo: el cliente ramifica por `code` (ERR-4).
+#[tokio::test]
+async fn an_invalid_slug_returns_400_with_its_code() {
+    let (status, _, body, _) = post(
+        || Err(Failure::expected(Validation { field: Field::Slug })),
+        Some("alice"),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body.contains(r#""type":"/problems/validation""#), "{body}");
+    assert!(
+        body.contains(r#""code":"COMMUNITIES_INVALID_COMMUNITY_SLUG""#),
+        "{body}"
+    );
+    assert!(body.contains("invalid field: slug"), "{body}");
+}
+
+#[tokio::test]
+async fn an_invalid_name_returns_400_with_its_code() {
+    let (status, _, body, _) = post(
+        || Err(Failure::expected(Validation { field: Field::Name })),
+        Some("alice"),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(
+        body.contains(r#""code":"COMMUNITIES_INVALID_COMMUNITY_NAME""#),
+        "{body}"
+    );
+    assert!(body.contains("invalid field: name"), "{body}");
+}
+
 #[tokio::test]
 async fn conflict_returns_409_problem_details() {
     let (status, content_type, body, _) = post(
@@ -117,7 +153,7 @@ async fn content_rejected_returns_422_problem_details() {
     let (status, content_type, body, _) = post(
         || {
             Err(Failure::expected(ContentRejected {
-                field: "name",
+                field: Field::Name,
                 reason: "offensive language".into(),
             }))
         },
@@ -135,7 +171,7 @@ async fn content_rejected_returns_422_problem_details() {
         body.contains(r#""code":"COMMUNITIES_CONTENT_REJECTED""#),
         "{body}"
     );
-    assert!(body.contains("offensive language"), "{body}");
+    assert!(body.contains("name rejected: offensive language"), "{body}");
 }
 
 #[tokio::test]

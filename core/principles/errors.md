@@ -35,6 +35,7 @@ Formato de cada principio: ver [README](README.md).
 
 - Cada caso de uso con árbol A tiene su propio tipo cerrado `{Verb}{Noun}Error`, junto a su handler en `application/commands/{caso}` o `application/queries/{caso}`. **Solo admite las variantes que ese caso de uso puede producir.**
 - Las variantes (hojas) se comparten dentro del bounded context (`Validation`, `NotFound`, `Conflict`, `DependencyUnavailable`…) y viven en `application/errors`, ya que `api` solo ve `application` (`HEX-1`). Una hoja declara a qué contratos pertenece.
+- Lo que una hoja nombra (el campo de `Validation`, el de `ContentRejected`) es un **tipo cerrado del contexto** (`Field`), no un texto libre: el borde le asigna su código sin comodín, y un campo nuevo no compila hasta tener el suyo. Si un campo se rechaza por varios motivos, cada uno con su código para el cliente, el motivo es un tipo cerrado que viaja en la variante del campo (`Field::Owner(OwnerRejection)`), no una hoja nueva.
 - No existe un error global del contexto en la firma de los casos de uso.
 - El handler traduce errores de dominio y de puertos a **una hoja plana** que su contrato admite. No se envuelven (`FromDomain`, `FromVault`).
 - La semántica de un mismo fallo **la decide el producto, por caso de uso**: el mismo rechazo puede ser un estado de éxito en un caso de uso y un error en otro.
@@ -72,7 +73,7 @@ Ejemplo: al crear una comunidad, el caso de uso le pide a un `ModerationGateway`
 **Regla.**
 
 - Códigos HTTP (o de cualquier transporte) existen **solo** en `api`. El núcleo no conoce `HttpStatus`.
-- El adaptador *driving* hace `fold` exhaustivo del error del caso de uso hacia el formato de transporte (para HTTP: RFC 9457 *Problem Details*), con helpers por hoja.
+- El adaptador *driving* hace `fold` exhaustivo del error del caso de uso hacia el formato de transporte (para HTTP: RFC 9457 *Problem Details*), con helpers por hoja. El `fold` nombra cada variante del contrato y de los tipos cerrados de sus hojas: **sin brazo comodín** (`_`, una variable, `Err(_)`). Un comodín manda una variante nueva a una respuesta inventada en vez de no compilar. Lo que el borde no sabe traducir es un defecto del servidor, no un error del cliente: nunca un 400 genérico.
 - Para clientes que ramifican por error, el Problem Details lleva un `code` estable como miembro de extensión (`COMMUNITIES_SLUG_ALREADY_EXISTS`). El código es vocabulario de transporte: lo asigna el adaptador *driving*, no el núcleo.
 - El árbol B termina en un manejador global: respuesta genérica sin detalles internos, y registro a través de `FaultReporter`, capacidad técnica transversal del kernel (`HEX-8`).
 - El núcleo no hace logging: no usa librerías de registro ni escribe en la salida. Ningún error, mensaje ni registro lleva datos sensibles ni secretos.
@@ -80,9 +81,9 @@ Ejemplo: al crear una comunidad, el caso de uso le pide a un `ModerationGateway`
 
 **Fundamento.** El núcleo sirve a cualquier transporte. Un manejador global es la red de seguridad del árbol B, no el mecanismo del árbol A.
 
-**Violaciones típicas.** Un `if (error) return 404` dentro del handler. Mensajes de excepción con el payload del request. Un handler que invoca el `FaultReporter`, o que registra un resultado de negocio con un logger en lugar de un puerto.
+**Violaciones típicas.** Un `if (error) return 404` dentro del handler. Un `_ => INVALID_REQUEST` en el `fold` para un campo que el borde no conoce. Mensajes de excepción con el payload del request. Un handler que invoca el `FaultReporter`, o que registra un resultado de negocio con un logger en lugar de un puerto.
 
-**Verificación.** Test de arquitectura: el núcleo no importa tipos de transporte ni de logging, y fuera de los tests no escribe en la salida estándar ni de error con las primitivas del lenguaje.
+**Verificación.** Test de arquitectura: el núcleo no importa tipos de transporte ni de logging, y fuera de los tests no escribe en la salida estándar ni de error con las primitivas del lenguaje. Otro test lee los `fold` de los adaptadores *driving*: un `match` sobre un tipo cerrado de `application` o del kernel no tiene brazo comodín.
 
 ---
 

@@ -7,7 +7,7 @@ use communities_application::commands::create_community::{
     CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse,
 };
 use communities_application::errors::{
-    Conflict, ContentRejected, DependencyUnavailable, Validation,
+    Conflict, ContentRejected, DependencyUnavailable, Field, Validation,
 };
 use edge_http::{AuthenticatedAccount, Problem, unexpected};
 use kernel::Failure;
@@ -74,14 +74,22 @@ pub(crate) async fn handle(
     }
 }
 
-/// Un helper por hoja (ERR-4).
+/// Nombre del campo en la petición HTTP: vocabulario de transporte.
+fn field_name(field: Field) -> &'static str {
+    match field {
+        Field::Slug => "slug",
+        Field::Name => "name",
+    }
+}
+
+/// Un helper por hoja (ERR-4). Un código por campo, sin comodín: un campo que
+/// el borde no conoce es un defecto del servidor, no del cliente, y no compila.
 fn validation(leaf: &Validation) -> Problem {
     let code = match leaf.field {
-        "slug" => codes::INVALID_COMMUNITY_SLUG,
-        "name" => codes::INVALID_COMMUNITY_NAME,
-        _ => codes::INVALID_REQUEST,
+        Field::Slug => codes::INVALID_COMMUNITY_SLUG,
+        Field::Name => codes::INVALID_COMMUNITY_NAME,
     };
-    Problem::validation(format!("invalid field: {}", leaf.field)).with_code(code)
+    Problem::validation(format!("invalid field: {}", field_name(leaf.field))).with_code(code)
 }
 
 fn conflict(leaf: &Conflict) -> Problem {
@@ -90,8 +98,12 @@ fn conflict(leaf: &Conflict) -> Problem {
 }
 
 fn content_rejected(leaf: &ContentRejected) -> Problem {
-    Problem::content_rejected(format!("{} rejected: {}", leaf.field, leaf.reason))
-        .with_code(codes::CONTENT_REJECTED)
+    Problem::content_rejected(format!(
+        "{} rejected: {}",
+        field_name(leaf.field),
+        leaf.reason
+    ))
+    .with_code(codes::CONTENT_REJECTED)
 }
 
 /// Sin el nombre de la dependencia en la respuesta: es un detalle interno.
