@@ -29,7 +29,7 @@ index bee7fd0..f9a7be2 100644
 +            CreateCommunityError::Reserved(leaf) => reserved(&leaf),
          }
          .into_response(),
-         Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()),
+         Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()).into_response(),
 @@ -106,6 +107,11 @@ fn content_rejected(leaf: &ContentRejected) -> Problem {
      .with_code(codes::CONTENT_REJECTED)
  }

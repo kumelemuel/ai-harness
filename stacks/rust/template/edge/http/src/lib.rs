@@ -7,4 +7,4 @@ mod identity;
 mod problem;
 
 pub use identity::AuthenticatedAccount;
-pub use problem::{CONTENT_TYPE_PROBLEM, Problem, unexpected};
+pub use problem::{CONTENT_TYPE_PROBLEM, Problem, UnexpectedProblem, unexpected};

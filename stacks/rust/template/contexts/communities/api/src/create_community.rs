@@ -70,7 +70,7 @@ pub(crate) async fn handle(
             CreateCommunityError::DependencyUnavailable(leaf) => dependency_unavailable(&leaf),
         }
         .into_response(),
-        Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()),
+        Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()).into_response(),
     }
 }
 

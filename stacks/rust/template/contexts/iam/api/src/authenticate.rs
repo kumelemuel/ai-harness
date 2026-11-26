@@ -33,7 +33,7 @@ pub(crate) async fn handle(
             VerifyAccessTokenError::Unauthenticated(leaf) => unauthenticated(&leaf),
         }
         .into_response(),
-        Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()),
+        Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()).into_response(),
     }
 }
 

@@ -106,10 +106,31 @@ impl IntoResponse for Problem {
     }
 }
 
-/// Manejador del árbol B: registra por el puerto y responde genérico, sin detalle.
-pub fn unexpected(fault: &Fault, reporter: &dyn FaultReporter) -> Response {
+/// El 500 genérico del árbol B, ya reportado. Solo admite un `code` estable:
+/// sin `with_detail`, ningún detalle interno del `Fault` llega al cliente
+/// (ERR-4), y solo [`unexpected`] lo construye, así que no hay 500 sin reporte.
+#[derive(Debug)]
+#[must_use = "es la respuesta: conviértela con `.into_response()`"]
+pub struct UnexpectedProblem(Problem);
+
+impl UnexpectedProblem {
+    /// El `code` del 500, para el contexto que lo conserva (`codes::INTERNAL_ERROR`).
+    pub fn with_code(self, code: &'static str) -> Self {
+        Self(self.0.with_code(code))
+    }
+}
+
+impl IntoResponse for UnexpectedProblem {
+    fn into_response(self) -> Response {
+        self.0.into_response()
+    }
+}
+
+/// Manejador del árbol B: registra por el puerto y devuelve el 500 genérico,
+/// sin detalle.
+pub fn unexpected(fault: &Fault, reporter: &dyn FaultReporter) -> UnexpectedProblem {
     reporter.report(fault);
-    Problem::internal().into_response()
+    UnexpectedProblem(Problem::internal())
 }
 
 #[cfg(test)]
@@ -150,7 +171,8 @@ mod tests {
     async fn unexpected_reports_the_fault_and_hides_the_detail() {
         let reporter = SpyFaultReporterAdapter::default();
 
-        let response = unexpected(&Fault::new("db.internal:5432 refused"), &reporter);
+        let response =
+            unexpected(&Fault::new("db.internal:5432 refused"), &reporter).into_response();
 
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         assert!(!body(response).await.contains("db.internal"));
@@ -158,5 +180,23 @@ mod tests {
             *reporter.0.lock().unwrap(),
             vec!["db.internal:5432 refused"]
         );
+    }
+
+    /// Un proyecto que conserva `code` en el 500 se lo pone en su contexto,
+    /// como a cualquier otra hoja, sin reescribir `unexpected`.
+    #[tokio::test]
+    async fn unexpected_takes_the_code_of_the_context() {
+        let reporter = SpyFaultReporterAdapter::default();
+
+        let response = unexpected(&Fault::new("timeout"), &reporter)
+            .with_code("INTERNAL_ERROR")
+            .into_response();
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            body(response).await,
+            r#"{"type":"/problems/unexpected","title":"Unexpected error","status":500,"code":"INTERNAL_ERROR"}"#
+        );
+        assert_eq!(*reporter.0.lock().unwrap(), vec!["timeout"]);
     }
 }
