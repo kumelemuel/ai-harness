@@ -85,7 +85,7 @@ nombres de capa y la dirección de dependencias no.
 
 - Un puerto entrante por caso de uso: `{Verb}{Noun}UseCase`, con un único método `execute`, declarado en `application/ports/inbound`.
 - La implementación se llama `{Verb}{Noun}Handler`. Contrato e implementación tienen nombres distintos.
-- Separación comando / consulta: escrituras en `application/commands/{caso}`, lecturas en `application/queries/{caso}`. Cada caso agrupa su `Command` o `Query`, su `Response` (si hay payload), su `Error` (si tiene árbol A, ver `ERR-2`) y su `Handler`.
+- Separación comando / consulta: escrituras en `application/commands/{caso}`, lecturas en `application/queries/{caso}`. Cada caso agrupa su `Command` o `Query`, su `Response` (vacío si el caso no devuelve datos, nunca la unidad del lenguaje: así, agregar un dato no cambia la firma), su `Error` (si tiene árbol A, ver `ERR-2`) y su `Handler`.
 - Los DTOs del contrato son tipos de primer nivel junto al handler, no anidados en la interfaz.
 - El contrato (`Command`, `Query`, `Response`, `Error`) no expone tipos de `domain`: como `api` no ve `domain` (HEX-1), el contrato se expresa con tipos del lenguaje o de `application`.
 - El adaptador *driving* depende del `UseCase`, nunca del `Handler`.

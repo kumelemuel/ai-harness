@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.0-rc.3.4 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.4, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Cambiado
+- **Un caso de uso sin datos responde un `Response` vacío** (HEX-4): HEX-4 decía
+  "su `Response` (si hay payload)", y no quedaba claro si sin datos se respondía
+  `()`. La forma canónica es `pub struct {Verb}{Noun}Response;`: agregar un dato
+  no cambia la firma. `hex_4_use_case_signatures_are_their_own_contract` cuenta
+  `Result<(), …>` como **una** violación que nombra `()`, no dos (el tipo que
+  falta y la firma) con "un tipo que no es una ruta". Línea base, misma clave (el
+  archivo del puerto entrante): la entrada baja en uno si el `Response` no estaba
+  definido junto al handler, o estaba en otro directorio; si ya estaba, el conteo
+  queda igual y solo cambia el mensaje. Sincronizar
+  (`/craft-backend:adoption sincronizar <tag>`).
+
 ## 1.0.0-rc.3.3 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.3, `craft-web` 1.0.0-rc.1 (sin cambios).

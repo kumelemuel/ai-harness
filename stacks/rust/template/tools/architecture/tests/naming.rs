@@ -292,8 +292,19 @@ fn use_case_signature_violations(t: &syn::ItemTrait) -> Vec<(usize, String)> {
             violations.push((line, format!("`{name}::execute` no devuelve un `Result`: devuelve `Result<{response}, Failure<{error}>>`")));
             continue;
         };
+        if is_unit(ok) {
+            violations.push((
+                line,
+                format!(
+                    "`{name}::execute` responde `()`: responde `{response}`, un struct vacío \
+                     (`pub struct {response};`) si el caso de uso no devuelve datos, en \
+                     commands/{snake}/ o queries/{snake}/",
+                    snake = snake_case(stem)
+                ),
+            ));
+        }
         let ok = type_name(ok);
-        if ok != response {
+        if ok != response && ok != "()" {
             violations.push((
                 line,
                 format!("`{name}::execute` responde `{ok}`: responde `{response}`"),
@@ -317,6 +328,20 @@ fn use_case_signature_violations(t: &syn::ItemTrait) -> Vec<(usize, String)> {
     violations
 }
 
+fn is_unit(ty: &syn::Type) -> bool {
+    matches!(ty, syn::Type::Tuple(t) if t.elems.is_empty())
+}
+
+/// ¿`execute` responde `Result<(), …>`? Esa causa ya es una violación de la
+/// firma: el `Response` que falta no se cuenta otra vez.
+fn responds_unit(t: &syn::ItemTrait) -> bool {
+    t.items.iter().any(|item| {
+        matches!(item, syn::TraitItem::Fn(f) if f.sig.ident == "execute"
+            && matches!(&f.sig.output, syn::ReturnType::Type(_, out)
+                if result_args(out).is_some_and(|(ok, _)| is_unit(ok))))
+    })
+}
+
 /// Último segmento de un tipo de ruta (`a::b::C<…>` → `C`), con `&` si es una
 /// referencia.
 fn type_name(ty: &syn::Type) -> String {
@@ -328,6 +353,7 @@ fn type_name(ty: &syn::Type) -> String {
             .map(|s| s.ident.to_string())
             .unwrap_or_default(),
         syn::Type::Reference(r) => format!("&{}", type_name(&r.elem)),
+        syn::Type::Tuple(t) if t.elems.is_empty() => "()".into(),
         _ => "un tipo que no es una ruta".into(),
     }
 }
@@ -538,6 +564,29 @@ fn hex_4_use_case_signatures_are_their_own_contract() {
     );
 }
 
+/// Un caso de uso sin datos responde un `{Verb}{Noun}Response` vacío, no `()`:
+/// una sola violación, que nombra `()` (no además "no está definido").
+#[test]
+fn hex_4_a_unit_response_is_one_violation() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mixed");
+
+    let (violations, use_cases) = signature_violations(&common::crates_at(&fixture));
+
+    assert_eq!(use_cases, 2, "{violations:#?}");
+    assert_eq!(violations.len(), 2, "{violations:#?}");
+    for (case, snake) in [("ShipOrder", "ship_order"), ("VerifyOrder", "verify_order")] {
+        let expected = format!(
+            "`{case}UseCase::execute` responde `()`: responde `{case}Response`, un struct \
+             vacío (`pub struct {case}Response;`) si el caso de uso no devuelve datos, en \
+             commands/{snake}/ o queries/{snake}/"
+        );
+        assert!(
+            violations.iter().any(|v| v.contains(&expected)),
+            "{expected}\n{violations:#?}"
+        );
+    }
+}
+
 /// En legacy, `commands/` es `src/application/commands`.
 #[test]
 fn hex_4_use_case_signatures_are_checked_in_legacy_contexts() {
@@ -643,10 +692,8 @@ fn signature_violations(all: &[Crate]) -> (Vec<String>, usize) {
                 let input = [format!("{stem}Command"), format!("{stem}Query")];
                 let error = format!("{stem}Error");
                 let response = [format!("{stem}Response")];
-                for v in [misplaced(&input), misplaced(&response)]
-                    .into_iter()
-                    .flatten()
-                {
+                let response_missing = (!responds_unit(t)).then(|| misplaced(&response)).flatten();
+                for v in [misplaced(&input), response_missing].into_iter().flatten() {
                     violations.push(format!("{file}:{line}: {v}"));
                 }
                 if uses_type(t, &error) {
