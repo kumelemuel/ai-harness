@@ -1,0 +1,5 @@
+[package]
+name = "shop-application"
+
+[dependencies]
+kernel.workspace = true

@@ -57,6 +57,8 @@ adaptadores que fallan, traducción a HTTP) y `tdd` (cómo y en qué orden teste
   `execute` recibe solo su `{Verb}{Noun}Command` (o `Query`; la identidad del
   llamador va dentro) y devuelve su `{Verb}{Noun}Response` y su
   `{Verb}{Noun}Error`, definidos junto al handler. Nunca un error compartido.
+  Sin datos que devolver, el `Response` es un tipo vacío, nunca la unidad del
+  lenguaje (`()`, `void`).
   Sin árbol A, solo la falla excepcional y ningún tipo de error (ERR-1).
 - Implementación `{Verb}{Noun}Handler` en `commands/{caso}` o `queries/{caso}`,
   objeto plano con inyección por constructor.

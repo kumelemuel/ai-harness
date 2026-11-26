@@ -2,7 +2,7 @@
 # con contextos legacy (`iam`, `vault`) y uno separado (`shop`). No es miembro
 # de ningún workspace real; los tests solo lo leen.
 [workspace]
-members = ["kernel", "contexts/iam", "contexts/vault", "contexts/shop/api"]
+members = ["kernel", "contexts/iam", "contexts/vault", "contexts/shop/application", "contexts/shop/api"]
 
 [workspace.dependencies]
 kernel = { path = "kernel" }
