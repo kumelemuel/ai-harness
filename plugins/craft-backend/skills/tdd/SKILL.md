@@ -31,6 +31,22 @@ Fault con su test")`, nunca `let _ =` ni `.unwrap_or_default()` (ERR-1). El
 `?` llega en el commit siguiente, con el test de falla en rojo contra el commit
 padre.
 
+**Variante o tipo nuevo del contrato** (el test nombra uno que no existe): el
+rojo de compilación no cuenta. Tres commits:
+1. El contrato, que compila sin que nada lo produzca: la variante con su `From`
+   y, en el `fold` del borde, `Variante(_) => unreachable!("pendiente: traducir
+   Variante con su test")`, inalcanzable porque nada la produce.
+2. El test del endpoint, con un `Stub…UseCase` que devuelve la variante (rojo:
+   el brazo pendiente entra en pánico), y su helper.
+3. El test del handler, en rojo por su aserción, y la producción que la produce.
+Ningún commit deja una variante producida sin traducir. Un campo nuevo del
+`Command` o del `Response` no sigue esta receta: no compila sin llenarlo.
+
+**Test que fija comportamiento existente** (caracterización, o uno que
+faltaba): ya pasa, así que el rojo se ve por mutación. Rompe la línea de
+producción que exige, confirma que falla por la razón esperada, revierte y
+anótalo en el mensaje de commit (qué se mutó, qué test falló).
+
 ## Por dónde empezar (TDD-2)
 
 Un caso de uso nuevo empieza por el test de dominio o del handler, nunca por el

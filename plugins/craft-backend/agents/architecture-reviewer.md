@@ -67,6 +67,22 @@ arquitectura:
      llega en el commit siguiente, con su test de falla. Un `?` en el commit
      de la firma es TDD-1. Un `let _ =` o un valor por defecto en su lugar es
      ERR-1. Un `pendiente:` que sobrevive al final del rango es TDD-1.
+   - Una variante o un tipo nuevo del contrato: el contrato llega en un commit
+     propio, sin que nada lo produzca, con el brazo del `fold` en `pendiente:`.
+     Después, el test del endpoint con su helper, que reemplaza el brazo
+     pendiente. Por último, el test del handler con la producción que produce
+     la variante. Señales: el mismo commit agrega un test y la variante o el
+     tipo que nombra (rojo solo de compilación), o un commit hace alcanzable el
+     brazo pendiente (el handler produce la variante antes de su traducción):
+     TDD-1. Un brazo `pendiente:` al final del rango es TDD-1. Entre el commit
+     del contrato y el del handler, la variante sin productor no es ERR-2; al
+     final del rango sí lo es, y cada variante tiene su test de handler y de
+     endpoint.
+   - Un commit que agrega o cambia tests sin tocar producción fija
+     comportamiento existente: su mensaje anota la mutación con que se vio
+     fallar (qué se rompió, qué test falló). Sin esa nota, es TDD-1. Sin
+     commits (un diff sin commitear), pídela en el reporte en vez de darla por
+     violada.
    - Cada llamada de un handler, suscriptor o workflow a un puerto que puede
      fallar tiene un test que la hace fallar a ella (`failing_on` si no es la
      primera) y afirma el resultado; para un error declarado, el de su
@@ -88,9 +104,12 @@ arquitectura:
    Los tests y `testing.rs` están exentos. `tests/output.rs::rs_2_*` ya exige el
    prefijo: tu parte es que el invariante lo sea. `"pendiente: …"` solo vale en
    el commit que vuelve falible la firma de un puerto (TDD-1), y en el commit
-   siguiente del rango lo reemplaza el `?` con su test de falla. Un
+   siguiente del rango lo reemplaza el `?` con su test de falla. También en el
+   brazo del `fold` que exige una variante nueva del contrato
+   (`unreachable!("pendiente: …")`), hasta el commit de su test de endpoint. Un
    `"pendiente:"` que llega al final del rango, o que no está sobre una llamada
-   a un puerto que acaba de volverse falible, es RS-2.
+   a un puerto que acaba de volverse falible ni en el brazo del `fold` de una
+   variante nueva, es RS-2.
 
 Después revisa dependencias, vocabulario y nombres (HEX-1, HEX-2, HEX-3, HEX-4,
 HEX-5, HEX-6 y HEX-8). Si el

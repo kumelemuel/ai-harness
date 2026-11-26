@@ -71,6 +71,8 @@ cambiaron de mecanismo.
 | ERR-4 | Sin datos sensibles en errores, mensajes ni registros | `revisor:architecture-reviewer` | Prioridad 4 del revisor |
 | ERR-4 | El registro de negocio va por un puerto; el `FaultReporter` solo desde el manejador global | `revisor:architecture-reviewer` | Prioridad 4 del revisor |
 | TDD-1 | Test antes o junto a la producción (backend) | `revisor:architecture-reviewer` | Diff separado en producción y test, y orden de los commits |
+| TDD-1 | Una variante nueva del contrato entra sin productor y con el brazo del `fold` en `pendiente:`; después, el test del endpoint y el del handler | `revisor:architecture-reviewer` | Prioridad 5 del revisor: orden de commits y brazo `pendiente:` al final del rango |
+| TDD-1 | Un test que fija comportamiento existente anota en el commit la mutación con que se vio fallar | `revisor:architecture-reviewer` | Prioridad 5 del revisor: commit de solo tests sin la nota |
 | TDD-1 | Test antes o junto a la producción (sitios) | `revisor:site-auditor` | Paso 8 del auditor |
 | TDD-2 | Los tests del núcleo no levantan runtime ni framework | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` (lee `[dev-dependencies]`) |
 | TDD-2 | Dobles de puertos entrantes: `{Fake\|Fixed\|Stub\|Spy}{Puerto}`, sin `Adapter` | `test` | `tests/naming.rs::tdd_2_inbound_doubles_are_named_by_prefix_and_port` |
