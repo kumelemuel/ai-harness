@@ -47,7 +47,7 @@ nombres de capa y la dirección de dependencias no.
 
 **Violaciones típicas.** Un controller que inyecta un repositorio para "ahorrarse" un caso de uso. Un `TokenVerifier` en un módulo compartido que ven todos los contextos, o un contexto que importa la identidad de otro para leer la cuenta autenticada. Un adaptador de persistencia que devuelve un DTO HTTP. Un controller que importa un value object del dominio para construir el `Command`.
 
-**Verificación.** Test de arquitectura que falla el build (`VER-1`): `api` no importa `domain` ni `infrastructure`; `infrastructure` no importa `api`. Un adaptador driving tampoco nombra los puertos salientes de `application`: llama al caso de uso, no a lo que el caso de uso usa. Las dependencias declaradas no bastan cuando el adaptador comparte unidad de compilación con el dominio (un contexto sin separar): el test lee también los imports y las referencias del código. En Rust: `tests/dependencies.rs::hex_1_*` y `tests/naming.rs::hex_1_*`.
+**Verificación.** Test de arquitectura que falla el build (`VER-1`): `api` no importa `domain` ni `infrastructure`; `infrastructure` no importa `api`. Un adaptador driving tampoco nombra los puertos salientes de `application`: llama al caso de uso, no a lo que el caso de uso usa. Las dependencias declaradas no bastan cuando el adaptador comparte unidad de compilación con el dominio (un contexto sin separar), ni cuando nombra el dominio o un puerto saliente de otro contexto sin separar que su paquete declara: el test lee también los imports y las referencias del código. En Rust: `tests/dependencies.rs::hex_1_*` y `tests/naming.rs::hex_1_*`.
 
 ---
 

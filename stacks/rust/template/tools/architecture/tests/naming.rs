@@ -1399,6 +1399,28 @@ fn hex_8_renames_resolve_to_the_original_name() {
     assert_eq!(renames.get("Clock"), None);
 }
 
+/// Nombres con que el código de `from` escribe el crate `to`: la clave de la
+/// dependencia si la renombra (`identity = { package = "iam" }`), si no el
+/// `[lib] name` de `to`, si no su paquete; con `_`. Vacío si `from` no lo
+/// declara: entonces Cargo ya impide nombrarlo.
+fn extern_names(from: &Crate, to: &Crate) -> Vec<String> {
+    let lib = to
+        .manifest
+        .get("lib")
+        .and_then(|l| l.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(&to.name)
+        .to_string();
+    common::declared_dependencies(&from.manifest)
+        .into_iter()
+        .map(|(_, key, _)| key)
+        .zip(from.dependencies())
+        .filter(|(_, package)| *package == to.name)
+        .map(|(key, package)| if key == package { lib.clone() } else { key })
+        .map(|name| name.replace('-', "_"))
+        .collect()
+}
+
 /// HEX-1: violaciones de los adaptadores driving (`api`, también la capa
 /// virtual `infrastructure/http` de un contexto legacy) que nombran el dominio
 /// o un puerto saliente, y cuántos archivos revisó.
@@ -1429,20 +1451,31 @@ fn driving_import_violations(all: &[Crate]) -> (Vec<String>, usize) {
     let mut files = 0;
     for api in all.iter().filter(|c| c.layer == Layer::Api) {
         // Raíces del dominio y de application que ve este `api`: las de su
-        // contexto, `crate::…` en legacy, o todas para un `api` central.
+        // contexto, `crate::…` en legacy, o todas para un `api` central. Más las
+        // de los otros contextos legacy (`iam::domain`): Cargo solo lo impide
+        // si el manifiesto no declara el crate, y `hex_1_dependencies_*` lo
+        // cuenta por manifiesto, no por archivo.
         let roots = |layer: Layer| -> Vec<Vec<String>> {
+            let module = if layer == Layer::Domain {
+                "domain"
+            } else {
+                "application"
+            };
+            let other_legacy = all
+                .iter()
+                .filter(|c| c.layer == layer && c.legacy && c.context != api.context)
+                .flat_map(|c| extern_names(api, c))
+                .map(|name| vec![name, module.to_string()]);
             if api.legacy {
-                let name = if layer == Layer::Domain {
-                    "domain"
-                } else {
-                    "application"
-                };
-                return vec![vec!["crate".into(), name.into()]];
+                return std::iter::once(vec!["crate".into(), module.into()])
+                    .chain(other_legacy)
+                    .collect();
             }
             all.iter()
                 .filter(|c| c.layer == layer && !c.legacy)
                 .filter(|c| api.context.is_none() || c.context == api.context)
                 .map(|c| vec![c.name.replace('-', "_")])
+                .chain(other_legacy)
                 .collect()
         };
         let (domains, applications) = (roots(Layer::Domain), roots(Layer::Application));
@@ -1719,10 +1752,35 @@ fn hex_1_driving_adapters_are_checked_in_legacy_contexts() {
     assert_eq!(
         shown,
         [
+            "nombra un puerto saliente (`iam::application::ports::outbound::PasswordHashingService`)",
+            "nombra el dominio (`iam::domain::Account`)",
             "nombra un puerto saliente (`crate::application::ports::outbound::PasswordHashingService`)",
             "nombra el dominio (`crate::domain::Account`)",
             "nombra un puerto saliente (`ports::outbound::PasswordHashingService`)",
             "nombra el dominio (`super::super::domain::Account`)",
+        ],
+        "{violations:#?}"
+    );
+}
+
+/// Un `api` separado (o central) tampoco nombra un contexto legacy, con el
+/// nombre que el código le da: la clave renombrada o el `[lib] name`.
+#[test]
+fn hex_1_driving_adapters_see_other_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mixed");
+
+    let (violations, _) = driving_import_violations(&common::crates_at(&fixture));
+
+    let shown: Vec<&str> = violations
+        .iter()
+        .map(|v| v.split(": ").nth(1).unwrap_or(v))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            "nombra un puerto saliente (`identity::application::ports::outbound::PasswordHashingService`)",
+            "nombra el dominio (`identity::domain::Account`)",
+            "nombra el dominio (`vault_core::domain::Secret`)",
         ],
         "{violations:#?}"
     );

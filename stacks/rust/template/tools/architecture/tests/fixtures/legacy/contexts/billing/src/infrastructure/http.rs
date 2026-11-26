@@ -144,3 +144,11 @@ mod tests {
         matches!(error, ChargeError::Declined)
     }
 }
+
+// hex_1_driving_adapters_are_checked_in_legacy_contexts: el dominio y un puerto
+// saliente de otro contexto legacy (`iam`), por ruta y por `use`.
+use iam::application::ports::outbound::PasswordHashingService as _;
+
+pub fn owner() -> Option<iam::domain::Account> {
+    None
+}

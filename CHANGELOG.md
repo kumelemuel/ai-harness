@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0-rc.3.3 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.3, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Cambiado
+- **Driving ve otros contextos legacy** (HEX-1): `hex_1_driving_adapters_see_only_use_cases`
+  también falla si un adaptador driving nombra el dominio o un puerto saliente
+  de otro contexto legacy (`iam::domain::…`). En legacy solo miraba
+  `crate::domain`, y el cruce quedaba a cargo de `hex_1_dependencies_*`, que
+  cuenta por manifiesto: con la dependencia ya en la línea base, un uso nuevo
+  pasaba. Vale desde cualquier `api`, también uno ya separado, y resuelve el
+  nombre que el código le da al crate (clave renombrada o `[lib] name`). Un
+  proyecto con esos cruces suma violaciones a la entrada del archivo:
+  sincronizar (`/craft-backend:adoption sincronizar <tag>`).
+
 ## 1.0.0-rc.3.2 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.2, `craft-web` 1.0.0-rc.1 (sin cambios).

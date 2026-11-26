@@ -1,0 +1,9 @@
+[package]
+name = "shop-api"
+
+[dependencies]
+# El contexto legacy `iam`, renombrado: el código lo escribe `identity`.
+identity = { package = "iam", path = "../../iam" }
+# Otro crate que el código escribe `iam`: no es el contexto.
+iam = { package = "iam-client", version = "1" }
+vault = { path = "../../vault" }
