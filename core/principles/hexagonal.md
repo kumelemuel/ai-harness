@@ -59,7 +59,7 @@ nombres de capa y la dirección de dependencias no.
 
 **Violaciones típicas.** Anotaciones del framework en un handler "porque es más cómodo". Librerías utilitarias (Lombok, Vavr, lodash) colándose en el dominio. Un composition root que devuelve el tipo concreto.
 
-**Verificación.** Test de arquitectura: el núcleo no importa nada fuera de la lista permitida.
+**Verificación.** Test de arquitectura: el núcleo no importa nada fuera de la lista permitida. No basta con las dependencias declaradas: con un paquete ya tolerado (o, en un contexto sin separar, declarado para otra capa del mismo paquete), un import nuevo no cambia el manifiesto. El test lee también el código, archivo por archivo.
 
 ---
 

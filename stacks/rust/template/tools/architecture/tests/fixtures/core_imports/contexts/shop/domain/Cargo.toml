@@ -1,0 +1,19 @@
+[package]
+name = "shop-domain"
+
+# Toda dependencia externa está declarada: el test de manifiesto ya la ve, y
+# este fixture prueba que el de imports la vea también en cada archivo.
+[dependencies]
+k = { package = "kernel", path = "../../../kernel" }
+json.workspace = true
+serde = "1"
+uuid = "1"
+chrono = "0.4"
+rand = "0.8"
+money = "1"
+itertools = "0.13"
+log = "0.4"
+either = "1"
+
+[dev-dependencies]
+tokio = "1"

@@ -1,0 +1,8 @@
+# Fixture de tools/architecture (tests/dependencies.rs): imports del núcleo.
+# No es miembro de ningún workspace real; los tests solo lo leen.
+[workspace]
+members = ["kernel", "contexts/shop/domain"]
+
+[workspace.dependencies]
+kernel = { path = "kernel" }
+json = { package = "serde_json", version = "1" }

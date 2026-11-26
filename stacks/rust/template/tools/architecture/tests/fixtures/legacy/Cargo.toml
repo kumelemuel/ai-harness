@@ -6,3 +6,4 @@ members = ["shared", "contexts/iam", "contexts/billing"]
 [workspace.dependencies]
 shared = { path = "shared" }
 axum = "0.8"
+serde = "1"
