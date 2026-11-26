@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.0-rc.3.2 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.2, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Agregado
+- **Folds sin comodín** (ERR-4, VER-1): `err_4_driving_folds_are_exhaustive`
+  falla si un adaptador driving traduce un enum de application o del kernel con
+  un comodín (`_`, una variable, `..`, también anidado: `Err(_)`,
+  `Failure::Expected(_)`) o con un `if let`, `let … else` o `matches!`. Con
+  comodín, una variante nueva caía en una respuesta inventada en vez de no
+  compilar.
+
+### Cambiado
+- **`Field` cerrado en las hojas** (ERR-2, ERR-4): `Validation` y
+  `ContentRejected` nombran el campo con un enum del contexto, no con un
+  `&'static str`. El `fold` de la plantilla respondía 400 `INVALID_REQUEST` a un
+  campo desconocido, que es un defecto del servidor; ahora no compila. Un campo
+  con varios motivos de rechazo lleva el motivo en su variante
+  (`Field::Owner(OwnerRejection)`) en vez de una hoja propia. Se borra
+  `codes::INVALID_REQUEST`.
+
 ## 1.0.0-rc.3.1 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.1, `craft-web` 1.0.0-rc.1 (sin cambios).

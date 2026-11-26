@@ -1,24 +1,24 @@
 diff --git a/contexts/communities/api/src/codes.rs b/contexts/communities/api/src/codes.rs
-index 67952fc..d5c4c74 100644
+index f42def6..5fd9c0c 100644
 --- a/contexts/communities/api/src/codes.rs
 +++ b/contexts/communities/api/src/codes.rs
-@@ -5,5 +5,6 @@ pub const INVALID_COMMUNITY_SLUG: &str = "COMMUNITIES_INVALID_COMMUNITY_SLUG";
+@@ -4,5 +4,6 @@
+ pub const INVALID_COMMUNITY_SLUG: &str = "COMMUNITIES_INVALID_COMMUNITY_SLUG";
  pub const INVALID_COMMUNITY_NAME: &str = "COMMUNITIES_INVALID_COMMUNITY_NAME";
- pub const INVALID_REQUEST: &str = "COMMUNITIES_INVALID_REQUEST";
  pub const SLUG_ALREADY_EXISTS: &str = "COMMUNITIES_SLUG_ALREADY_EXISTS";
 +pub const RESERVED_SLUG: &str = "COMMUNITIES_RESERVED_SLUG";
  pub const CONTENT_REJECTED: &str = "COMMUNITIES_CONTENT_REJECTED";
  pub const DEPENDENCY_UNAVAILABLE: &str = "COMMUNITIES_DEPENDENCY_UNAVAILABLE";
 diff --git a/contexts/communities/api/src/create_community.rs b/contexts/communities/api/src/create_community.rs
-index 5853213..b8cd359 100644
+index bee7fd0..f9a7be2 100644
 --- a/contexts/communities/api/src/create_community.rs
 +++ b/contexts/communities/api/src/create_community.rs
 @@ -7,7 +7,7 @@ use communities_application::commands::create_community::{
      CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse,
  };
  use communities_application::errors::{
--    Conflict, ContentRejected, DependencyUnavailable, Validation,
-+    Conflict, ContentRejected, DependencyUnavailable, Reserved, Validation,
+-    Conflict, ContentRejected, DependencyUnavailable, Field, Validation,
++    Conflict, ContentRejected, DependencyUnavailable, Field, Reserved, Validation,
  };
  use edge_http::{AuthenticatedAccount, Problem, unexpected};
  use kernel::Failure;
@@ -30,12 +30,13 @@ index 5853213..b8cd359 100644
          }
          .into_response(),
          Err(Failure::Unexpected(fault)) => unexpected(&fault, api.faults.as_ref()),
-@@ -94,6 +95,10 @@ fn content_rejected(leaf: &ContentRejected) -> Problem {
-         .with_code(codes::CONTENT_REJECTED)
+@@ -106,6 +107,11 @@ fn content_rejected(leaf: &ContentRejected) -> Problem {
+     .with_code(codes::CONTENT_REJECTED)
  }
  
 +fn reserved(leaf: &Reserved) -> Problem {
-+    Problem::conflict(format!("{} is reserved", leaf.field)).with_code(codes::RESERVED_SLUG)
++    Problem::conflict(format!("{} is reserved", field_name(leaf.field)))
++        .with_code(codes::RESERVED_SLUG)
 +}
 +
  /// Sin el nombre de la dependencia en la respuesta: es un detalle interno.
@@ -70,41 +71,43 @@ index f0d306c..fb49348 100644
 +    }
 +}
 diff --git a/contexts/communities/application/src/commands/create_community/handler.rs b/contexts/communities/application/src/commands/create_community/handler.rs
-index d2338ff..9e0eb06 100644
+index b2716bd..573684f 100644
 --- a/contexts/communities/application/src/commands/create_community/handler.rs
 +++ b/contexts/communities/application/src/commands/create_community/handler.rs
-@@ -1,5 +1,5 @@
+@@ -1,5 +1,7 @@
  use super::{CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse};
--use crate::errors::{Conflict, ContentRejected, DependencyUnavailable, Validation};
-+use crate::errors::{Conflict, ContentRejected, DependencyUnavailable, Reserved, Validation};
+-use crate::errors::{Conflict, ContentRejected, DependencyUnavailable, Field, Validation};
++use crate::errors::{
++    Conflict, ContentRejected, DependencyUnavailable, Field, Reserved, Validation,
++};
  use crate::ports::inbound::CreateCommunityUseCase;
  use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
  use crate::ports::outbound::{CommunityEventPublisher, CommunityRepository, ModerationGateway};
-@@ -48,6 +48,12 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
+@@ -48,6 +50,12 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
              let name = CommunityName::new(command.name)
-                 .map_err(|_| Failure::expected(Validation { field: "name" }))?;
+                 .map_err(|_| Failure::expected(Validation { field: Field::Name }))?;
  
 +            // Los slugs `official-…` son de las cuentas del equipo.
 +            let (prefix, _) = slug.as_str().split_once('-').expect("slug con guion");
 +            if prefix == "official" && !command.owner_id.starts_with("staff-") {
-+                return Err(Failure::expected(Reserved { field: "slug" }));
++                return Err(Failure::expected(Reserved { field: Field::Slug }));
 +            }
 +
              // `find_*` devuelve Option; el caso de uso decide que existir es un
              // conflicto (ERR-1). `?` propaga el `Fault` como árbol B.
              if self.communities.find_by_slug(&slug).await?.is_some() {
 diff --git a/contexts/communities/application/src/errors.rs b/contexts/communities/application/src/errors.rs
-index b7acbec..2c5d589 100644
+index 6440990..a3e2b1e 100644
 --- a/contexts/communities/application/src/errors.rs
 +++ b/contexts/communities/application/src/errors.rs
-@@ -13,6 +13,12 @@ pub struct Conflict {
+@@ -24,6 +24,12 @@ pub struct Conflict {
      pub resource: &'static str,
  }
  
 +/// El recurso pedido está reservado para otra clase de cuenta.
 +#[derive(Debug, Clone, PartialEq, Eq)]
 +pub struct Reserved {
-+    pub field: &'static str,
++    pub field: Field,
 +}
 +
  /// Un colaborador revisó el contenido y lo rechazó (p. ej. la moderación).

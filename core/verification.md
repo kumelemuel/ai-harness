@@ -66,6 +66,7 @@ cambiaron de mecanismo.
 | ERR-3 | Semántica: rechazo como éxito, sin errores pensados para el transporte | `revisor:architecture-reviewer` | Prioridad 2 del revisor |
 | ERR-3 | Éxito degradado: un colaborador posterior a la confirmación no revierte el caso de uso | `revisor:architecture-reviewer` | Prioridad 2 del revisor |
 | ERR-4 | El núcleo no escribe en la salida | `test` | `tests/output.rs::err_4_core_does_not_write_to_output` |
+| ERR-4 | El `fold` de un adaptador driving nombra cada variante: sin comodín (también anidado, `Err(_)`, `..`) ni `if let`/`let … else`/`matches!` sobre un enum de application o del kernel, también en legacy. `Hoja(_)` sin otro brazo que nombre su contenido no cuenta | `test` | `tests/errors.rs::err_4_driving_folds_are_exhaustive`, `tests/errors.rs::err_4_driving_folds_are_checked_in_legacy_contexts` |
 | ERR-4 | El núcleo no importa transporte ni logging | `test` | `tests/dependencies.rs::hex_2_core_depends_only_on_std_and_the_kernel` |
 | ERR-4 | Sin datos sensibles en errores, mensajes ni registros | `revisor:architecture-reviewer` | Prioridad 4 del revisor |
 | ERR-4 | El registro de negocio va por un puerto; el `FaultReporter` solo desde el manejador global | `revisor:architecture-reviewer` | Prioridad 4 del revisor |

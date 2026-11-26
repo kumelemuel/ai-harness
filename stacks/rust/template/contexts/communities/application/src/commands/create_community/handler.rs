@@ -1,5 +1,5 @@
 use super::{CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse};
-use crate::errors::{Conflict, ContentRejected, DependencyUnavailable, Validation};
+use crate::errors::{Conflict, ContentRejected, DependencyUnavailable, Field, Validation};
 use crate::ports::inbound::CreateCommunityUseCase;
 use crate::ports::outbound::dtos::{ModerationError, ModerationVerdict, ReviewContentRequest};
 use crate::ports::outbound::{CommunityEventPublisher, CommunityRepository, ModerationGateway};
@@ -44,9 +44,9 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
         Box::pin(async move {
             // Errores de dominio → hoja plana del contrato, sin envolver (ERR-2).
             let slug = CommunitySlug::new(command.slug)
-                .map_err(|_| Failure::expected(Validation { field: "slug" }))?;
+                .map_err(|_| Failure::expected(Validation { field: Field::Slug }))?;
             let name = CommunityName::new(command.name)
-                .map_err(|_| Failure::expected(Validation { field: "name" }))?;
+                .map_err(|_| Failure::expected(Validation { field: Field::Name }))?;
 
             // `find_*` devuelve Option; el caso de uso decide que existir es un
             // conflicto (ERR-1). `?` propaga el `Fault` como árbol B.
@@ -75,7 +75,7 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
                 })?;
             if let ModerationVerdict::Rejected { reason } = verdict {
                 return Err(Failure::expected(ContentRejected {
-                    field: "name",
+                    field: Field::Name,
                     reason,
                 }));
             }
@@ -213,7 +213,7 @@ mod tests {
         assert!(matches!(
             result,
             Err(Failure::Expected(CreateCommunityError::Validation(
-                Validation { field: "slug" }
+                Validation { field: Field::Slug }
             )))
         ));
         assert!(repository.saved().is_empty());
@@ -228,7 +228,7 @@ mod tests {
         assert!(matches!(
             result,
             Err(Failure::Expected(CreateCommunityError::Validation(
-                Validation { field: "name" }
+                Validation { field: Field::Name }
             )))
         ));
     }
@@ -316,7 +316,7 @@ mod tests {
             matches!(
                 &result,
                 Err(Failure::Expected(CreateCommunityError::ContentRejected(
-                    ContentRejected { field: "name", reason }
+                    ContentRejected { field: Field::Name, reason }
                 ))) if !reason.is_empty()
             ),
             "{result:?}"

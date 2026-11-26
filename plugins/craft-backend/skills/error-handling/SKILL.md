@@ -34,6 +34,10 @@ Reglas:
   handler. Contiene **solo** las variantes que ese caso de uso puede producir.
 - Las hojas (`Validation`, `NotFound`, `Conflict`, `DependencyUnavailable`…) se
   comparten dentro del contexto en `application/errors`.
+- El campo que nombra una hoja es un enum cerrado del contexto (`Field`), nunca
+  un texto. Un campo con varios motivos de rechazo, cada uno con su código,
+  lleva el motivo en su variante (`Field::Owner(OwnerRejection)`); no es una
+  hoja nueva.
 - Sin error global del contexto (`AppError`) en las firmas.
 - El handler traduce errores de dominio y de puertos a **una hoja plana**. No los
   envuelve (`FromDomain`, `FromVault`).
@@ -66,7 +70,9 @@ Reglas:
 
 - Códigos de transporte solo en `api`. El núcleo no conoce `HttpStatus`.
 - `api` hace `fold` exhaustivo del error del caso de uso hacia RFC 9457
-  *Problem Details*, con un helper por hoja.
+  *Problem Details*, con un helper por hoja. Sin brazo comodín (`_`, una
+  variable, `Err(_)`) sobre el contrato ni sobre `Field`: una variante nueva
+  tiene que no compilar, no caer en un 400 genérico.
 - Árbol B: manejador global, respuesta genérica sin detalles internos y registro
   a través de un puerto saliente.
 - El núcleo no hace logging. Nunca datos sensibles ni secretos en errores,
