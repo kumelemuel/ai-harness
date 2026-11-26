@@ -58,7 +58,7 @@ sumó 7 falsos positivos o IDs equivocados, contra 0. `site-auditor` no tiene
 |------|--------|----------|
 | `SessionStart` | Al abrir la sesión, si `CRAFT_BACKEND_BASELINE_INIT=1` | Avisa al usuario y al agente que la sesión tiene el trinquete abierto |
 | `PreToolUse` | Antes de editar `tools/architecture/baseline.txt` | Bloquea la edición si agrega entradas o sube un conteo: la línea base solo se achica |
-| `PostToolUse` | Tras editar un `.rs` o `Cargo.toml` | `rustfmt` del archivo y tests de arquitectura; las violaciones vuelven al agente con su ID |
+| `PostToolUse` | Tras editar un `.rs` o `Cargo.toml` | `rustfmt` del archivo y tests de arquitectura; las violaciones vuelven al agente con su ID. Si un paso siguiente del mismo cambio las cierra (un cambio de varios archivos), el agente sigue sin hacer commit: el `Stop` solo vuelve a correrlos con cambios Rust sin commit |
 | `Stop` | Antes de que el agente termine, si hay cambios Rust | `clippy -D warnings` (solo crates de la arquitectura) + `cargo test --workspace`; si falla, no lo deja terminar (una vez por turno) |
 
 Variables: `CRAFT_BACKEND_HOOKS=0` apaga todos, `CRAFT_BACKEND_STOP_GATE=0` solo el
