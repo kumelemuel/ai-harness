@@ -27,7 +27,7 @@ principios no cambian; aquí se decide **cómo se expresan**.
 
 ```
 Cargo.toml                      workspace: members = ["kernel", "edge/*", "infrastructure/*", "contexts/*/*", "apps/*", "tools/*"]
-kernel/                         Result nativo, Fault, Failure, BoxFuture, marcadores y capacidades
+kernel/                         Result nativo, Fault, Failure, BoxFuture, marcadores (los que usa la plantilla; HEX-8 admite también Entity e Identifier) y capacidades
                                 (Clock, IdGenerator, FaultReporter). Solo std.
 edge/http/                      Borde compartido: Problem Details, AuthenticatedAccount, unexpected(). → kernel
 infrastructure/{tecnología}/    Infraestructura compartida: adaptadores de las capacidades del kernel

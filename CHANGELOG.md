@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0-rc.3.7 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.7, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Cambiado
+- **`Entity` e `Identifier` son marcadores admitidos** (HEX-8): `MODEL_MARKERS`
+  los lista y `kernel/src/model.rs` no los trae, y no quedaba claro si eran un
+  resto. La lista es la de los admitidos; la plantilla define solo los que usa.
+  Un proyecto que usa `Entity` lo conserva, sin ítems, en vez de borrarlo.
+
 ## 1.0.0-rc.3.6 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.6, `craft-web` 1.0.0-rc.1 (sin cambios).

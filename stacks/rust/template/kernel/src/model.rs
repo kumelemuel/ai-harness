@@ -1,3 +1,8 @@
+//! Marcadores de modelo (HEX-8). La plantilla define los que usa. HEX-8 admite
+//! también `Entity` e `Identifier` (`MODEL_MARKERS` de `tools/architecture`):
+//! un proyecto que los necesita los agrega aquí, igual que estos: sin ítems, y
+//! como supertrait solo rasgos estándar u otro marcador, nunca una capacidad.
+
 /// Marcador de value object: igualdad por valor, inmutable.
 pub trait ValueObject: Clone + Eq {}
 
