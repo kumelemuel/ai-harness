@@ -1,0 +1,6 @@
+[package]
+name = "vault"
+
+# El código lo nombra `vault_core`, no `vault`.
+[lib]
+name = "vault_core"

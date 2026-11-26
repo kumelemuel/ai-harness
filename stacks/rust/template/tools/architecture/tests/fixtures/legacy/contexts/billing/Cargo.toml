@@ -3,3 +3,5 @@ name = "billing"
 
 [dependencies]
 shared.workspace = true
+# Cruce entre contextos legacy: hex_1_driving_adapters_are_checked_in_legacy_contexts.
+iam.workspace = true

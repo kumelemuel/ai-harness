@@ -7,3 +7,4 @@ members = ["shared", "contexts/iam", "contexts/billing"]
 shared = { path = "shared" }
 axum = "0.8"
 serde = "1"
+iam = { path = "contexts/iam" }
