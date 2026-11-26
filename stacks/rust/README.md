@@ -372,6 +372,7 @@ cada invocación.
 | HEX-1 dependencias hacia adentro, `api` solo ve el `application` de su contexto y `edge`, sin cruces entre contextos | `tests/dependencies.rs::hex_1_*` (lee los `Cargo.toml`) + Cargo | `cargo test` |
 | HEX-1 adaptador driving: `api` (y `infrastructure/http` en legacy) no nombra el dominio ni `ports::outbound`, ni en `use` (también por un módulo padre importado o un glob) ni en rutas del código. En legacy, Cargo no lo impide porque comparten crate. Un `api` central ve todos los contextos. No lee dentro de macros | `tests/naming.rs::hex_1_driving_adapters_see_only_use_cases` (`syn`) | `cargo test` |
 | HEX-2 núcleo solo con `std` + kernel; TDD-2 sus tests tampoco usan runtime ni framework (lee también `[dev-dependencies]`) | `tests/dependencies.rs::hex_2_core_*` | `cargo test` |
+| HEX-2 el código de kernel, domain y application no nombra un crate externo: `use` (también en grupo o con alias), `extern crate`, o el primer segmento de una ruta, también dentro de macros, de `derive(…)` y de `cfg_attr(…)`. Lo local (módulos e ítems del archivo, lo importado de `crate`, `self` o `super`) y los crates del workspace, también renombrados, no cuentan. Clave por archivo, una violación por crate: con el paquete ya en la línea base, un `use` nuevo en otro archivo falla. Lee `src/` y `tests/` de cada capa; no lee `build.rs`, `benches/` ni `examples/`, ni el `tests/` de un contexto legacy, que no es de una capa | `tests/dependencies.rs::hex_2_core_imports_*` (`syn`) | `cargo test` |
 | HEX-2 frameworks de servidor solo en `api`, `edge` y bootstrap | `tests/dependencies.rs::hex_2_server_*` | `cargo test` |
 | HEX-3 `domain` no ve `application` | Cargo (no está declarado) + `hex_1_*` | compilación |
 | HEX-3 `domain` no declara puertos: no nombra `BoxFuture`, `Fault` ni `Failure` del kernel (por ruta, por nombre importado o con alias, también dentro de macros; `use kernel::*` falla porque no se puede verificar). El criterio es semántico, no de nombres: un puerto implica E/S | `tests/ports.rs::hex_3_*` (`syn` + tokens) | `cargo test` |
@@ -526,7 +527,10 @@ se migra. `tools/architecture/tests/common/mod.rs` trae un modo legacy:
   el proyecto usa otros. Todas comparten el manifiesto, así que lo que declara cuenta en cada
   capa: un contexto legacy con `axum` viola HEX-2 en domain y en application
   hasta que se separe. Esas violaciones van a la línea base (la misma clave
-  `ruta/Cargo.toml#…` con su conteo).
+  `ruta/Cargo.toml#…` con su conteo). Como el manifiesto no distingue capas,
+  `hex_2_core_imports_only_std_and_the_kernel` cuenta además cada archivo de
+  domain, application y del kernel que nombra el crate: un `use` nuevo en
+  otro archivo falla aunque el paquete ya tenga entrada.
 - **HEX-4 actúa en legacy:** en application, el dominio es `crate::domain`
   (también importado, por nombre o con `super::…::domain`), así que un
   contrato que lo expone se detecta antes de separar el crate. Las reglas de

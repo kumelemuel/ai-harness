@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.0-rc.3.1 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.1, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Agregado
+- **Imports del núcleo por archivo** (HEX-2, VER-1): `hex_2_core_imports_only_std_and_the_kernel`
+  falla si un archivo de kernel, domain o application nombra un crate externo.
+  `hex_2_core_depends_only_on_std_and_the_kernel` cuenta por manifiesto: con el
+  paquete ya en la línea base, o declarado en un contexto legacy para otra capa,
+  un `use` nuevo pasaba en verde. Así entró `uuid` a un dominio en una adopción.
+  Una entrada nueva por archivo (`n` = crates distintos). Un proyecto con
+  entradas `hex_2_core_*` de manifiesto suma las de sus archivos al sincronizar.
+
 ## 1.0.0-rc.3 — 2026-11-25
 
 Plugins: `craft-backend` 1.0.0-rc.3 y `craft-web` 1.0.0-rc.1 (sin cambios).

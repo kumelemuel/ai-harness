@@ -8,6 +8,8 @@ use crate::application::ports;
 use crate::application::ports::inbound::RegisterAccountUseCase;
 use crate::application::ports::outbound::PasswordHashingService;
 use crate::domain::Account;
+// Api: puede nombrar `axum` (hex_2_core_imports_… no lo cuenta).
+use axum::Json as _;
 
 pub struct AxumRegisterAccountRoute;
 

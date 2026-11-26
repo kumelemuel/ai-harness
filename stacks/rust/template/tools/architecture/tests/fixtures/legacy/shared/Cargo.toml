@@ -1,2 +1,5 @@
 [package]
 name = "shared"
+
+[dependencies]
+serde.workspace = true
