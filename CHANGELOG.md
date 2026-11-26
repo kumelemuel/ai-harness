@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0-rc.3.6 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.3.6, `craft-web` 1.0.0-rc.1 (sin cambios).
+
+### Agregado
+- **El rojo de una variante nueva del contrato** (TDD-1): si el test nombra una
+  variante o un tipo que no existe, su rojo es de compilación y no prueba nada.
+  El contrato entra primero, sin que nada lo produzca y con el brazo del `fold`
+  en `pendiente:`; después, el test del endpoint con su traducción y, por
+  último, el del handler en rojo por aserción. Ningún commit responde un rechazo
+  de negocio con un pánico. Un campo nuevo no sigue esta receta. Un test que
+  fija comportamiento existente se ve en rojo por mutación, anotada en el
+  commit. En el principio, la skill `tdd`, el README del stack y el revisor
+  (TDD-1 y el `pendiente:` de RS-2).
+
 ## 1.0.0-rc.3.5 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.5, `craft-web` 1.0.0-rc.1 (sin cambios).
