@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0-rc.4 — 2026-11-26
+
+Plugins: `craft-backend` 1.0.0-rc.4 y `craft-web` 1.0.0-rc.1 (sin cambios).
+
+Candidata a 1.0.0. Cierra las fricciones P2 de §6 de la adopción en
+kumenity-backend-rust y la de `unexpected()` sin `code` (1.0.0-rc.3.1 a
+1.0.0-rc.3.8): imports del núcleo por archivo, `Field` cerrado y folds sin
+comodín, driving que ve otros contextos legacy, `Response` vacío en vez de `()`,
+`unexpected()` con `code`, el rojo de una variante nueva del contrato,
+`Entity`/`Identifier` admitidos y el aviso de `post-edit` en estados
+intermedios. Sin cambios de contenido respecto de 1.0.0-rc.3.8.
+
+### Katas
+- `main` (1.0.0-rc.3.8) contra `v1.0.0-rc.3` como control intercalado: 3/3 en
+  las tres katas en las dos configuraciones. Renombre $0.76 frente a $0.76,
+  slug $0.49 frente a $0.53, revisión $0.25 frente a $0.23: rangos solapados en
+  las tres, ningún efecto establecido. El revisor detecta las cuatro violaciones
+  plantadas en las 6 corridas (`evals/README.md`).
+
 ## 1.0.0-rc.3.8 — 2026-11-26
 
 Plugins: `craft-backend` 1.0.0-rc.3.8, `craft-web` 1.0.0-rc.1 (sin cambios).
