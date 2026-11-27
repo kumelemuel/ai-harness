@@ -393,6 +393,39 @@ usuario. Por corrida: renombrar 3, 5 y 3; buscar por slug 0, 4 y 0.
 sus dos `StubUseCase`. Aclara además que un `Fake` puede exponer lo que
 recibió.
 
+### Candidata 1.0.0-rc.4 (contra 1.0.0-rc.3)
+
+`main` en `ca63d84` (1.0.0-rc.3.8) contra `v1.0.0-rc.3` (`52abe35`) con
+`--harness-ref`, 2026-11-26, las dos configuraciones en paralelo kata por kata.
+Sonnet implementa; en la revisión, Haiku en la sesión y el revisor en Opus (su
+`model:`). Entre las dos cambian las skills `tdd`, `error-handling` y
+`hexagonal-architecture`, el revisor (TDD-1 y RS-2), los hooks `post-edit` y
+`Stop` (mensajes) y los principios TDD-1, ERR-2, ERR-4, HEX-1, HEX-2, HEX-4 y
+HEX-8. La plantilla sale del clon en las dos.
+
+| Kata | Configuración | Aceptación | Costo | Turnos | Peticiones |
+|---|---|---|---|---|---|
+| rust-rename-community | main | 3/3 | $0.76 ($0.64–$0.87) | 76 (66–81) | 22 (15–26) |
+| rust-rename-community | control | 3/3 | $0.76 ($0.67–$0.90) | 56 (49–78) | 21 (15–26) |
+| rust-community-by-slug | main | 3/3 | $0.49 ($0.42–$0.52) | 55 (49–59) | 13 (11–14) |
+| rust-community-by-slug | control | 3/3 | $0.53 ($0.50–$0.56) | 60 (53–64) | 15 (13–16) |
+| review-planted-subagent | main | 3/3 | $0.25 ($0.25–$0.28) | 3 (3–8) | 10 (9–13) |
+| review-planted-subagent | control | 3/3 | $0.23 ($0.16–$0.27) | 4 (3–7) | 9 (6–11) |
+
+- Los rangos se solapan en las tres katas: ningún efecto establecido. En slug,
+  apenas ($0.50–$0.52).
+- El revisor detectó las cuatro violaciones plantadas (HEX-7, ERR-2, RS-2,
+  TDD-1) en las 6 corridas. Un bloqueo del gate de Stop por corrida de revisión
+  en las dos configuraciones, como en rc.3 (`rs_2_expect_names_the_invariant`).
+- Una corrida de renombre de `main` tuvo 3 avisos de `post-edit` y terminó en
+  verde; ninguna otra tuvo bloqueos de `post-edit`.
+- Corridas: una primera ronda solo de `main` (`1.0.0-rc4-*.json`, sin control
+  por un error de argumentos del lanzador: 3/3 en las tres, $0.74, $0.56 y
+  $0.28) no se compara. La ronda intercalada (`1.0.0-rc4b-*.json`) se cortó por
+  el límite de uso: 16 corridas inválidas, repetidas con la misma etiqueta en
+  otra ventana, las dos configuraciones juntas. Costo total, con la ronda sin
+  control y las inválidas: unos $14.40.
+
 ### Candidata 1.0.0-rc.3 (contra 1.0.0-rc.2)
 
 `main` en `32e2ca3` (1.0.0-rc.2.8) contra `v1.0.0-rc.2` (`451fec9`) con
